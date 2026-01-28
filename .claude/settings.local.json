@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir:*)",
+      "Bash(Get-ChildItem -Path \"D:\\\\Projects-Personal\\\\ClipVault\" -Force -Recurse)",
+      "Bash(Select-Object FullName)",
+      "WebSearch"
+    ]
+  }
+}

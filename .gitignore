@@ -1,0 +1,98 @@
+# Build results
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.rsuser
+
+# Rider
+.idea/
+
+# VS Code (keep .vscode for settings if needed)
+# .vscode/
+
+# NuGet
+*.nupkg
+*.snupkg
+**/[Pp]ackages/*
+!**/[Pp]ackages/build/
+*.nuget.props
+*.nuget.targets
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+# .NET
+*.dll
+*.exe
+*.pdb
+*.mdb
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Mac
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# FFmpeg binaries (user must provide)
+tools/ffmpeg.exe
+tools/ffprobe.exe
+tools/ffplay.exe
+tools/*.dll
+
+# Output clips (don't commit user clips)
+Clips/
+
+# Logs
+*.log
+
+# User-specific config overrides
+config/settings.local.json
+
+# Test results
+TestResults/
+[Tt]est[Rr]esult*/
+coverage/
+*.coverage
+*.coveragexml
+
+# Benchmark results
+BenchmarkDotNet.Artifacts/
+
+# JetBrains Rider
+*.sln.iml
+
+# NCrunch
+*.ncrunch*
+_NCrunch_*
+.*crunch*.local.xml
+nCrunchTemp_*
+
+# Telerik's JustMock
+*.jmconfig
+
+# PublishProfiles
+*.pubxml
+*.publishproj
+
+# Application Insights
+ApplicationInsights.config

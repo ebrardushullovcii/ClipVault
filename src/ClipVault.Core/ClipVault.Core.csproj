@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>ClipVault.Core</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- WinRT interop for Windows.Graphics.Capture -->
+    <PackageReference Include="Microsoft.Windows.CsWinRT" Version="2.2.0" />
+    
+    <!-- DirectX interop -->
+    <PackageReference Include="Vortice.Direct3D11" Version="3.6.0" />
+    <PackageReference Include="Vortice.DXGI" Version="3.6.0" />
+    
+    <!-- Audio capture -->
+    <PackageReference Include="NAudio" Version="2.2.1" />
+    
+    <!-- FFmpeg bindings -->
+    <PackageReference Include="FFmpeg.AutoGen" Version="7.0.0" />
+  </ItemGroup>
+
+</Project>

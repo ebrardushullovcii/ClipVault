@@ -1,0 +1,12 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "instructions": [
+    "AGENTS.md",
+    "TODO.md",
+    "docs/CONVENTIONS.md",
+    "docs/PLAN.md"
+  ],
+  "watcher": {
+    "ignore": ["bin/**", "obj/**", ".vs/**", "Clips/**", "tools/**"]
+  }
+}

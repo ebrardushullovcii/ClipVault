@@ -54,6 +54,10 @@ docs/
 - Always use async/await for I/O
 - Implement IDisposable for unmanaged resources
 
+## Important Rules
+
+- **NEVER commit changes to git** - The user will commit manually
+
 ## Key Interfaces
 
 ```csharp
@@ -104,7 +108,7 @@ public interface IAudioCapture : IDisposable
 
 ```bash
 dotnet build                    # Build all
-dotnet run --project src/ClipVault.Service  # Run service
+dotnet run                      # Run service (from root)
 dotnet publish -c Release       # Release build
 ```
 

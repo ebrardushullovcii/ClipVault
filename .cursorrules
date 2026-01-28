@@ -20,7 +20,8 @@ You are working on ClipVault, a Windows game clipping software in C#/.NET 8.
 
 ## Key Rules
 
-1. Keep ClipVault.Core free of UI dependencies
+1. NEVER commit changes to git - the user will commit manually
+2. Keep ClipVault.Core free of UI dependencies
 2. All capture implementations must implement IScreenCapture
 3. Copy audio buffers immediately in event handlers (they're reused!)
 4. Use GPU memory for frames until encoding

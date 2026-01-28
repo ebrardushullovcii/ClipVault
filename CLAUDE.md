@@ -33,6 +33,10 @@ See `docs/CONVENTIONS.md` for full code style guide. Key points:
 - Private fields: `_camelCase`
 - Always async/await for I/O
 
+## Important Rules
+
+- **NEVER commit changes to git** - The user will commit manually
+
 ## Important Technical Notes
 
 ### Screen Capture
@@ -89,8 +93,8 @@ dotnet build
 # Build specific project
 dotnet build src/ClipVault.Core/ClipVault.Core.csproj
 
-# Run service
-dotnet run --project src/ClipVault.Service/ClipVault.Service.csproj
+# Run service (from root)
+dotnet run
 
 # Publish release
 dotnet publish -c Release -r win-x64 --self-contained

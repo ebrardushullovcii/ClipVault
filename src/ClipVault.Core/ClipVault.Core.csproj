@@ -14,8 +14,8 @@
     <PackageReference Include="Microsoft.Windows.CsWinRT" Version="2.2.0" />
     
     <!-- DirectX interop -->
-    <PackageReference Include="Vortice.Direct3D11" Version="3.6.0" />
-    <PackageReference Include="Vortice.DXGI" Version="3.6.0" />
+<PackageReference Include="Vortice.Direct3D11" Version="3.6.2" />
+    <PackageReference Include="Vortice.DXGI" Version="3.6.2" />
     
     <!-- Audio capture -->
     <PackageReference Include="NAudio" Version="2.2.1" />

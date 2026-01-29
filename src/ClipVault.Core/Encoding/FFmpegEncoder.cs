@@ -78,6 +78,7 @@ public sealed class FFmpegEncoder : IEncoder
         var outputDir = Path.GetDirectoryName(outputPath)!;
         var tempVideoFile = Path.Combine(outputDir, "temp_video.bin");
         var tempAudioFile = Path.Combine(outputDir, "temp_audio.bin");
+        var tempMicAudioFile = Path.Combine(outputDir, "temp_mic_audio.bin");
 
         try
         {
@@ -96,11 +97,13 @@ public sealed class FFmpegEncoder : IEncoder
                 }
             }
 
-            // Step 2: Write audio to temp file (if available)
-            var hasAudio = systemAudio.Count > 0;
-            if (hasAudio)
+            // Step 2: Write audio to temp file(s)
+            var hasSystemAudio = systemAudio.Count > 0;
+            var hasMicAudio = micAudio != null && micAudio.Count > 0;
+
+            if (hasSystemAudio)
             {
-                Logger.Info("Step 2: Writing audio...");
+                Logger.Info("Step 2: Writing system audio...");
                 using (var fs = new FileStream(tempAudioFile, FileMode.Create, FileAccess.Write, FileShare.None, 1024 * 1024))
                 {
                     foreach (var chunk in systemAudio)
@@ -110,16 +113,43 @@ public sealed class FFmpegEncoder : IEncoder
                     }
                 }
                 var audioSize = new FileInfo(tempAudioFile).Length;
-                Logger.Info($"Audio: {audioSize / 1024}KB");
+                Logger.Info($"System audio: {audioSize / 1024}KB");
+            }
+
+            if (hasMicAudio)
+            {
+                Logger.Info("Step 2b: Writing microphone audio...");
+                using (var fs = new FileStream(tempMicAudioFile, FileMode.Create, FileAccess.Write, FileShare.None, 1024 * 1024))
+                {
+                    foreach (var chunk in micAudio!)
+                    {
+                        if (chunk.Samples != null && chunk.Samples.Length > 0)
+                            fs.Write(chunk.Samples, 0, chunk.Samples.Length);
+                    }
+                }
+                var micAudioSize = new FileInfo(tempMicAudioFile).Length;
+                Logger.Info($"Mic audio: {micAudioSize / 1024}KB");
             }
 
             // Step 3: Run FFmpeg
             Logger.Info("Step 3: Encoding...");
 
             string args;
-            if (hasAudio)
+            if (hasSystemAudio && hasMicAudio)
             {
-                // Video + Audio
+                args = $"-y " +
+                       $"-f rawvideo -pixel_format bgra -video_size {settings.Width}x{settings.Height} -framerate {settings.Fps} -i \"{tempVideoFile}\" " +
+                       $"-f f32le -ar {settings.AudioSampleRate} -ac 2 -i \"{tempAudioFile}\" " +
+                       $"-f f32le -ar {settings.AudioSampleRate} -ac 2 -i \"{tempMicAudioFile}\" " +
+                       $"-c:v h264_nvenc -preset p4 -rc constqp -qp 23 " +
+                       $"-c:a aac -b:a 192k " +
+                       $"-c:a aac -b:a 192k " +
+                       $"-map 0:v -map 1:a -map 2:a " +
+                       $"-shortest " +
+                       $"\"{outputPath}\"";
+            }
+            else if (hasSystemAudio)
+            {
                 args = $"-y " +
                        $"-f rawvideo -pixel_format bgra -video_size {settings.Width}x{settings.Height} -framerate {settings.Fps} -i \"{tempVideoFile}\" " +
                        $"-f f32le -ar {settings.AudioSampleRate} -ac 2 -i \"{tempAudioFile}\" " +
@@ -128,9 +158,18 @@ public sealed class FFmpegEncoder : IEncoder
                        $"-shortest " +
                        $"\"{outputPath}\"";
             }
+            else if (hasMicAudio)
+            {
+                args = $"-y " +
+                       $"-f rawvideo -pixel_format bgra -video_size {settings.Width}x{settings.Height} -framerate {settings.Fps} -i \"{tempVideoFile}\" " +
+                       $"-f f32le -ar {settings.AudioSampleRate} -ac 2 -i \"{tempMicAudioFile}\" " +
+                       $"-c:v h264_nvenc -preset p4 -rc constqp -qp 23 " +
+                       $"-c:a aac -b:a 192k " +
+                       $"-shortest " +
+                       $"\"{outputPath}\"";
+            }
             else
             {
-                // Video only
                 args = $"-y " +
                        $"-f rawvideo -pixel_format bgra -video_size {settings.Width}x{settings.Height} -framerate {settings.Fps} -i \"{tempVideoFile}\" " +
                        $"-c:v h264_nvenc -preset p4 -rc constqp -qp 23 " +
@@ -173,6 +212,7 @@ public sealed class FFmpegEncoder : IEncoder
         {
             try { File.Delete(tempVideoFile); } catch { }
             try { File.Delete(tempAudioFile); } catch { }
+            try { File.Delete(tempMicAudioFile); } catch { }
         }
 
         progress?.Report(1.0);

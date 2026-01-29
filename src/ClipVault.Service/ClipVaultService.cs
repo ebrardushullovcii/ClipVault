@@ -22,10 +22,12 @@ public sealed class ClipVaultService : IDisposable
     private GameDatabase _gameDatabase = null!;
     private IGameDetector _gameDetector = null!;
     private IScreenCapture? _screenCapture;
-    private IAudioCapture? _audioCapture;
+    private IAudioCapture? _systemAudioCapture;
+    private IAudioCapture? _microphoneCapture;
     private HotkeyManager? _hotkeyManager;
     private VideoFrameBuffer? _videoBuffer;
-    private AudioSampleBuffer? _audioBuffer;
+    private AudioSampleBuffer? _systemAudioBuffer;
+    private AudioSampleBuffer? _microphoneAudioBuffer;
 
     private bool _isCapturing;
     private bool _disposed;
@@ -97,7 +99,11 @@ public sealed class ClipVaultService : IDisposable
         var fps = _configManager.Config.Quality.Fps;
 
         _videoBuffer = new VideoFrameBuffer(fps, bufferSeconds);
-        _audioBuffer = new AudioSampleBuffer(
+        _systemAudioBuffer = new AudioSampleBuffer(
+            _configManager.Config.Audio.SampleRate,
+            2,
+            bufferSeconds);
+        _microphoneAudioBuffer = new AudioSampleBuffer(
             _configManager.Config.Audio.SampleRate,
             2,
             bufferSeconds);
@@ -223,20 +229,37 @@ public sealed class ClipVaultService : IDisposable
             _screenCapture = null;
         }
 
-        // Only start audio capture once (keep it running across focus changes)
-        if (_configManager.Config.Audio.CaptureSystemAudio && _audioCapture == null)
+        // Start system audio capture
+        if (_configManager.Config.Audio.CaptureSystemAudio && _systemAudioCapture == null)
         {
             try
             {
-                _audioCapture = new SystemAudioCapture();
-                _audioCapture.DataAvailable += OnAudioAvailable;
-                _ = _audioCapture.StartAsync();
-                Logger.AudioStarted(_audioCapture.Format.SampleRate, _audioCapture.Format.Channels);
+                _systemAudioCapture = new SystemAudioCapture();
+                _systemAudioCapture.DataAvailable += OnSystemAudioAvailable;
+                _ = _systemAudioCapture.StartAsync();
+                Logger.AudioStarted(_systemAudioCapture.Format.SampleRate, _systemAudioCapture.Format.Channels);
             }
             catch (Exception ex)
             {
-                Logger.AudioFailed(ex.Message);
-                _audioCapture = null;
+                Logger.AudioFailed("System: " + ex.Message);
+                _systemAudioCapture = null;
+            }
+        }
+
+        // Start microphone capture
+        if (_configManager.Config.Audio.CaptureMicrophone && _microphoneCapture == null)
+        {
+            try
+            {
+                _microphoneCapture = new MicrophoneCapture();
+                _microphoneCapture.DataAvailable += OnMicrophoneAudioAvailable;
+                _ = _microphoneCapture.StartAsync();
+                Logger.Info($"Microphone started: {_microphoneCapture.Format.SampleRate}Hz, {_microphoneCapture.Format.Channels}ch");
+            }
+            catch (Exception ex)
+            {
+                Logger.AudioFailed("Microphone: " + ex.Message);
+                _microphoneCapture = null;
             }
         }
 
@@ -277,11 +300,12 @@ public sealed class ClipVaultService : IDisposable
         Directory.CreateDirectory(outputDir);
 
         var frames = _videoBuffer?.GetAll() ?? Array.Empty<CoreEncoding.TimestampedFrame>();
-        var audioSamples = _audioBuffer?.GetAll() ?? Array.Empty<CoreEncoding.TimestampedAudio>();
+        var systemAudio = _systemAudioBuffer?.GetAll() ?? Array.Empty<CoreEncoding.TimestampedAudio>();
+        var micAudio = _microphoneAudioBuffer?.GetAll() ?? Array.Empty<CoreEncoding.TimestampedAudio>();
 
         var duration = _videoBuffer?.GetBufferedDuration(_configManager.Config.Quality.Fps) ?? TimeSpan.Zero;
 
-        Logger.Info($"Buffered frames: {frames.Length}, audio samples: {audioSamples.Length}");
+        Logger.Info($"Buffered frames: {frames.Length}, system audio: {systemAudio.Length}, mic audio: {micAudio.Length}");
 
         var videoPath = Path.Combine(outputDir, "clip.mp4");
 
@@ -308,8 +332,8 @@ public sealed class ClipVaultService : IDisposable
             encoder.EncodeAsync(
                 videoPath,
                 frames.ToList(),
-                audioSamples.ToList(),
-                null,
+                systemAudio.ToList(),
+                micAudio.ToList(),
                 settings,
                 null,
                 CancellationToken.None).GetAwaiter().GetResult();
@@ -325,7 +349,8 @@ public sealed class ClipVaultService : IDisposable
             Timestamp = timestamp,
             Duration = duration,
             VideoFrames = frames.Length,
-            AudioSamples = audioSamples.Length,
+            SystemAudioSamples = systemAudio.Length,
+            MicrophoneAudioSamples = micAudio.Length,
             Resolution = $"{_configManager.Config.Quality.Resolution}",
             Fps = _configManager.Config.Quality.Fps
         };
@@ -352,17 +377,31 @@ public sealed class ClipVaultService : IDisposable
     }
 
     private static int _audioChunkCount = 0;
-    private void OnAudioAvailable(object? sender, AudioDataEventArgs e)
+    private void OnSystemAudioAvailable(object? sender, AudioDataEventArgs e)
     {
         _audioChunkCount++;
         if (_audioChunkCount <= 3)
-            Logger.Debug($"OnAudioAvailable called #{_audioChunkCount}: {e.BytesRecorded} bytes");
+            Logger.Debug($"SystemAudio callback #{_audioChunkCount}: {e.BytesRecorded} bytes");
 
-        if (e.BytesRecorded == 0 || _audioBuffer == null) return;
+        if (e.BytesRecorded == 0 || _systemAudioBuffer == null) return;
 
         var copy = new byte[e.BytesRecorded];
         System.Buffer.BlockCopy(e.Buffer, 0, copy, 0, e.BytesRecorded);
-        _audioBuffer.Add(copy, e.TimestampTicks);
+        _systemAudioBuffer.Add(copy, e.TimestampTicks);
+    }
+
+    private static int _micChunkCount = 0;
+    private void OnMicrophoneAudioAvailable(object? sender, AudioDataEventArgs e)
+    {
+        _micChunkCount++;
+        if (_micChunkCount <= 3)
+            Logger.Debug($"Microphone callback #{_micChunkCount}: {e.BytesRecorded} bytes");
+
+        if (e.BytesRecorded == 0 || _microphoneAudioBuffer == null) return;
+
+        var copy = new byte[e.BytesRecorded];
+        System.Buffer.BlockCopy(e.Buffer, 0, copy, 0, e.BytesRecorded);
+        _microphoneAudioBuffer.Add(copy, e.TimestampTicks);
     }
 
     private void UpdateTrayStatus()
@@ -396,9 +435,11 @@ public sealed class ClipVaultService : IDisposable
 
         _gameDetector?.Dispose();
         _screenCapture?.Dispose();
-        _audioCapture?.Dispose();
+        _systemAudioCapture?.Dispose();
+        _microphoneCapture?.Dispose();
         _videoBuffer?.Dispose();
-        _audioBuffer?.Dispose();
+        _systemAudioBuffer?.Dispose();
+        _microphoneAudioBuffer?.Dispose();
         _hotkeyManager?.Dispose();
         _configManager?.Save();
 

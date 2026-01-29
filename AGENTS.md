@@ -17,26 +17,31 @@ This file provides instructions for AI coding assistants (OpenCode, Claude, Curs
 
 ## Tech Stack
 
-| Component      | Technology                                              |
-| -------------- | ------------------------------------------------------- |
-| Screen Capture | Windows.Graphics.Capture API + DXGI Desktop Duplication |
-| Audio          | NAudio 2.2+ with WASAPI                                 |
-| Encoding       | FFmpeg.AutoGen with NVENC                               |
-| DirectX        | Vortice.Direct3D11/DXGI                                 |
-| WinRT          | Microsoft.Windows.CsWinRT v2.2.0                        |
+| Component      | Technology                                              | Status     |
+| -------------- | ------------------------------------------------------- |------------|
+| Screen Capture | GDI + Screen.CopyFromScreen (full screen, 720p)         | Implemented |
+| Screen Capture | Windows.Graphics.Capture API (window)                   | Not done   |
+| Screen Capture | DXGI Desktop Duplication (fallback)                     | Not done   |
+| Audio          | NAudio 2.2+ with WASAPI                                 | Implemented |
+| Encoding       | FFmpeg process with NVENC                               | Implemented |
+| DirectX        | Vortice.Direct3D11/DXGI (not currently used)            | Available  |
+| WinRT          | Microsoft.Windows.CsWinRT (not currently used)          | Available  |
 
 ## Project Structure
 
 ```
-src/
-  ClipVault.Core/        # Core library (no UI dependencies)
-    Audio/               # WASAPI capture
-    Buffer/              # Ring buffers
-    Capture/             # Screen capture
-    Configuration/       # Settings
-    Detection/           # Game detection
-    Encoding/            # FFmpeg/NVENC
-  ClipVault.Service/     # Background service + tray icon
+root/
+  Program.cs              # Entry point (WinExe)
+  ClipVault.csproj        # Main project
+  src/
+    ClipVault.Core/        # Core library (no UI dependencies)
+      Audio/               # WASAPI capture
+      Buffer/              # Ring buffers
+      Capture/             # Screen capture (GDI)
+      Configuration/       # Settings
+      Detection/           # Game detection
+      Encoding/            # FFmpeg/NVENC
+    ClipVault.Service/     # Library (ClipVaultService class)
 config/
   settings.json          # User settings
   games.json             # 150+ game definitions
@@ -47,34 +52,39 @@ docs/
 
 ## Code Conventions
 
-- Use file-scoped namespaces
-- Use `required` modifier for mandatory properties
-- Use records for immutable data types
+See `docs/CONVENTIONS.md` for full guidelines:
+
+- File-scoped namespaces
+- `required` modifier for mandatory properties
+- Records for immutable data types
 - Private fields: `_camelCase`
-- Always use async/await for I/O
-- Implement IDisposable for unmanaged resources
+- Async/await for I/O
+- IDisposable for unmanaged resources
 
 ## Important Rules
 
 - **NEVER commit changes to git** - The user will commit manually
+- **Always run/build from root** - Use `dotnet build` and `dotnet run` from the project root, not from subdirectories
+- **Document recurring preferences** - If the user expresses a rule like "always X" or "never Y" (e.g., "always put logs in one file", "never require cd into subdirectories"), ask if they want it added to AGENTS.md so future assistants follow it too
 
 ## Key Interfaces
 
 ```csharp
-// Screen capture - implement for new capture methods
+// Screen capture
 public interface IScreenCapture : IDisposable
 {
     event EventHandler<FrameCapturedEventArgs>? FrameCaptured;
-    Task StartAsync(CancellationToken ct);
+    bool IsCapturing { get; }
+    Task StartAsync(CancellationToken ct = default);
     Task StopAsync();
 }
 
-// Audio capture - implement for new audio sources
+// Audio capture
 public interface IAudioCapture : IDisposable
 {
     event EventHandler<AudioDataEventArgs>? DataAvailable;
     AudioFormat Format { get; }
-    Task StartAsync(CancellationToken ct);
+    Task StartAsync(CancellationToken ct = default);
     Task StopAsync();
 }
 ```
@@ -83,33 +93,27 @@ public interface IAudioCapture : IDisposable
 
 ### Screen Capture
 
-- Use `Direct3D11CaptureFramePool.CreateFreeThreaded()` for 60fps
-- Set `MinUpdateInterval` >= 1ms (lower values throttle to ~50fps)
-- DXGI Desktop Duplication is fallback for anti-cheat games
+- Current: GDI `Screen.CopyFromScreen` for full-screen capture (720p, works with anti-cheat)
+- Future: Windows.GraphicsCapture API for window-specific capture
+- Anti-cheat compatible: GDI and DXGI work; avoid injection/hooks
 
 ### NVENC Encoding
 
-- Use P7 preset for quality (dedicated hardware, no game impact)
-- Use CQP 22 rate control (not CBR)
-- Low-latency: `delay=0`, `zerolatency=1`, `gop_size=1`
+- Process-based FFmpeg (not FFmpeg.AutoGen)
+- P7 preset, CQP 22 rate control, zero-latency settings
+- Multi-track audio: system + mic as separate streams
 
 ### Audio (NAudio)
 
-- Standardize to 48kHz stereo float32
+- 48kHz stereo float32
 - **Copy buffers immediately** in DataAvailable handlers (they're reused!)
-
-### Anti-Cheat (Riot Vanguard)
-
-- NO injection or hooking
-- Window capture and Desktop Duplication work fine
-- Game capture hooks cause issues
 
 ## Build Commands
 
 ```bash
-dotnet build                    # Build all
-dotnet run                      # Run service (from root)
-dotnet publish -c Release       # Release build
+dotnet build              # Build from root
+dotnet run                # Run service (from root)
+dotnet publish -c Release # Release build
 ```
 
 ## Testing Priority
@@ -122,7 +126,7 @@ dotnet publish -c Release       # Release build
 
 ## File References
 
-- [Implementation Plan](docs/PLAN.md)
+- [Implementation Plan](docs/PHASE1_PLAN.md)
 - [Code Conventions](docs/CONVENTIONS.md)
 - [Settings Schema](config/settings.json)
 - [Game Database](config/games.json)

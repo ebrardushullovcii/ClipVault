@@ -234,7 +234,6 @@ public sealed class ClipVaultService : IDisposable
             Logger.Info("Screen capture initialized successfully");
 
             _isCapturing = true;
-            Logger.CaptureStarted(_gameDetector.CurrentGame?.Name ?? "Unknown");
         }
         catch (Exception ex)
         {
@@ -277,7 +276,6 @@ public sealed class ClipVaultService : IDisposable
         }
 
         _isCapturing = true;
-        Logger.CaptureStarted(_gameDetector.CurrentGame?.Name ?? "Unknown");
         UpdateTrayStatus();
     }
 

@@ -2,7 +2,7 @@ namespace ClipVault.Core.Capture;
 
 /// <summary>
 /// Interface for screen capture implementations.
-/// Implementations: WindowsGraphicsCapture (primary), DxgiDesktopDuplication (fallback)
+/// Implementation: GdiScreenCapture (full screen GDI capture)
 /// </summary>
 public interface IScreenCapture : IDisposable
 {

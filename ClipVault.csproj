@@ -13,10 +13,19 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="src\ClipVault.Service\Program.cs" />
+    <Compile Include="Program.cs" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="src\ClipVault.Service\ClipVault.Service.csproj" />
+    <ProjectReference Include="src/ClipVault.Service/ClipVault.Service.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="config\games.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="config\settings.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 </Project>

@@ -1,5 +1,3 @@
-using ClipVault.Core;
-
 namespace ClipVault.Core.Capture;
 
 public sealed class WindowsGraphicsCapture : IScreenCapture
@@ -20,24 +18,10 @@ public sealed class WindowsGraphicsCapture : IScreenCapture
         if (_isCapturing)
             return Task.CompletedTask;
 
-        try
-        {
-            Logger.Debug("WindowsGraphicsCapture: Starting GDI capture");
-
-            _gdiCapture = new GdiScreenCapture();
-            _gdiCapture.FrameCaptured += (_, args) => FrameCaptured?.Invoke(this, args);
-            _gdiCapture.StartAsync(cancellationToken).Wait(cancellationToken);
-
-            _isCapturing = true;
-            Logger.Debug("WindowsGraphicsCapture: Started");
-        }
-        catch (Exception ex)
-        {
-            Logger.Error("Failed to start WindowsGraphicsCapture", ex);
-            _gdiCapture?.Dispose();
-            _gdiCapture = null;
-            throw;
-        }
+        _gdiCapture = new GdiScreenCapture();
+        _gdiCapture.FrameCaptured += (_, args) => FrameCaptured?.Invoke(this, args);
+        _gdiCapture.StartAsync(cancellationToken).Wait(cancellationToken);
+        _isCapturing = true;
 
         return Task.CompletedTask;
     }
@@ -48,12 +32,9 @@ public sealed class WindowsGraphicsCapture : IScreenCapture
             return Task.CompletedTask;
 
         _isCapturing = false;
-
         _gdiCapture?.StopAsync().Wait(TimeSpan.FromSeconds(1));
         _gdiCapture?.Dispose();
         _gdiCapture = null;
-
-        Logger.Debug("WindowsGraphicsCapture: Stopped");
 
         return Task.CompletedTask;
     }

@@ -27,6 +27,7 @@ dotnet build
 
 # Run the service
 dotnet run --project src/ClipVault.Service
+# Or run directly (output goes to src/ClipVault.Service/bin/)
 ```
 
 ### Project Structure

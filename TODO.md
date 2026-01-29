@@ -10,7 +10,7 @@ Track implementation progress for Phase 1 (Core Engine).
 
 ---
 
-## Phase 1: Core Engine
+## Phase 1: Core Engine (Current)
 
 ### Setup
 
@@ -28,15 +28,18 @@ Track implementation progress for Phase 1 (Core Engine).
 
 #### Screen Capture (`ClipVault.Core/Capture/`)
 
-- [~] `WindowsGraphicsCapture` - Wrapper using DXGI Desktop Duplication (P/Invoke)
-- [~] `DxgiDesktopDuplication` - P/Invoke implementation (fires frame events)
-- [ ] `CaptureManager` - Auto-select and fallback logic
+- [x] `GdiScreenCapture` - GDI-based full screen capture (720p, continuous)
+
+#### Future Enhancements (Nice to have)
+
+- [ ] Windows.Graphics.Capture API - Window-specific capture (when needed)
+- [ ] DXGI Desktop Duplication - Alternative capture method (when needed)
 
 #### Audio Capture (`ClipVault.Core/Audio/`)
 
 - [x] `SystemAudioCapture` - WASAPI loopback
-- [ ] `MicrophoneCapture` - WASAPI input
-- [ ] `AudioCaptureManager` - Coordinate both streams
+- [x] `MicrophoneCapture` - WASAPI input
+- [x] Coordinate both streams in ClipVaultService
 - [x] Ensure 48kHz stereo float32 output
 
 #### Ring Buffers (`ClipVault.Core/Buffer/`)
@@ -47,9 +50,9 @@ Track implementation progress for Phase 1 (Core Engine).
 
 #### Encoding (`ClipVault.Core/Encoding/`)
 
-- [~] `FFmpegEncoder` - Process-based FFmpeg (simpler, stable)
-  - [ ] NVENC integration (needs FFmpeg binary with --enable-nvenc)
-  - [ ] Multi-track audio muxing
+- [x] `FFmpegEncoder` - Process-based FFmpeg (not FFmpeg.AutoGen)
+  - [x] NVENC integration via FFmpeg process
+  - [x] Multi-track audio muxing (system + mic audio synced)
 - [x] `EncoderSettings` - Quality presets (in settings.json)
 
 #### Game Detection (`ClipVault.Core/Detection/`)
@@ -61,30 +64,42 @@ Track implementation progress for Phase 1 (Core Engine).
 ### Service (`ClipVault.Service/`)
 
 - [x] `ClipVaultService` - Main orchestrator
-  - [x] Start/stop capture on game detect
+  - [x] Continuous capture (no start/stop on detect)
   - [x] Handle hotkey save
   - [x] Lifecycle management
 - [x] `HotkeyManager` - Win32 RegisterHotKey
-- [x] `TrayIcon` - System tray with status
+- [x] Tray icon integration in Program.cs
 - [x] `NativeMethods` - P/Invoke declarations
 
 ### Output
 
 - [x] Clip folder creation with naming convention
 - [x] `metadata.json` generation
-- [ ] Thumbnail extraction via FFmpeg
+
+---
+
+## Phase 1 Optimizations (Next)
+
+- [ ] Test and optimize for 1080p 60fps capture
+- [ ] Implement dynamic buffer sizing based on available memory
+- [ ] Optimize encoding settings for faster processing
+- [ ] Profile and reduce memory footprint of rolling buffer
+- [ ] Test with different quality presets (p6 vs p7, CQ levels)
+- [ ] Benchmark and optimize capture loop performance
 
 ---
 
 ## Testing Milestones
 
 1. [x] Build succeeds without errors
-2. [~] Capture frames from a windowed app (e.g., Notepad) - Game detection works, capture placeholder
-3. [~] Capture audio from system - SystemAudioCapture starts
-4. [ ] Encode a test clip with NVENC
-5. [~] Full pipeline: detect game → capture → hotkey → save - Detection works, encoding pending
+2. [x] Capture frames from a windowed app - GDI capture works
+3. [x] Capture audio from system - SystemAudioCapture starts
+4. [x] Encode a test clip with NVENC - Full pipeline working, audio synced
+5. [x] Full pipeline: detect game → capture → hotkey → save
 6. [ ] Test with League of Legends
-7. [ ] Test with Valorant
+7. [ ] Test with Valorant (anti-cheat)
+8. [ ] Test with 1080p 60fps capture
+9. [ ] Benchmark memory usage at different buffer durations
 
 ---
 
@@ -100,6 +115,7 @@ Track implementation progress for Phase 1 (Core Engine).
 
 ## Notes
 
-- See `docs/PLAN.md` for architecture details
+- See `docs/PHASE1_PLAN.md` for architecture details
 - See `docs/CONVENTIONS.md` for code style
 - Target: League of Legends and Valorant must work
+- Current capture: GDI-based full screen (720p), works with anti-cheat

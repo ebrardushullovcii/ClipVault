@@ -25,22 +25,14 @@ public sealed class GameDetector : IGameDetector
 
     public Task StartAsync(CancellationToken cancellationToken = default)
     {
-        Logger.Debug("GameDetector: Starting background task...");
-
         _ = Task.Run(async () =>
         {
             using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token, cancellationToken);
-
-            var checkCount = 0;
             while (!linkedCts.Token.IsCancellationRequested)
             {
                 try
                 {
                     await Task.Delay(200, linkedCts.Token);
-                    checkCount++;
-
-                    // Removed spammy check logs
-
                     CheckForGameProcess();
                 }
                 catch (OperationCanceledException)
@@ -51,7 +43,6 @@ public sealed class GameDetector : IGameDetector
         });
 
         _focusMonitor.Start();
-        Logger.Debug("GameDetector: Started, FocusMonitor active");
         return Task.CompletedTask;
     }
 
@@ -95,14 +86,9 @@ public sealed class GameDetector : IGameDetector
             var game = _gameDatabase.FindGameByProcessName(processName);
             if (game == null) continue;
 
-            Logger.Debug($"GameDetector: Matched '{game.Name}' for process '{processName}'");
-
             var windowHandle = FindWindowForProcess(processId);
-            Logger.Debug($"GameDetector: Window handle for PID {processId}: 0x{windowHandle:X}");
-
             if (windowHandle == IntPtr.Zero)
             {
-                Logger.Debug($"GameDetector: WARNING - No window found for PID {processId}, trying first Code process...");
                 var allProcessIds = Core.NativeMethods.GetRunningProcessIds();
                 foreach (var otherPid in allProcessIds)
                 {
@@ -112,15 +98,9 @@ public sealed class GameDetector : IGameDetector
                         var altHandle = FindWindowForProcess(otherPid);
                         if (altHandle != IntPtr.Zero)
                         {
-                            Logger.Debug($"GameDetector: Using window 0x{altHandle:X} from Code PID {otherPid} instead");
                             windowHandle = altHandle;
                             var newPid = otherPid;
-                            _currentGame = new DetectedGame(
-                                game.Name,
-                                newPid,
-                                windowHandle,
-                                game.TwitchId);
-                            Logger.Debug($"GameDetector: Emitting GameDetected for '{game.Name}'");
+                            _currentGame = new DetectedGame(game.Name, newPid, windowHandle, game.TwitchId);
                             GameDetected?.Invoke(this, new GameDetectedEventArgs { Game = _currentGame });
                             return;
                         }
@@ -129,18 +109,9 @@ public sealed class GameDetector : IGameDetector
             }
 
             if (windowHandle == IntPtr.Zero)
-            {
-                Logger.Debug($"GameDetector: No window found for {processName}");
                 continue;
-            }
 
-            _currentGame = new DetectedGame(
-                game.Name,
-                processId,
-                windowHandle,
-                game.TwitchId);
-
-            Logger.Debug($"GameDetector: Emitting GameDetected for '{game.Name}'");
+            _currentGame = new DetectedGame(game.Name, processId, windowHandle, game.TwitchId);
             GameDetected?.Invoke(this, new GameDetectedEventArgs { Game = _currentGame });
             return;
         }

@@ -69,6 +69,11 @@ public sealed class MicrophoneCapture : IAudioCapture
     }
 
     private static int _callbackCount = 0;
+    private const double WasapiDefaultLatencySeconds = 0.040;
+    private long _audioEngineLatencyTicks;
+    private long _startTimestampTicks;
+    private bool _firstAudioReceived;
+
     private void OnDataAvailable(object? sender, WaveInEventArgs e)
     {
         _callbackCount++;
@@ -80,15 +85,39 @@ public sealed class MicrophoneCapture : IAudioCapture
         if (e.BytesRecorded == 0 || DataAvailable == null)
             return;
 
+        var currentTimestamp = Core.NativeMethods.GetHighResolutionTimestamp();
+
+        if (!_firstAudioReceived)
+        {
+            _firstAudioReceived = true;
+            _startTimestampTicks = currentTimestamp;
+            _audioEngineLatencyTicks = (long)(WasapiDefaultLatencySeconds * Core.NativeMethods.TicksPerSecond);
+            Logger.Debug($"First mic: engineLatency={WasapiDefaultLatencySeconds:F3}s ({_audioEngineLatencyTicks} ticks)");
+        }
+
         var buffer = GetBuffer();
         System.Buffer.BlockCopy(e.Buffer, 0, buffer, 0, e.BytesRecorded);
+
+        var sampleRate = _waveFormat?.SampleRate ?? 48000;
+        var channels = _waveFormat?.Channels ?? 2;
+        var bytesPerSecond = sampleRate * channels * sizeof(float);
+        var callbackLatencySeconds = (double)e.BytesRecorded / bytesPerSecond;
+        var callbackLatencyTicks = (long)(callbackLatencySeconds * Core.NativeMethods.TicksPerSecond);
+
+        var totalLatencyTicks = callbackLatencyTicks + _audioEngineLatencyTicks;
+        var adjustedTimestamp = currentTimestamp - totalLatencyTicks;
+
+        if (_callbackCount <= 5)
+        {
+            Logger.Debug($"Mic #{_callbackCount}: {e.BytesRecorded} bytes, callbackLat={callbackLatencySeconds:F3}s, engineLat={WasapiDefaultLatencySeconds:F3}s");
+        }
 
         try
         {
             DataAvailable.Invoke(this, new AudioDataEventArgs
             {
                 Buffer = buffer,
-                TimestampTicks = Core.NativeMethods.GetHighResolutionTimestamp(),
+                TimestampTicks = adjustedTimestamp,
                 BytesRecorded = e.BytesRecorded
             });
         }

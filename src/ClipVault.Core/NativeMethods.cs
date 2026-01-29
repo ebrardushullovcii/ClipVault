@@ -205,10 +205,18 @@ public static class NativeMethods
         return counter;
     }
 
+    public static long TicksPerSecond
+    {
+        get
+        {
+            QueryPerformanceFrequency(out long frequency);
+            return frequency;
+        }
+    }
+
     public static double TimestampToSeconds(long ticks)
     {
-        QueryPerformanceFrequency(out long frequency);
-        return (double)ticks / frequency;
+        return (double)ticks / TicksPerSecond;
     }
 }
 

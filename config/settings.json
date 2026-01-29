@@ -1,6 +1,6 @@
 {
   "$schema": "./settings.schema.json",
-  "bufferDurationSeconds": 5,
+  "bufferDurationSeconds": 15,
   "quality": {
     "resolution": "720p",
     "fps": 30,

@@ -37,7 +37,18 @@ public sealed class AudioSampleBuffer : IDisposable
 
     public Encoding.TimestampedAudio[] GetAll()
     {
-        return _buffer.GetAll();
+        var items = _buffer.GetAll();
+        var result = new Encoding.TimestampedAudio[items.Length];
+
+        for (int i = 0; i < items.Length; i++)
+        {
+            var original = items[i];
+            var copy = new byte[original.Samples.Length];
+            System.Buffer.BlockCopy(original.Samples, 0, copy, 0, copy.Length);
+            result[i] = new Encoding.TimestampedAudio(copy, original.TimestampTicks, original.SampleCount);
+        }
+
+        return result;
     }
 
     public void Clear()

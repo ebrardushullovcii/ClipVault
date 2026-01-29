@@ -61,13 +61,10 @@ public sealed class FFmpegEncoder : IEncoder
             return;
         }
 
-        // Filter frames to only those matching expected size
         var expectedFrameSize = settings.Width * settings.Height * 4;
         var validFrames = videoFrames.Where(f =>
             f.FrameData != null &&
             f.FrameData.Length == expectedFrameSize).ToList();
-
-        Logger.Info($"Encoding {validFrames.Count} frames, {systemAudio.Count} audio chunks");
 
         if (validFrames.Count == 0)
         {
@@ -79,11 +76,22 @@ public sealed class FFmpegEncoder : IEncoder
         var tempVideoFile = Path.Combine(outputDir, "temp_video.bin");
         var tempAudioFile = Path.Combine(outputDir, "temp_audio.bin");
         var tempMicAudioFile = Path.Combine(outputDir, "temp_mic_audio.bin");
+        var tempTsFile = Path.Combine(outputDir, "temp_timestamps.txt");
 
         try
         {
-            // Step 1: Write video frames to temp file
-            Logger.Info("Step 1: Writing video...");
+            var baseTimestamp = validFrames[0].TimestampTicks;
+
+            var videoDurationTicks = validFrames[validFrames.Count - 1].TimestampTicks - baseTimestamp;
+            var videoDurationSeconds = NativeMethods.TimestampToSeconds(videoDurationTicks);
+
+            Logger.Info($"Encoding {validFrames.Count} frames over {videoDurationSeconds:F3}s ({videoDurationTicks} ticks)");
+
+            var avgFps = validFrames.Count / videoDurationSeconds;
+            var roundedFps = Math.Round(avgFps);
+            if (roundedFps < 1) roundedFps = 30;
+            Logger.Info($"Average FPS: {avgFps:F1}, rounded to: {roundedFps}");
+
             using (var fs = new FileStream(tempVideoFile, FileMode.Create, FileAccess.Write, FileShare.None, 4096 * 1024))
             {
                 for (int i = 0; i < validFrames.Count; i++)
@@ -91,19 +99,14 @@ public sealed class FFmpegEncoder : IEncoder
                     var frame = validFrames[i];
                     if (frame.FrameData != null && frame.FrameData.Length > 0)
                         fs.Write(frame.FrameData, 0, frame.FrameData.Length);
-
-                    if ((i + 1) % 50 == 0 || i == validFrames.Count - 1)
-                        Logger.Info($"Video: {i + 1}/{validFrames.Count}");
                 }
             }
 
-            // Step 2: Write audio to temp file(s)
             var hasSystemAudio = systemAudio.Count > 0;
             var hasMicAudio = micAudio != null && micAudio.Count > 0;
 
             if (hasSystemAudio)
             {
-                Logger.Info("Step 2: Writing system audio...");
                 using (var fs = new FileStream(tempAudioFile, FileMode.Create, FileAccess.Write, FileShare.None, 1024 * 1024))
                 {
                     foreach (var chunk in systemAudio)
@@ -112,13 +115,10 @@ public sealed class FFmpegEncoder : IEncoder
                             fs.Write(chunk.Samples, 0, chunk.Samples.Length);
                     }
                 }
-                var audioSize = new FileInfo(tempAudioFile).Length;
-                Logger.Info($"System audio: {audioSize / 1024}KB");
             }
 
             if (hasMicAudio)
             {
-                Logger.Info("Step 2b: Writing microphone audio...");
                 using (var fs = new FileStream(tempMicAudioFile, FileMode.Create, FileAccess.Write, FileShare.None, 1024 * 1024))
                 {
                     foreach (var chunk in micAudio!)
@@ -127,20 +127,17 @@ public sealed class FFmpegEncoder : IEncoder
                             fs.Write(chunk.Samples, 0, chunk.Samples.Length);
                     }
                 }
-                var micAudioSize = new FileInfo(tempMicAudioFile).Length;
-                Logger.Info($"Mic audio: {micAudioSize / 1024}KB");
             }
 
-            // Step 3: Run FFmpeg
-            Logger.Info("Step 3: Encoding...");
+            Logger.Info("Step 2: Encoding with timestamp-aware FFmpeg...");
 
             string args;
             if (hasSystemAudio && hasMicAudio)
             {
                 args = $"-y " +
-                       $"-f rawvideo -pixel_format bgra -video_size {settings.Width}x{settings.Height} -framerate {settings.Fps} -i \"{tempVideoFile}\" " +
-                       $"-f f32le -ar {settings.AudioSampleRate} -ac 2 -i \"{tempAudioFile}\" " +
-                       $"-f f32le -ar {settings.AudioSampleRate} -ac 2 -i \"{tempMicAudioFile}\" " +
+                       $"-framerate {roundedFps} -f rawvideo -pixel_format bgra -video_size {settings.Width}x{settings.Height} -i \"{tempVideoFile}\" " +
+                       $"-ar {settings.AudioSampleRate} -ac 2 -f f32le -i \"{tempAudioFile}\" " +
+                       $"-ar {settings.AudioSampleRate} -ac 2 -f f32le -i \"{tempMicAudioFile}\" " +
                        $"-c:v h264_nvenc -preset p4 -rc constqp -qp 23 " +
                        $"-c:a aac -b:a 192k " +
                        $"-c:a aac -b:a 192k " +
@@ -151,30 +148,35 @@ public sealed class FFmpegEncoder : IEncoder
             else if (hasSystemAudio)
             {
                 args = $"-y " +
-                       $"-f rawvideo -pixel_format bgra -video_size {settings.Width}x{settings.Height} -framerate {settings.Fps} -i \"{tempVideoFile}\" " +
-                       $"-f f32le -ar {settings.AudioSampleRate} -ac 2 -i \"{tempAudioFile}\" " +
+                       $"-framerate {roundedFps} -f rawvideo -pixel_format bgra -video_size {settings.Width}x{settings.Height} -i \"{tempVideoFile}\" " +
+                       $"-ar {settings.AudioSampleRate} -ac 2 -f f32le -i \"{tempAudioFile}\" " +
                        $"-c:v h264_nvenc -preset p4 -rc constqp -qp 23 " +
                        $"-c:a aac -b:a 192k " +
+                       $"-map 0:v -map 1:a " +
                        $"-shortest " +
                        $"\"{outputPath}\"";
             }
             else if (hasMicAudio)
             {
                 args = $"-y " +
-                       $"-f rawvideo -pixel_format bgra -video_size {settings.Width}x{settings.Height} -framerate {settings.Fps} -i \"{tempVideoFile}\" " +
-                       $"-f f32le -ar {settings.AudioSampleRate} -ac 2 -i \"{tempMicAudioFile}\" " +
+                       $"-framerate {roundedFps} -f rawvideo -pixel_format bgra -video_size {settings.Width}x{settings.Height} -i \"{tempVideoFile}\" " +
+                       $"-ar {settings.AudioSampleRate} -ac 2 -f f32le -i \"{tempMicAudioFile}\" " +
                        $"-c:v h264_nvenc -preset p4 -rc constqp -qp 23 " +
                        $"-c:a aac -b:a 192k " +
+                       $"-map 0:v -map 1:a " +
                        $"-shortest " +
                        $"\"{outputPath}\"";
             }
             else
             {
                 args = $"-y " +
-                       $"-f rawvideo -pixel_format bgra -video_size {settings.Width}x{settings.Height} -framerate {settings.Fps} -i \"{tempVideoFile}\" " +
+                       $"-framerate {roundedFps} -f rawvideo -pixel_format bgra -video_size {settings.Width}x{settings.Height} -i \"{tempVideoFile}\" " +
                        $"-c:v h264_nvenc -preset p4 -rc constqp -qp 23 " +
+                       $"-map 0:v " +
                        $"\"{outputPath}\"";
             }
+
+            Logger.Debug($"FFmpeg args: {args}");
 
             var psi = new ProcessStartInfo
             {
@@ -192,8 +194,25 @@ public sealed class FFmpegEncoder : IEncoder
                 return;
             }
 
-            var stderr = await process.StandardError.ReadToEndAsync(cancellationToken);
-            await process.WaitForExitAsync(cancellationToken);
+            var stderrTask = process.StandardError.ReadToEndAsync();
+            var timeoutTask = Task.Delay(TimeSpan.FromSeconds(90));
+            var exitTask = process.WaitForExitAsync();
+            var completedTask = await Task.WhenAny(stderrTask, exitTask, timeoutTask);
+
+            if (completedTask == timeoutTask)
+            {
+                Logger.Warning("FFmpeg timed out after 90s, killing process");
+                try { process.Kill(); } catch { }
+                await process.WaitForExitAsync(CancellationToken.None);
+                return;
+            }
+
+            if (!process.HasExited)
+            {
+                await process.WaitForExitAsync();
+            }
+
+            var stderr = await stderrTask;
 
             if (process.ExitCode == 0)
             {
@@ -213,6 +232,7 @@ public sealed class FFmpegEncoder : IEncoder
             try { File.Delete(tempVideoFile); } catch { }
             try { File.Delete(tempAudioFile); } catch { }
             try { File.Delete(tempMicAudioFile); } catch { }
+            try { File.Delete(tempTsFile); } catch { }
         }
 
         progress?.Report(1.0);

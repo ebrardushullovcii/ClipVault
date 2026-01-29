@@ -178,7 +178,6 @@ public sealed class ClipVaultService : IDisposable
     {
         Logger.GameLost(e.GameName, e.Reason.ToString());
 
-        // Keep recording - switch to current focused window
         var (hwnd, _) = FocusMonitor.GetCurrentFocus();
         if (hwnd != IntPtr.Zero)
         {
@@ -214,7 +213,8 @@ public sealed class ClipVaultService : IDisposable
     {
         Logger.Info($"Starting capture for window: {windowHandle}");
 
-        // Stop old capture if different window
+        var wasCapturing = _screenCapture != null;
+
         if (_screenCapture != null)
         {
             try
@@ -318,17 +318,71 @@ public sealed class ClipVaultService : IDisposable
 
         var videoStartTicks = frames[0].TimestampTicks;
         var videoEndTicks = frames[frames.Length - 1].TimestampTicks;
-        var duration = _videoBuffer?.GetBufferedDuration(_configManager.Config.Quality.Fps) ?? TimeSpan.Zero;
+        var videoDurationTicks = videoEndTicks - videoStartTicks;
+        var videoDurationSeconds = NativeMethods.TimestampToSeconds(videoDurationTicks);
 
         var allSystemAudio = _systemAudioBuffer?.GetAll() ?? Array.Empty<CoreEncoding.TimestampedAudio>();
         var allMicAudio = _microphoneAudioBuffer?.GetAll() ?? Array.Empty<CoreEncoding.TimestampedAudio>();
 
-        var systemAudio = allSystemAudio.Where(a => a.TimestampTicks >= videoStartTicks && a.TimestampTicks <= videoEndTicks).ToList();
-        var micAudio = allMicAudio.Where(a => a.TimestampTicks >= videoStartTicks && a.TimestampTicks <= videoEndTicks).ToList();
+        var sampleRate = _configManager.Config.Audio.SampleRate;
+        var channels = 2;
+        var bytesPerSecond = sampleRate * channels * sizeof(float);
+        var targetAudioBytes = (int)(videoDurationSeconds * bytesPerSecond);
+        var toleranceBytes = (int)(0.5 * bytesPerSecond);
+        var minAudioBytes = targetAudioBytes - toleranceBytes;
+        var maxAudioBytes = targetAudioBytes + toleranceBytes;
 
-        Logger.Info($"Filtered audio to match video: system={systemAudio.Count}, mic={micAudio.Count} (video {duration.TotalSeconds:F1}s)");
+        Logger.Info($"Target audio: {targetAudioBytes / 1024}KB for {videoDurationSeconds:F1}s video");
 
-        Logger.Info($"Buffered frames: {frames.Length}, system audio: {allSystemAudio.Length}, mic audio: {allMicAudio.Length}");
+        var totalSystemBytes = allSystemAudio.Sum(a => a.Samples.Length);
+        var totalMicBytes = allMicAudio.Sum(a => a.Samples.Length);
+
+        var systemAudio = allSystemAudio.ToList();
+        var micAudio = allMicAudio.ToList();
+
+        if (totalSystemBytes > maxAudioBytes)
+        {
+            var excessBytes = totalSystemBytes - maxAudioBytes;
+            var accumulated = 0;
+            var toRemove = 0;
+            for (int i = 0; i < systemAudio.Count; i++)
+            {
+                accumulated += systemAudio[i].Samples.Length;
+                if (accumulated > excessBytes)
+                {
+                    toRemove = i + 1;
+                    break;
+                }
+            }
+            if (toRemove > 0 && toRemove < systemAudio.Count)
+            {
+                systemAudio = systemAudio.Skip(toRemove).ToList();
+                Logger.Debug($"Trimmed {toRemove} system audio chunks to match video duration");
+            }
+        }
+
+        if (totalMicBytes > maxAudioBytes)
+        {
+            var excessBytes = totalMicBytes - maxAudioBytes;
+            var accumulated = 0;
+            var toRemove = 0;
+            for (int i = 0; i < micAudio.Count; i++)
+            {
+                accumulated += micAudio[i].Samples.Length;
+                if (accumulated > excessBytes)
+                {
+                    toRemove = i + 1;
+                    break;
+                }
+            }
+            if (toRemove > 0 && toRemove < micAudio.Count)
+            {
+                micAudio = micAudio.Skip(toRemove).ToList();
+                Logger.Debug($"Trimmed {toRemove} mic audio chunks to match video duration");
+            }
+        }
+
+        Logger.Info($"Final audio: system={systemAudio.Count}, mic={micAudio.Count} (video {videoDurationSeconds:F1}s)");
 
         var videoPath = Path.Combine(outputDir, "clip.mp4");
 
@@ -376,7 +430,7 @@ public sealed class ClipVaultService : IDisposable
         {
             Game = gameName,
             Timestamp = timestamp,
-            Duration = duration,
+            Duration = TimeSpan.FromSeconds(videoDurationSeconds),
             VideoFrames = frames.Length,
             SystemAudioSamples = systemAudio.Count,
             MicrophoneAudioSamples = micAudio.Count,
@@ -388,7 +442,7 @@ public sealed class ClipVaultService : IDisposable
         var json = System.Text.Json.JsonSerializer.Serialize(metadata, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
         File.WriteAllText(metadataPath, json);
 
-        Logger.ClipSaved(outputDir, duration.TotalSeconds);
+        Logger.ClipSaved(outputDir, videoDurationSeconds);
         }
         finally
         {

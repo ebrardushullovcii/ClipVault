@@ -14,81 +14,75 @@ Track implementation progress for Phase 1 (Core Engine).
 
 ### Setup
 
-- [ ] Verify solution builds with `dotnet build`
-- [ ] Download FFmpeg with NVENC and place in `tools/`
-- [ ] Test FFmpeg NVENC: `ffmpeg -encoders | findstr nvenc`
+- [x] Verify solution builds with `dotnet build`
+- [x] Download FFmpeg with NVENC and place in `tools/`
+- [x] Test FFmpeg NVENC: `ffmpeg -encoders | findstr nvenc`
 
 ### Core Components
 
 #### Configuration (`ClipVault.Core/Configuration/`)
 
-- [ ] `ConfigManager` - Load/save settings.json
-- [ ] `GameDatabase` - Load games.json, support custom games
+- [x] `ConfigManager` - Load/save settings.json
+- [x] `GameDatabase` - Load games.json, support custom games
 - [ ] Validation and defaults
 
 #### Screen Capture (`ClipVault.Core/Capture/`)
 
-- [ ] `WindowsGraphicsCapture` - Primary capture via WinRT
-  - [ ] D3D11 device initialization
-  - [ ] Frame pool with `CreateFreeThreaded()`
-  - [ ] Frame event handling with timestamps
-- [ ] `DxgiDesktopDuplication` - Fallback for anti-cheat
+- [~] `WindowsGraphicsCapture` - Wrapper using DXGI Desktop Duplication (P/Invoke)
+- [~] `DxgiDesktopDuplication` - P/Invoke implementation (fires frame events)
 - [ ] `CaptureManager` - Auto-select and fallback logic
 
 #### Audio Capture (`ClipVault.Core/Audio/`)
 
-- [ ] `SystemAudioCapture` - WASAPI loopback
+- [x] `SystemAudioCapture` - WASAPI loopback
 - [ ] `MicrophoneCapture` - WASAPI input
 - [ ] `AudioCaptureManager` - Coordinate both streams
-- [ ] Ensure 48kHz stereo float32 output
+- [x] Ensure 48kHz stereo float32 output
 
 #### Ring Buffers (`ClipVault.Core/Buffer/`)
 
-- [x] `CircularBuffer<T>` - Generic implementation (starter code exists)
-- [ ] `VideoFrameBuffer` - GPU texture buffer with timestamps
-- [ ] `AudioSampleBuffer` - PCM buffer with timestamps
-- [ ] Memory management (dispose old textures)
+- [x] `CircularBuffer<T>` - Generic implementation
+- [x] `VideoFrameBuffer` - Pointer-based buffer with timestamps
+- [x] `AudioSampleBuffer` - PCM buffer with timestamps
 
 #### Encoding (`ClipVault.Core/Encoding/`)
 
-- [ ] `FFmpegEncoder` - FFmpeg.AutoGen integration
-  - [ ] NVENC initialization (h264_nvenc)
-  - [ ] Frame encoding from D3D11 textures
+- [~] `FFmpegEncoder` - Process-based FFmpeg (simpler, stable)
+  - [ ] NVENC integration (needs FFmpeg binary with --enable-nvenc)
   - [ ] Multi-track audio muxing
-  - [ ] Progress reporting
-- [ ] `EncoderSettings` - Quality presets
+- [x] `EncoderSettings` - Quality presets (in settings.json)
 
 #### Game Detection (`ClipVault.Core/Detection/`)
 
-- [ ] `GameDetector` - Process enumeration
-- [ ] `FocusMonitor` - GetForegroundWindow tracking
-- [ ] Process name matching against games.json
+- [x] `GameDetector` - Process enumeration
+- [x] `FocusMonitor` - GetForegroundWindow tracking
+- [x] Process name matching against games.json
 
 ### Service (`ClipVault.Service/`)
 
-- [ ] `ClipVaultService` - Main orchestrator
-  - [ ] Start/stop capture on game detect
-  - [ ] Handle hotkey save
-  - [ ] Lifecycle management
-- [ ] `HotkeyManager` - Win32 RegisterHotKey
-- [ ] `TrayIcon` - System tray with status
-- [ ] `NativeMethods` - P/Invoke declarations
+- [x] `ClipVaultService` - Main orchestrator
+  - [x] Start/stop capture on game detect
+  - [x] Handle hotkey save
+  - [x] Lifecycle management
+- [x] `HotkeyManager` - Win32 RegisterHotKey
+- [x] `TrayIcon` - System tray with status
+- [x] `NativeMethods` - P/Invoke declarations
 
 ### Output
 
-- [ ] Clip folder creation with naming convention
-- [ ] `metadata.json` generation
+- [x] Clip folder creation with naming convention
+- [x] `metadata.json` generation
 - [ ] Thumbnail extraction via FFmpeg
 
 ---
 
 ## Testing Milestones
 
-1. [ ] Build succeeds without errors
-2. [ ] Capture frames from a windowed app (e.g., Notepad)
-3. [ ] Capture audio from system
+1. [x] Build succeeds without errors
+2. [~] Capture frames from a windowed app (e.g., Notepad) - Game detection works, capture placeholder
+3. [~] Capture audio from system - SystemAudioCapture starts
 4. [ ] Encode a test clip with NVENC
-5. [ ] Full pipeline: detect game → capture → hotkey → save
+5. [~] Full pipeline: detect game → capture → hotkey → save - Detection works, encoding pending
 6. [ ] Test with League of Legends
 7. [ ] Test with Valorant
 

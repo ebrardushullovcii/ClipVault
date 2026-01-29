@@ -28,9 +28,10 @@ public interface IEncoder : IDisposable
 
 /// <summary>
 /// A video frame with capture timestamp.
+/// Stores actual frame data (not just a pointer) so it survives buffer reuse.
 /// </summary>
 public sealed record TimestampedFrame(
-    nint TexturePointer,
+    byte[] FrameData,
     long TimestampTicks,
     int Width,
     int Height);

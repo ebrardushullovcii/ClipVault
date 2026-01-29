@@ -5,13 +5,28 @@
     <TargetFramework>net8.0-windows10.0.26100.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-<UseWindowsForms>true</UseWindowsForms>
+    <UseWindowsForms>true</UseWindowsForms>
     <LangVersion>latest</LangVersion>
     <RootNamespace>ClipVault.Service</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\ClipVault.Core\ClipVault.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\..\config\games.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>config\games.json</Link>
+    </None>
+    <None Include="..\..\config\settings.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>config\settings.json</Link>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Vortice.Direct3D11" Version="3.6.2" />
   </ItemGroup>
 
 </Project>

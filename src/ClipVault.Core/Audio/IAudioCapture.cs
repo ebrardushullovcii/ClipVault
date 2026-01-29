@@ -41,7 +41,7 @@ public sealed class AudioDataEventArgs : EventArgs
     /// Audio samples in float32 format.
     /// IMPORTANT: Copy this data immediately - the buffer may be reused!
     /// </summary>
-    public required ReadOnlyMemory<byte> Buffer { get; init; }
+    public required byte[] Buffer { get; init; }
 
     public required long TimestampTicks { get; init; }
     public required int BytesRecorded { get; init; }

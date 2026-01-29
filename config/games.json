@@ -793,6 +793,21 @@
       "name": "Schedule I",
       "processNames": ["Schedule I.exe"],
       "twitchId": "1844198633"
+    },
+    {
+      "name": "Visual Studio Code",
+      "processNames": ["Code.exe"],
+      "twitchId": ""
+    },
+    {
+      "name": "Notepad++",
+      "processNames": ["notepad++.exe"],
+      "twitchId": ""
+    },
+    {
+      "name": "Notepad",
+      "processNames": ["notepad.exe"],
+      "twitchId": ""
     }
   ],
   "customGames": []

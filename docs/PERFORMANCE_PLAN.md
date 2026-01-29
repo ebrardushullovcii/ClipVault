@@ -1,178 +1,174 @@
 # ClipVault Performance Optimization Plan
 
+## Project Motivation
+
+ClipVault exists because existing game clipping tools are frustrating:
+
+- **Ads**: Many free tools are ad-supported or nag for upgrades
+- **Crashes**: Unreliable when you need them most
+- **Bloat**: Heavy resource usage, unnecessary features, slow startup
+- **No control**: Can't customize behavior or fix issues yourself
+
+**Goal**: A simple, lightweight clipping tool that does exactly what's needed - nothing more. User controls everything, no bloat, no ads, no telemetry.
+
+### Acceptable Trade-offs
+
+This isn't about achieving the absolute best quality or lowest resource usage. It's about **control and reliability**.
+
+- **Quality**: Good enough to share and watch back. Doesn't need to be lossless or broadcast-ready - just clean enough that compression artifacts aren't distracting.
+- **Performance**: Reasonable CPU/GPU/RAM usage that doesn't impact gameplay. Doesn't need to be the most optimized solution - just not wasteful or excessive.
+- **Features**: Core functionality done well. No need for every feature under the sun.
+
+The sweet spot: A tool that works reliably, looks good, runs reasonably light, and can be understood and modified when needed. Perfect is the enemy of done.
+
+---
+
 ## Problem Summary
 
-| Issue | Current | Target | Root Cause |
-|-------|---------|--------|------------|
-| RAM Usage | 6-10 GB | < 500 MB | Storing raw uncompressed BGRA frames |
-| FPS | ~35 fps | 60 fps | CPU copy bottleneck + GC pressure |
+| Issue     | Current | Target    | Root Cause                           |
+| --------- | ------- | --------- | ------------------------------------ |
+| RAM Usage | 6-10 GB | 1-2 GB    | Storing raw uncompressed BGRA frames |
+| FPS       | ~35 fps | 50-60 fps | Large memory copies + GC pressure    |
 
 ## Root Cause Analysis
 
 **Memory Math (why 7.5GB for 15 seconds):**
+
 ```
 Frame size: 1920 × 1080 × 4 bytes (BGRA) = 8.3 MB per frame
 15 seconds @ 60fps = 900 frames
 Total: 900 × 8.3 MB = 7.47 GB
 ```
 
-**Insights Capture comparison (2 min @ 1080p60 with ~1GB RAM):**
-- Uses NV12 pixel format (1.5 bytes/pixel vs 4)
-- Encodes on-the-fly with NVENC
-- Stores compressed H.264 at 6 Mbps (~750 KB/s)
-- 2 minutes = ~90 MB storage (vs 60GB raw)
+---
 
-## Solution: On-the-fly NVENC Encoding
+## Solution: Simple JPEG Compression Per Frame
+
+**Keep it simple.** Instead of complex streaming H.264 encoding, just JPEG compress each frame before storing.
 
 ### Architecture Change
 
 ```
-CURRENT (Store Raw → Encode on Save):
-  DXGI → byte[8.3MB] → HybridFrameBuffer[7.5GB] → [save] → FFmpeg encode
+CURRENT:
+  DXGI → byte[8.3MB raw] → Buffer[7.5GB] → FFmpeg encode on save
 
-NEW (Encode on Capture → Store Compressed):
-  DXGI → FFmpeg stdin pipe → NVENC → CircularNalBuffer[~100MB] → [save] → just remux
+NEW (Simple):
+  DXGI → JPEG compress (~100KB) → Buffer[~200MB] → Decompress → FFmpeg encode on save
 ```
 
 ### Expected Results
 
-| Metric | Before | After |
-|--------|--------|-------|
-| RAM Usage | 7.5 GB | ~100 MB |
-| Capture FPS | 35 fps | 60 fps |
-| Save Time | 3-5 sec | < 0.5 sec |
-| GC Pressure | Heavy | Minimal |
+| Metric      | Before   | After     | Notes                       |
+| ----------- | -------- | --------- | --------------------------- |
+| RAM Usage   | 7.5 GB   | ~300 MB   | 96% reduction               |
+| Capture FPS | 35 fps   | 50-60 fps | Less memory pressure        |
+| Save Time   | 3-5 sec  | 5-8 sec   | Decompress + encode         |
+| Quality     | Lossless | JPEG 90%  | Slight loss, configurable   |
+| Complexity  | N/A      | Low       | Just add JPEG encode/decode |
+
+### Why JPEG?
+
+- **Simple**: Built into .NET, no external deps
+- **Fast**: Hardware accelerated on modern CPUs
+- **Good enough**: Quality 85-95% looks fine for game clips
+- **Configurable**: User can trade quality for memory
 
 ---
 
 ## Implementation Plan
 
-### Phase 1: Create Streaming Encoder
+### Phase 1: Add JPEG Compression to Frame Storage
 
-**New file: `src/ClipVault.Core/Encoding/StreamingNvencEncoder.cs`**
+**Modify: `src/ClipVault.Core/Buffer/HybridFrameBuffer.cs`**
 
-- Maintains persistent FFmpeg process with stdin/stdout pipes
-- Writes raw BGRA frames to FFmpeg stdin
-- Reads encoded H.264 NAL units from stdout
-- Uses low-latency NVENC settings: `-preset p1 -tune ll -rc cbr -b:v 6M`
+Add compression on store, decompression on retrieve:
 
 ```csharp
-public sealed class StreamingNvencEncoder : IDisposable
-{
-    private Process _ffmpeg;
-    private readonly CircularNalBuffer _nalBuffer;
+// On Add():
+using var ms = new MemoryStream();
+using var bitmap = new Bitmap(width, height, stride, PixelFormat.Format32bppArgb, framePtr);
+bitmap.Save(ms, GetJpegEncoder(quality: 90));
+var compressed = ms.ToArray();  // ~100-150KB instead of 8.3MB
 
-    public void WriteFrame(nint bgraPointer, int size, long timestamp);
-    public void Flush();
+// On GetAll():
+// Decompress back to raw bytes for FFmpeg
+```
+
+**Memory calculation:**
+
+- JPEG at 90% quality ≈ 100-200 KB per 1080p frame
+- 900 frames × 150 KB = ~135 MB for video
+- Add overhead = ~200-300 MB total
+
+### Phase 2: Add Quality Setting
+
+**Modify: `src/ClipVault.Core/Configuration/ClipVaultConfig.cs`**
+
+```csharp
+public class QualityConfig
+{
+    // Existing...
+    public int BufferCompressionQuality { get; set; } = 90;  // 1-100, higher = better quality, more RAM
 }
 ```
 
-### Phase 2: Create Compressed Frame Buffer
+### Phase 3: Optimize Frame Pool
 
-**New file: `src/ClipVault.Core/Buffer/CircularNalBuffer.cs`**
+**Modify: `src/ClipVault.Core/Buffer/FramePool.cs`**
 
-- Pre-allocated ~100 MB byte array (no per-frame allocations)
-- Stores H.264 NAL units with timestamps
-- Tracks keyframes for proper clip extraction
-
-```csharp
-public sealed class CircularNalBuffer : IDisposable
-{
-    private readonly byte[] _buffer;  // ~100MB
-    private readonly List<NalEntry> _index;  // Frame metadata
-
-    public void Write(ReadOnlySpan<byte> nalUnit, long timestamp, bool isKeyframe);
-    public IEnumerable<NalEntry> GetLastSeconds(int seconds);
-}
-```
-
-### Phase 3: Modify DXGI Capture
-
-**Modify: `src/ClipVault.Core/Capture/DxgiScreenCapture.cs`**
-
-- Remove byte[] frame buffer allocation
-- Write directly from mapped GPU memory to encoder pipe
-- Fire event with encoded frame data instead of raw pixels
-
-### Phase 4: Update Buffer System
-
-**Modify: `src/ClipVault.Core/Buffer/SyncedAVBuffer.cs`**
-
-- Replace `HybridFrameBuffer` with `CircularNalBuffer`
-- Update `GetLastSeconds()` to return encoded data
-
-**Deprecate (keep as fallback):**
-- `HybridFrameBuffer.cs`
-- `FramePool.cs`
-
-### Phase 5: Update Save Flow
-
-**Modify: `src/ClipVault.Core/Encoding/FFmpegEncoder.cs`**
-
-Add fast remux method (video already encoded, just package into MP4):
-
-```csharp
-public async Task MuxClipAsync(
-    string outputPath,
-    IEnumerable<NalEntry> encodedVideo,  // Already H.264!
-    IReadOnlyList<TimestampedAudio> audio)
-{
-    // Write NAL units to temp .h264 file (~10MB)
-    // FFmpeg: -i video.h264 -i audio.raw -c:v copy -c:a aac output.mp4
-    // -c:v copy = NO re-encoding, instant!
-}
-```
-
-### Phase 6: Service Integration
-
-**Modify: `src/ClipVault.Service/ClipVaultService.cs`**
-
-- Initialize StreamingNvencEncoder on startup
-- Wire DXGI capture to streaming encoder
-- Update SaveClip to use MuxClipAsync
+- Reduce pre-allocation since compressed frames are much smaller
+- Pool MemoryStream objects instead of huge byte arrays
 
 ---
 
-## Files to Create
-
-| File | Purpose |
-|------|---------|
-| `src/ClipVault.Core/Encoding/StreamingNvencEncoder.cs` | Real-time FFmpeg pipe encoder |
-| `src/ClipVault.Core/Buffer/CircularNalBuffer.cs` | Compressed frame storage |
-
 ## Files to Modify
 
-| File | Changes |
-|------|---------|
-| `DxgiScreenCapture.cs` | Pipe frames to streaming encoder |
-| `SyncedAVBuffer.cs` | Use CircularNalBuffer instead of HybridFrameBuffer |
-| `FFmpegEncoder.cs` | Add MuxClipAsync for instant saves |
-| `ClipVaultService.cs` | Wire up streaming encoder pipeline |
+| File                   | Changes                                            | Effort |
+| ---------------------- | -------------------------------------------------- | ------ |
+| `HybridFrameBuffer.cs` | Add JPEG compress/decompress                       | Medium |
+| `FramePool.cs`         | Reduce allocations, pool streams                   | Low    |
+| `ClipVaultConfig.cs`   | Add compression quality setting                    | Low    |
+| `FFmpegEncoder.cs`     | Accept compressed frames, decompress before encode | Low    |
 
-## Files to Deprecate
+## No New Files Needed
 
-| File | Reason |
-|------|--------|
-| `HybridFrameBuffer.cs` | Replaced by CircularNalBuffer |
-| `FramePool.cs` | No longer needed |
+This approach modifies existing code rather than creating new complex systems.
+
+---
+
+## Alternative: Even Simpler - Just Use 720p
+
+If JPEG adds too much complexity, just capture at 720p:
+
+```
+720p: 1280 × 720 × 4 = 3.7 MB per frame
+15 seconds @ 60fps = 900 × 3.7 MB = 3.3 GB
+```
+
+Still high but ~50% reduction with zero code changes (just config).
+
+**Can combine both:**
+
+- 720p + JPEG 90% = ~50-80 KB per frame
+- 900 frames = ~70 MB
+- Total with overhead: ~150 MB
 
 ---
 
 ## Verification
 
-1. **Memory test**: Monitor RAM during 30+ seconds of capture - should stay under 500MB
-2. **FPS test**: Check logs for "DXGI Capture FPS: 60+" consistently
-3. **Quality test**: Compare clip quality visually with previous versions
-4. **Save speed test**: Clip save should complete in under 1 second
-5. **A/V sync test**: Verify audio and video remain synchronized
+1. **Memory test**: Monitor RAM - should stay under 1-2 GB
+2. **Quality test**: Compare JPEG 90% vs raw - should be visually similar
+3. **FPS test**: Should improve due to less memory pressure
+4. **Save test**: May be slightly slower (decompress step) but acceptable
 
 ---
 
-## Risks & Mitigations
+## Trade-offs (User Controllable)
 
-| Risk | Mitigation |
-|------|------------|
-| FFmpeg pipe hangs | Watchdog timer, auto-restart |
-| NVENC unavailable | Fall back to existing raw buffer system |
-| Quality concerns | Make bitrate configurable (default 8 Mbps) |
-| A/V sync drift | Timestamp all NAL units, align during mux |
+| Setting        | Low Memory | Balanced  | High Quality  |
+| -------------- | ---------- | --------- | ------------- |
+| Resolution     | 720p       | 1080p     | 1080p         |
+| JPEG Quality   | 80         | 90        | 95            |
+| Est. RAM       | ~100 MB    | ~300 MB   | ~500 MB       |
+| Visual Quality | Good       | Very Good | Near Lossless |

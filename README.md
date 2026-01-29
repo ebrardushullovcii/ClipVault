@@ -2,6 +2,18 @@
 
 A lightweight game clipping software for Windows, built with C# and designed for NVIDIA GPUs.
 
+## Why ClipVault?
+
+Existing game clipping tools are frustrating:
+- **Ads & Upsells**: Free tools nag for upgrades or show ads
+- **Crashes**: Unreliable when you need them most
+- **Bloat**: Heavy resource usage, slow startup, unnecessary features
+- **No Control**: Can't customize behavior or fix issues yourself
+
+**ClipVault is different**: Simple, lightweight, does exactly what's needed - nothing more. You control everything. No ads, no telemetry, no bloat. If something breaks, you can fix it.
+
+This isn't about achieving perfect quality or minimal resource usage - it's about a reliable tool that works well, runs reasonably light, and stays out of your way. Good enough to share, light enough to forget it's running.
+
 ## Features
 
 **Capture:**

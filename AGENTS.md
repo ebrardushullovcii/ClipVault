@@ -9,6 +9,17 @@ This file provides instructions for AI coding assistants (OpenCode, Claude, Curs
 
 **ClipVault** is a Windows game clipping software built in C#/.NET 8. It captures gameplay with a rolling buffer and saves clips on hotkey press using NVENC hardware encoding.
 
+### Why This Exists
+
+This project was born from frustration with existing clipping tools:
+- **Ads & bloat** - Most tools are heavy, slow, and nag for upgrades
+- **Crashes** - Unreliable when you need them most
+- **No control** - Can't customize or fix issues yourself
+
+**Design philosophy**: Simple, lightweight, user-controlled. No ads, no telemetry. Does exactly what's needed - nothing more.
+
+**Acceptable trade-offs**: This isn't about perfect quality or minimal resources - it's about reliability and control. Good quality (not lossless), reasonable performance (not wasteful), core features done well. The goal is a tool that works reliably and can be understood and modified when needed.
+
 ## Quick Reference
 
 - **Language:** C# 12 / .NET 8.0
@@ -19,13 +30,11 @@ This file provides instructions for AI coding assistants (OpenCode, Claude, Curs
 
 | Component      | Technology                                      | Status      |
 | -------------- | ----------------------------------------------- | ----------- |
-| Screen Capture | GDI + Screen.CopyFromScreen (full screen, 720p) | Implemented |
-| Screen Capture | Windows.Graphics.Capture API (window)           | Not done    |
-| Screen Capture | DXGI Desktop Duplication (fallback)             | Not done    |
-| Audio          | NAudio 2.2+ with WASAPI                         | Implemented |
+| Screen Capture | DXGI Desktop Duplication (full screen, 1080p)   | Implemented |
+| Screen Capture | GDI fallback                                    | Implemented |
+| Audio          | NAudio 2.2+ with WASAPI (system + mic)          | Implemented |
 | Encoding       | FFmpeg process with NVENC                       | Implemented |
-| DirectX        | Vortice.Direct3D11/DXGI (not currently used)    | Available   |
-| WinRT          | Microsoft.Windows.CsWinRT (not currently used)  | Available   |
+| DirectX        | Vortice.Direct3D11/DXGI                         | In use      |
 
 ## Project Structure
 

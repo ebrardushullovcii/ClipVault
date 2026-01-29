@@ -5,23 +5,42 @@ using System.Windows.Forms;
 
 namespace ClipVault.Core.Capture;
 
+/// <summary>
+/// Optimized GDI-based screen capture with minimal allocations.
+/// Pre-allocates buffers and reuses them to eliminate GC pressure.
+/// </summary>
 public sealed class GdiScreenCapture : IScreenCapture, IDisposable
 {
-    private Bitmap? _screenBitmap;
-    private Graphics? _graphics;
+    // Pre-allocated resources (reused every frame)
+    private Bitmap? _targetBitmap;
+    private Graphics? _targetGraphics;
+    private Bitmap? _fullScreenBitmap;
+    private Graphics? _fullScreenGraphics;
+    private byte[]? _frameBuffer;
+
+    // Configuration
+    private int _targetWidth;
+    private int _targetHeight;
+    private int _sourceWidth;
+    private int _sourceHeight;
+    private int _targetFps;
+
+    // State
     private bool _isCapturing;
     private bool _disposed;
-    private int _frameCount;
-    private int _width;
-    private int _height;
-    private byte[]? _frameBuffer;
+    private long _frameCount;
     private readonly object _lock = new();
 
     public event EventHandler<FrameCapturedEventArgs>? FrameCaptured;
     public bool IsCapturing => _isCapturing;
+    public int TargetWidth => _targetWidth;
+    public int TargetHeight => _targetHeight;
 
-    public GdiScreenCapture()
+    public GdiScreenCapture(int targetWidth = 1920, int targetHeight = 1080, int targetFps = 60)
     {
+        _targetWidth = targetWidth;
+        _targetHeight = targetHeight;
+        _targetFps = targetFps;
     }
 
     public Task StartAsync(CancellationToken cancellationToken = default)
@@ -39,6 +58,8 @@ public sealed class GdiScreenCapture : IScreenCapture, IDisposable
             {
                 await CaptureLoopAsync(cancellationToken);
             }, cancellationToken);
+
+            Logger.Info($"GDI capture started: {_targetWidth}x{_targetHeight}@{_targetFps}fps");
         }
         catch (Exception ex)
         {
@@ -51,20 +72,55 @@ public sealed class GdiScreenCapture : IScreenCapture, IDisposable
 
     private void InitializeCapture()
     {
-        _width = 1280;
-        _height = 720;
+        lock (_lock)
+        {
+            // Get source screen size
+            var screen = Screen.PrimaryScreen;
+            _sourceWidth = screen?.Bounds.Width ?? 1920;
+            _sourceHeight = screen?.Bounds.Height ?? 1080;
 
-        _screenBitmap = new Bitmap(_width, _height, PixelFormat.Format32bppRgb);
-        _graphics = Graphics.FromImage(_screenBitmap);
-        _frameBuffer = new byte[_width * _height * 4];
+            // Dispose old resources if any
+            CleanupResources();
+
+            // Target bitmap for scaled output (720p/1080p/etc)
+            _targetBitmap = new Bitmap(_targetWidth, _targetHeight, PixelFormat.Format32bppRgb);
+            _targetGraphics = Graphics.FromImage(_targetBitmap);
+            _targetGraphics.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.Bilinear;
+            _targetGraphics.CompositingMode = System.Drawing.Drawing2D.CompositingMode.SourceCopy;
+            _targetGraphics.CompositingQuality = System.Drawing.Drawing2D.CompositingQuality.HighSpeed;
+            _targetGraphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.None;
+
+            // Full-screen bitmap for capturing (reused every frame)
+            _fullScreenBitmap = new Bitmap(_sourceWidth, _sourceHeight, PixelFormat.Format32bppRgb);
+            _fullScreenGraphics = Graphics.FromImage(_fullScreenBitmap);
+            _fullScreenGraphics.CompositingMode = System.Drawing.Drawing2D.CompositingMode.SourceCopy;
+
+            // Frame buffer for raw pixel data
+            _frameBuffer = new byte[_targetWidth * _targetHeight * 4];
+
+            Logger.Debug($"Capture initialized: {_sourceWidth}x{_sourceHeight} -> {_targetWidth}x{_targetHeight}");
+        }
+    }
+
+    private void CleanupResources()
+    {
+        _targetGraphics?.Dispose();
+        _targetBitmap?.Dispose();
+        _fullScreenGraphics?.Dispose();
+        _fullScreenBitmap?.Dispose();
+
+        _targetGraphics = null;
+        _targetBitmap = null;
+        _fullScreenGraphics = null;
+        _fullScreenBitmap = null;
     }
 
     private async Task CaptureLoopAsync(CancellationToken ct)
     {
-        var targetFrameTime = 1000.0 / 30; // 30 FPS for lower memory usage
+        var targetFrameTime = 1000.0 / _targetFps;
         var sw = System.Diagnostics.Stopwatch.StartNew();
-        var retryCount = 0;
-        const int maxRetries = 5;
+        var frameCounter = 0;
+        var logInterval = _targetFps * 5; // Log every 5 seconds
 
         while (_isCapturing && !ct.IsCancellationRequested)
         {
@@ -74,7 +130,12 @@ public sealed class GdiScreenCapture : IScreenCapture, IDisposable
 
                 if (captured)
                 {
-                    retryCount = 0;
+                    frameCounter++;
+                    if (frameCounter % logInterval == 0)
+                    {
+                        var actualFps = frameCounter / sw.Elapsed.TotalSeconds;
+                        Logger.Debug($"Capture FPS: {actualFps:F1} (target: {_targetFps})");
+                    }
 
                     var elapsed = sw.ElapsedMilliseconds;
                     var sleepMs = Math.Max(1, (int)(targetFrameTime - elapsed));
@@ -82,15 +143,11 @@ public sealed class GdiScreenCapture : IScreenCapture, IDisposable
                         await Task.Delay(sleepMs, ct);
 
                     sw.Restart();
+                    if (frameCounter >= logInterval)
+                        frameCounter = 0;
                 }
                 else
                 {
-                    retryCount++;
-                    if (retryCount >= maxRetries)
-                    {
-                        ReinitializeCapture();
-                        retryCount = 0;
-                    }
                     await Task.Delay(16, ct);
                 }
             }
@@ -106,78 +163,66 @@ public sealed class GdiScreenCapture : IScreenCapture, IDisposable
         }
     }
 
-    private void ReinitializeCapture()
-    {
-        lock (_lock)
-        {
-            _graphics?.Dispose();
-            _screenBitmap?.Dispose();
-
-            _screenBitmap = new Bitmap(_width, _height, PixelFormat.Format32bppRgb);
-            _graphics = Graphics.FromImage(_screenBitmap);
-        }
-    }
-
     private bool CaptureFrame()
     {
         try
         {
             lock (_lock)
             {
-                if (_graphics == null || _screenBitmap == null)
+                if (_targetGraphics == null || _targetBitmap == null || _fullScreenBitmap == null || _frameBuffer == null)
                     return false;
 
-                // Get actual screen size and scale down to our target resolution
-                var screen = Screen.PrimaryScreen;
-                var screenWidth = screen?.Bounds.Width ?? 1920;
-                var screenHeight = screen?.Bounds.Height ?? 1080;
+                // Capture full screen (reuse bitmap - NO ALLOCATION!)
+                _fullScreenGraphics!.CopyFromScreen(
+                    0, 0, 0, 0,
+                    new Size(_sourceWidth, _sourceHeight),
+                    CopyPixelOperation.SourceCopy);
 
-                // Capture full screen and scale to 720p
-                using var fullScreen = new Bitmap(screenWidth, screenHeight, PixelFormat.Format32bppRgb);
-                using var fullGraphics = Graphics.FromImage(fullScreen);
-                fullGraphics.CopyFromScreen(0, 0, 0, 0, new Size(screenWidth, screenHeight), CopyPixelOperation.SourceCopy);
+                // Scale to target resolution (reuse graphics object)
+                _targetGraphics.DrawImage(
+                    _fullScreenBitmap,
+                    0, 0, _targetWidth, _targetHeight);
 
-                // Scale down to target resolution
-                _graphics.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.Bilinear;
-                _graphics.DrawImage(fullScreen, 0, 0, _width, _height);
-
-                var rect = new Rectangle(0, 0, _width, _height);
-                var bitmapData = _screenBitmap.LockBits(rect, ImageLockMode.ReadOnly, PixelFormat.Format32bppRgb);
+                // Lock bits and copy to frame buffer
+                var rect = new Rectangle(0, 0, _targetWidth, _targetHeight);
+                var bitmapData = _targetBitmap.LockBits(rect, ImageLockMode.ReadOnly, PixelFormat.Format32bppRgb);
 
                 try
                 {
                     var sourcePtr = bitmapData.Scan0;
-                    var destPtr = Marshal.UnsafeAddrOfPinnedArrayElement(_frameBuffer!, 0);
+                    var destPtr = Marshal.UnsafeAddrOfPinnedArrayElement(_frameBuffer, 0);
 
-                    for (int y = 0; y < _height; y++)
+                    // Fast row-by-row copy
+                    for (int y = 0; y < _targetHeight; y++)
                     {
                         var srcRow = IntPtr.Add(sourcePtr, y * bitmapData.Stride);
-                        var dstRow = IntPtr.Add(destPtr, y * _width * 4);
-                        RtlCopyMemory(dstRow, srcRow, (uint)(_width * 4));
+                        var dstRow = IntPtr.Add(destPtr, y * _targetWidth * 4);
+                        RtlCopyMemory(dstRow, srcRow, (uint)(_targetWidth * 4));
                     }
 
-                    _frameCount++;
+                    Interlocked.Increment(ref _frameCount);
 
                     var args = new FrameCapturedEventArgs
                     {
-                        TexturePointer = Marshal.UnsafeAddrOfPinnedArrayElement(_frameBuffer!, 0),
+                        TexturePointer = destPtr,
                         TimestampTicks = NativeMethods.GetHighResolutionTimestamp(),
-                        Width = _width,
-                        Height = _height
+                        Width = _targetWidth,
+                        Height = _targetHeight
                     };
 
                     FrameCaptured?.Invoke(this, args);
                 }
                 finally
                 {
-                    _screenBitmap.UnlockBits(bitmapData);
+                    _targetBitmap.UnlockBits(bitmapData);
                 }
             }
 
             return true;
         }
-        catch
+        catch (Exception ex)
         {
+            Logger.Debug($"Frame capture failed: {ex.Message}");
             return false;
         }
     }
@@ -198,6 +243,7 @@ public sealed class GdiScreenCapture : IScreenCapture, IDisposable
             _isCapturing = false;
         }
 
+        Logger.Info($"GDI capture stopped. Total frames: {_frameCount}");
         return Task.CompletedTask;
     }
 
@@ -208,7 +254,10 @@ public sealed class GdiScreenCapture : IScreenCapture, IDisposable
 
         StopAsync().Wait(TimeSpan.FromSeconds(1));
 
-        _graphics?.Dispose();
-        _screenBitmap?.Dispose();
+        lock (_lock)
+        {
+            CleanupResources();
+            _frameBuffer = null;
+        }
     }
 }

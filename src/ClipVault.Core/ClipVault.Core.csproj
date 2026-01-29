@@ -15,6 +15,10 @@
 
     <!-- Screen capture -->
     <PackageReference Include="System.Drawing.Common" Version="8.0.0" />
+    
+    <!-- GPU-accelerated capture (DXGI Desktop Duplication) -->
+    <PackageReference Include="Vortice.Direct3D11" Version="3.6.2" />
+    <PackageReference Include="Vortice.DXGI" Version="3.6.2" />
   </ItemGroup>
 
 </Project>

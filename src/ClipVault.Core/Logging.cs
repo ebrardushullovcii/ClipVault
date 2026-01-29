@@ -47,19 +47,19 @@ public static class Logger
     }
 
     public static void GameDetected(string gameName, int processId, nint windowHandle) =>
-        Info($"🎮 GAME DETECTED: '{gameName}' (PID: {processId}, HWND: 0x{windowHandle:X})");
+        Info($"🎮 GAME FOCUSED: '{gameName}' (PID: {processId}, HWND: 0x{windowHandle:X})");
 
     public static void GameLost(string gameName, string reason) =>
-        Info($"❌ GAME LOST: '{gameName}' - {reason}");
+        Debug($"Game focus lost: '{gameName}' - {reason}");
 
     public static void HotkeyPressed() =>
         Info($"⌨️  HOTKEY TRIGGERED");
 
     public static void CaptureStarted(string gameName) =>
-        Info($"🔴 CAPTURE STARTED: '{gameName}'");
+        Info($"🔴 CAPTURE ACTIVE: '{gameName}'");
 
     public static void CaptureStopped(string gameName) =>
-        Info($"🛑 CAPTURE STOPPED: '{gameName}'");
+        Debug($"Capture session ended: '{gameName}'");
 
     public static void ClipSaved(string outputPath, double durationSeconds) =>
         Info($"💾 CLIP SAVED: {outputPath} ({durationSeconds:F1}s)");

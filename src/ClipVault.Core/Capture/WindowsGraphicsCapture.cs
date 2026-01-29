@@ -1,5 +1,9 @@
 namespace ClipVault.Core.Capture;
 
+/// <summary>
+/// Wrapper for GDI screen capture (placeholder for future Windows.Graphics.Capture API).
+/// Currently delegates to GdiScreenCapture with configurable resolution.
+/// </summary>
 public sealed class WindowsGraphicsCapture : IScreenCapture
 {
     private GdiScreenCapture? _gdiCapture;
@@ -9,8 +13,14 @@ public sealed class WindowsGraphicsCapture : IScreenCapture
     public event EventHandler<FrameCapturedEventArgs>? FrameCaptured;
     public bool IsCapturing => _isCapturing;
 
-    public WindowsGraphicsCapture(nint windowHandle)
+    public WindowsGraphicsCapture(nint windowHandle, int targetWidth = 1920, int targetHeight = 1080, int targetFps = 60)
     {
+        // Window handle is stored for future Windows.Graphics.Capture implementation
+        // Currently using GDI which captures full screen
+        _ = windowHandle;
+        
+        Logger.Debug($"Capture size: {targetWidth}x{targetHeight} (configured for quality)");
+        _gdiCapture = new GdiScreenCapture(targetWidth, targetHeight, targetFps);
     }
 
     public Task StartAsync(CancellationToken cancellationToken = default)
@@ -18,11 +28,14 @@ public sealed class WindowsGraphicsCapture : IScreenCapture
         if (_isCapturing)
             return Task.CompletedTask;
 
-        _gdiCapture = new GdiScreenCapture();
+        if (_gdiCapture == null)
+            throw new InvalidOperationException("Capture not initialized");
+
         _gdiCapture.FrameCaptured += (_, args) => FrameCaptured?.Invoke(this, args);
         _gdiCapture.StartAsync(cancellationToken).Wait(cancellationToken);
         _isCapturing = true;
 
+        Logger.Debug("WindowsGraphicsCapture: Started");
         return Task.CompletedTask;
     }
 
@@ -33,8 +46,7 @@ public sealed class WindowsGraphicsCapture : IScreenCapture
 
         _isCapturing = false;
         _gdiCapture?.StopAsync().Wait(TimeSpan.FromSeconds(1));
-        _gdiCapture?.Dispose();
-        _gdiCapture = null;
+        Logger.Debug("WindowsGraphicsCapture: Stopped");
 
         return Task.CompletedTask;
     }
@@ -45,5 +57,7 @@ public sealed class WindowsGraphicsCapture : IScreenCapture
         _disposed = true;
 
         StopAsync().Wait(TimeSpan.FromSeconds(1));
+        _gdiCapture?.Dispose();
+        _gdiCapture = null;
     }
 }

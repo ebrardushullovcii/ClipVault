@@ -39,10 +39,16 @@ public sealed class QualitySettings
     public int Fps { get; set; } = 60;
 
     [JsonPropertyName("nvencPreset")]
-    public string NvencPreset { get; set; } = "p7";
+    public string NvencPreset { get; set; } = "p4";
+
+    [JsonPropertyName("rateControl")]
+    public string RateControl { get; set; } = "cqp";
 
     [JsonPropertyName("cqLevel")]
     public int CqLevel { get; set; } = 22;
+
+    [JsonPropertyName("bitrateKbps")]
+    public int BitrateKbps { get; set; } = 8000;
 }
 
 public sealed class HotkeySettings

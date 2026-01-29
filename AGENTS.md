@@ -17,15 +17,15 @@ This file provides instructions for AI coding assistants (OpenCode, Claude, Curs
 
 ## Tech Stack
 
-| Component      | Technology                                              | Status     |
-| -------------- | ------------------------------------------------------- |------------|
-| Screen Capture | GDI + Screen.CopyFromScreen (full screen, 720p)         | Implemented |
-| Screen Capture | Windows.Graphics.Capture API (window)                   | Not done   |
-| Screen Capture | DXGI Desktop Duplication (fallback)                     | Not done   |
-| Audio          | NAudio 2.2+ with WASAPI                                 | Implemented |
-| Encoding       | FFmpeg process with NVENC                               | Implemented |
-| DirectX        | Vortice.Direct3D11/DXGI (not currently used)            | Available  |
-| WinRT          | Microsoft.Windows.CsWinRT (not currently used)          | Available  |
+| Component      | Technology                                      | Status      |
+| -------------- | ----------------------------------------------- | ----------- |
+| Screen Capture | GDI + Screen.CopyFromScreen (full screen, 720p) | Implemented |
+| Screen Capture | Windows.Graphics.Capture API (window)           | Not done    |
+| Screen Capture | DXGI Desktop Duplication (fallback)             | Not done    |
+| Audio          | NAudio 2.2+ with WASAPI                         | Implemented |
+| Encoding       | FFmpeg process with NVENC                       | Implemented |
+| DirectX        | Vortice.Direct3D11/DXGI (not currently used)    | Available   |
+| WinRT          | Microsoft.Windows.CsWinRT (not currently used)  | Available   |
 
 ## Project Structure
 
@@ -93,9 +93,16 @@ public interface IAudioCapture : IDisposable
 
 ### Screen Capture
 
-- Current: GDI `Screen.CopyFromScreen` for full-screen capture (720p, works with anti-cheat)
-- Future: Windows.GraphicsCapture API for window-specific capture
-- Anti-cheat compatible: GDI and DXGI work; avoid injection/hooks
+- **Always full-screen capture** - Records entire screen continuously
+- Uses GDI `Screen.CopyFromScreen` (anti-cheat compatible)
+- Target resolution configurable (720p/1080p/1440p) via settings.json
+- No window-specific capture (future: Windows.Graphics.Capture API)
+
+### Game Detection (File Naming Only)
+
+- Detects focused game for **folder naming** (e.g., `GameName_2024-01-15_14-30-22/`)
+- Detection does NOT start/stop capture - capture is always running
+- Capture continues regardless of which window is focused
 
 ### NVENC Encoding
 

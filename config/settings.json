@@ -2,10 +2,12 @@
   "$schema": "./settings.schema.json",
   "bufferDurationSeconds": 15,
   "quality": {
-    "resolution": "720p",
-    "fps": 30,
-    "nvencPreset": "p7",
-    "cqLevel": 22
+    "resolution": "1080p",
+    "fps": 60,
+    "nvencPreset": "p4",
+    "rateControl": "cqp",
+    "cqLevel": 22,
+    "bitrateKbps": 6000
   },
   "hotkey": {
     "modifiers": [],

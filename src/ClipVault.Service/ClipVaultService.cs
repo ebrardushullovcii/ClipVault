@@ -25,13 +25,12 @@ public sealed class ClipVaultService : IDisposable
     private IAudioCapture? _systemAudioCapture;
     private IAudioCapture? _microphoneCapture;
     private HotkeyManager? _hotkeyManager;
-    private VideoFrameBuffer? _videoBuffer;
-    private AudioSampleBuffer? _systemAudioBuffer;
-    private AudioSampleBuffer? _microphoneAudioBuffer;
+    private SyncedAVBuffer? _avBuffer;
 
     private bool _isCapturing;
     private bool _disposed;
     private bool _isSavingClip;
+    private string? _currentGameName;
 
     public ClipVaultService(string basePath, NotifyIcon trayIcon, ContextMenuStrip trayMenu)
     {
@@ -61,6 +60,10 @@ public sealed class ClipVaultService : IDisposable
 
         InitializeGameDetector();
         InitializeHotkeys();
+
+        // Start capture and audio immediately - DXGI captures full screen continuously
+        StartCapture();
+        StartAudioCapture();
 
         Logger.Info("ClipVault service initialized successfully");
         UpdateTrayStatus();
@@ -98,16 +101,24 @@ public sealed class ClipVaultService : IDisposable
     {
         var bufferSeconds = _configManager.Config.BufferDurationSeconds;
         var fps = _configManager.Config.Quality.Fps;
+        var (width, height) = ParseResolution(_configManager.Config.Quality.Resolution);
 
-        _videoBuffer = new VideoFrameBuffer(fps, bufferSeconds);
-        _systemAudioBuffer = new AudioSampleBuffer(
-            _configManager.Config.Audio.SampleRate,
-            2,
-            bufferSeconds);
-        _microphoneAudioBuffer = new AudioSampleBuffer(
-            _configManager.Config.Audio.SampleRate,
-            2,
-            bufferSeconds);
+        // Use synchronized A/V buffer for proper sync
+        _avBuffer = new SyncedAVBuffer(width, height, fps, bufferSeconds);
+
+        Logger.Info($"Synchronized A/V buffer initialized for {width}x{height}@{fps}fps, {bufferSeconds}s duration");
+    }
+
+    private static (int width, int height) ParseResolution(string resolution)
+    {
+        return resolution.ToLowerInvariant() switch
+        {
+            "720p" => (1280, 720),
+            "1080p" => (1920, 1080),
+            "1440p" => (2560, 1440),
+            "4k" or "2160p" => (3840, 2160),
+            _ => (1920, 1080)
+        };
     }
 
     private void InitializeGameDetector()
@@ -164,11 +175,13 @@ public sealed class ClipVaultService : IDisposable
 
     private void OnGameDetected(object? sender, GameDetectedEventArgs e)
     {
+        _currentGameName = e.Game.Name;
         Logger.GameDetected(e.Game.Name, e.Game.ProcessId, e.Game.WindowHandle);
 
+        // Start capture once if not already running - DXGI captures full screen continuously
         if (_configManager.Config.AutoDetectGames && !_isCapturing)
         {
-            StartCapture(e.Game.WindowHandle);
+            StartCapture();
         }
 
         UpdateTrayStatus();
@@ -176,14 +189,10 @@ public sealed class ClipVaultService : IDisposable
 
     private void OnGameLost(object? sender, GameLostEventArgs e)
     {
-        Logger.GameLost(e.GameName, e.Reason.ToString());
-
-        var (hwnd, _) = FocusMonitor.GetCurrentFocus();
-        if (hwnd != IntPtr.Zero)
-        {
-            StartCapture(hwnd);
-        }
-
+        // Just update the game name for clip folder naming - don't restart capture
+        // DXGI captures the full screen regardless of focus
+        _currentGameName = null;
+        Logger.Debug($"Game focus lost: '{e.GameName}' - capture continues");
         UpdateTrayStatus();
     }
 
@@ -204,34 +213,42 @@ public sealed class ClipVaultService : IDisposable
         }
         else
         {
-            var (hwnd, _) = FocusMonitor.GetCurrentFocus();
-            StartCapture(hwnd);
+            StartCapture();
         }
     }
 
-    public void StartCapture(nint windowHandle)
+    /// <summary>
+    /// Start full-screen capture. DXGI captures the entire screen continuously.
+    /// </summary>
+    public void StartCapture()
     {
-        Logger.Info($"Starting capture for window: {windowHandle}");
-
-        var wasCapturing = _screenCapture != null;
-
-        if (_screenCapture != null)
+        // Don't restart if already capturing
+        if (_isCapturing && _screenCapture != null)
         {
-            try
-            {
-                _screenCapture.StopAsync().Wait(TimeSpan.FromSeconds(1));
-                _screenCapture.Dispose();
-            }
-            catch { }
-            _screenCapture = null;
+            Logger.Debug("Capture already running, skipping restart");
+            return;
         }
 
         try
         {
-            _screenCapture = new WindowsGraphicsCapture(windowHandle);
+            var (width, height) = ParseResolution(_configManager.Config.Quality.Resolution);
+            var fps = _configManager.Config.Quality.Fps;
+
+            // Try DXGI first for GPU-accelerated capture, fall back to GDI
+            if (DxgiScreenCapture.IsSupported())
+            {
+                _screenCapture = new DxgiScreenCapture(width, height, fps);
+                Logger.Info($"Using DXGI Desktop Duplication for capture");
+            }
+            else
+            {
+                _screenCapture = new GdiScreenCapture(width, height, fps);
+                Logger.Info($"Using GDI screen capture (DXGI not available)");
+            }
+
             _screenCapture.FrameCaptured += OnFrameCaptured;
             _ = _screenCapture.StartAsync();
-            Logger.Info("Screen capture initialized successfully");
+            Logger.Info($"Screen capture started: {width}x{height}@{fps}fps");
 
             _isCapturing = true;
         }
@@ -241,6 +258,14 @@ public sealed class ClipVaultService : IDisposable
             _screenCapture = null;
         }
 
+        UpdateTrayStatus();
+    }
+
+    /// <summary>
+    /// Start audio capture (system audio + microphone).
+    /// </summary>
+    private void StartAudioCapture()
+    {
         // Start system audio capture
         if (_configManager.Config.Audio.CaptureSystemAudio && _systemAudioCapture == null)
         {
@@ -274,9 +299,6 @@ public sealed class ClipVaultService : IDisposable
                 _microphoneCapture = null;
             }
         }
-
-        _isCapturing = true;
-        UpdateTrayStatus();
     }
 
     public void StopCapture()
@@ -300,96 +322,37 @@ public sealed class ClipVaultService : IDisposable
             Logger.Info("Saving clip...");
 
         var timestamp = DateTime.Now;
-        var gameName = _gameDetector.CurrentGame?.Name ?? "Unknown";
+        var gameName = _currentGameName ?? _gameDetector.CurrentGame?.Name ?? "Clip";
 
         var folderName = $"{gameName}_{timestamp:yyyy-MM-dd_HH-mm-ss}";
         var outputDir = Path.Combine(_basePath, _configManager.Config.OutputDirectory, folderName);
         Directory.CreateDirectory(outputDir);
 
-        var frames = _videoBuffer?.GetAll() ?? Array.Empty<CoreEncoding.TimestampedFrame>();
-
-        if (frames.Length == 0)
+        if (_avBuffer == null)
         {
-            Logger.Warning("No frames captured, cannot save clip");
+            Logger.Warning("AV Buffer not initialized, cannot save clip");
             return;
         }
 
-        var videoStartTicks = frames[0].TimestampTicks;
-        var videoEndTicks = frames[frames.Length - 1].TimestampTicks;
-        var videoDurationTicks = videoEndTicks - videoStartTicks;
-        var videoDurationSeconds = NativeMethods.TimestampToSeconds(videoDurationTicks);
+        // Get last N seconds of synchronized A/V data
+        var targetDuration = _configManager.Config.BufferDurationSeconds;
+        var avData = _avBuffer.GetLastSeconds(targetDuration);
 
-        var allSystemAudio = _systemAudioBuffer?.GetAll() ?? Array.Empty<CoreEncoding.TimestampedAudio>();
-        var allMicAudio = _microphoneAudioBuffer?.GetAll() ?? Array.Empty<CoreEncoding.TimestampedAudio>();
-
-        var sampleRate = _configManager.Config.Audio.SampleRate;
-        var channels = 2;
-        var bytesPerSecond = sampleRate * channels * sizeof(float);
-        var targetAudioBytes = (int)(videoDurationSeconds * bytesPerSecond);
-        var toleranceBytes = (int)(0.5 * bytesPerSecond);
-        var minAudioBytes = targetAudioBytes - toleranceBytes;
-        var maxAudioBytes = targetAudioBytes + toleranceBytes;
-
-        Logger.Info($"Target audio: {targetAudioBytes / 1024}KB for {videoDurationSeconds:F1}s video");
-
-        var totalSystemBytes = allSystemAudio.Sum(a => a.Samples.Length);
-        var totalMicBytes = allMicAudio.Sum(a => a.Samples.Length);
-
-        var systemAudio = allSystemAudio.ToList();
-        var micAudio = allMicAudio.ToList();
-
-        if (totalSystemBytes > maxAudioBytes)
+        if (avData.Frames.Length == 0)
         {
-            var excessBytes = totalSystemBytes - maxAudioBytes;
-            var accumulated = 0;
-            var toRemove = 0;
-            for (int i = 0; i < systemAudio.Count; i++)
-            {
-                accumulated += systemAudio[i].Samples.Length;
-                if (accumulated > excessBytes)
-                {
-                    toRemove = i + 1;
-                    break;
-                }
-            }
-            if (toRemove > 0 && toRemove < systemAudio.Count)
-            {
-                systemAudio = systemAudio.Skip(toRemove).ToList();
-                Logger.Debug($"Trimmed {toRemove} system audio chunks to match video duration");
-            }
+            Logger.Warning("No frames in target time window, cannot save clip");
+            return;
         }
 
-        if (totalMicBytes > maxAudioBytes)
-        {
-            var excessBytes = totalMicBytes - maxAudioBytes;
-            var accumulated = 0;
-            var toRemove = 0;
-            for (int i = 0; i < micAudio.Count; i++)
-            {
-                accumulated += micAudio[i].Samples.Length;
-                if (accumulated > excessBytes)
-                {
-                    toRemove = i + 1;
-                    break;
-                }
-            }
-            if (toRemove > 0 && toRemove < micAudio.Count)
-            {
-                micAudio = micAudio.Skip(toRemove).ToList();
-                Logger.Debug($"Trimmed {toRemove} mic audio chunks to match video duration");
-            }
-        }
-
-        Logger.Info($"Final audio: system={systemAudio.Count}, mic={micAudio.Count} (video {videoDurationSeconds:F1}s)");
+        Logger.Info($"Saving clip: {avData.Frames.Length} frames, {avData.DurationSeconds:F1}s duration");
 
         var videoPath = Path.Combine(outputDir, "clip.mp4");
 
         try
         {
-            // Use actual captured dimensions from first frame, not hardcoded values
-            var firstFrame = frames.Length > 0 ? frames[0] : null;
-            var width = firstFrame?.Width ?? 1920;
-            var height = firstFrame?.Height ?? 1080;
+            var firstFrame = avData.Frames[0];
+            var width = firstFrame.Width;
+            var height = firstFrame.Height;
 
             Logger.Info($"Encoding at {width}x{height}");
 
@@ -398,17 +361,19 @@ public sealed class ClipVaultService : IDisposable
                 Width = width,
                 Height = height,
                 Fps = _configManager.Config.Quality.Fps,
-                NvencPreset = "p7",
-                CqLevel = 22,
+                NvencPreset = _configManager.Config.Quality.NvencPreset,
+                RateControl = _configManager.Config.Quality.RateControl,
+                CqLevel = _configManager.Config.Quality.CqLevel,
+                Bitrate = _configManager.Config.Quality.BitrateKbps,
                 AudioSampleRate = 48000
             };
 
             var encoder = new CoreEncoding.FFmpegEncoder();
             await encoder.EncodeAsync(
                 videoPath,
-                frames.ToList(),
-                systemAudio.ToList(),
-                micAudio.ToList(),
+                avData.Frames.ToList(),
+                avData.SystemAudio.ToList(),
+                avData.MicrophoneAudio.ToList(),
                 settings,
                 null,
                 CancellationToken.None);
@@ -418,20 +383,18 @@ public sealed class ClipVaultService : IDisposable
             Logger.Error("Encoding failed", ex);
         }
 
-        _videoBuffer?.Clear();
-        _systemAudioBuffer?.Clear();
-        _microphoneAudioBuffer?.Clear();
+        _avBuffer?.Clear();
 
-        Logger.Debug($"Buffers cleared - Video: {_videoBuffer?.Count ?? 0}, SystemAudio: {_systemAudioBuffer?.Count ?? 0}, MicAudio: {_microphoneAudioBuffer?.Count ?? 0}");
+        Logger.Debug("AV Buffer cleared");
 
         var metadata = new
         {
             Game = gameName,
             Timestamp = timestamp,
-            Duration = TimeSpan.FromSeconds(videoDurationSeconds),
-            VideoFrames = frames.Length,
-            SystemAudioSamples = systemAudio.Count,
-            MicrophoneAudioSamples = micAudio.Count,
+            Duration = TimeSpan.FromSeconds(avData.DurationSeconds),
+            VideoFrames = avData.Frames.Length,
+            SystemAudioSamples = avData.SystemAudio.Length,
+            MicrophoneAudioSamples = avData.MicrophoneAudio.Length,
             Resolution = $"{_configManager.Config.Quality.Resolution}",
             Fps = _configManager.Config.Quality.Fps
         };
@@ -440,7 +403,7 @@ public sealed class ClipVaultService : IDisposable
         var json = System.Text.Json.JsonSerializer.Serialize(metadata, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
         File.WriteAllText(metadataPath, json);
 
-        Logger.ClipSaved(outputDir, videoDurationSeconds);
+        Logger.ClipSaved(outputDir, avData.DurationSeconds);
         }
         finally
         {
@@ -450,11 +413,11 @@ public sealed class ClipVaultService : IDisposable
 
     private void OnFrameCaptured(object? sender, FrameCapturedEventArgs e)
     {
-        if (_videoBuffer == null) return;
+        if (_avBuffer == null) return;
 
         try
         {
-            _videoBuffer.Add(e.TexturePointer, e.TimestampTicks, e.Width, e.Height);
+            _avBuffer.AddVideoFrame(e.TexturePointer, e.TimestampTicks);
         }
         catch (Exception ex)
         {
@@ -469,11 +432,11 @@ public sealed class ClipVaultService : IDisposable
         if (_audioChunkCount <= 3)
             Logger.Debug($"SystemAudio callback #{_audioChunkCount}: {e.BytesRecorded} bytes");
 
-        if (e.BytesRecorded == 0 || _systemAudioBuffer == null) return;
+        if (e.BytesRecorded == 0 || _avBuffer == null) return;
 
         var copy = new byte[e.BytesRecorded];
         System.Buffer.BlockCopy(e.Buffer, 0, copy, 0, e.BytesRecorded);
-        _systemAudioBuffer.Add(copy, e.TimestampTicks);
+        _avBuffer.AddSystemAudio(copy, e.TimestampTicks);
     }
 
     private static int _micChunkCount = 0;
@@ -483,11 +446,11 @@ public sealed class ClipVaultService : IDisposable
         if (_micChunkCount <= 3)
             Logger.Debug($"Microphone callback #{_micChunkCount}: {e.BytesRecorded} bytes");
 
-        if (e.BytesRecorded == 0 || _microphoneAudioBuffer == null) return;
+        if (e.BytesRecorded == 0 || _avBuffer == null) return;
 
         var copy = new byte[e.BytesRecorded];
         System.Buffer.BlockCopy(e.Buffer, 0, copy, 0, e.BytesRecorded);
-        _microphoneAudioBuffer.Add(copy, e.TimestampTicks);
+        _avBuffer.AddMicrophoneAudio(copy, e.TimestampTicks);
     }
 
     private void UpdateTrayStatus()
@@ -523,9 +486,7 @@ public sealed class ClipVaultService : IDisposable
         _screenCapture?.Dispose();
         _systemAudioCapture?.Dispose();
         _microphoneCapture?.Dispose();
-        _videoBuffer?.Dispose();
-        _systemAudioBuffer?.Dispose();
-        _microphoneAudioBuffer?.Dispose();
+        _avBuffer?.Dispose();
         _hotkeyManager?.Dispose();
         _configManager?.Save();
 

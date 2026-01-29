@@ -80,7 +80,13 @@ Track implementation progress for Phase 1 (Core Engine).
 
 ## Phase 1 Optimizations (Next)
 
+- [x] **CRITICAL: Fix memory usage** - Old implementation used ~89GB for 1080p60 3min!
+  - [x] Implement `FramePool` for buffer reuse (eliminates per-frame allocations)
+  - [x] Implement `HybridFrameBuffer` (RAM + memory-mapped disk file)
+  - [x] Optimize `GdiScreenCapture` (eliminate per-frame Bitmap allocations)
+  - [x] Update `ClipVaultService` to use new optimized components
 - [ ] Test and optimize for 1080p 60fps capture
+- [ ] Test memory usage: Target ~500MB RAM + ~2GB disk for 1080p60 3min
 - [ ] Implement dynamic buffer sizing based on available memory
 - [ ] Optimize encoding settings for faster processing
 - [ ] Profile and reduce memory footprint of rolling buffer

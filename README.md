@@ -6,17 +6,18 @@ A lightweight game clipping software for Windows, built with C# and designed for
 
 **Capture:**
 
-- Continuous rolling buffer (30s, 1min, 2min, 5min configurable)
-- Window or fullscreen capture via Windows.Graphics.Capture API
-- DXGI Desktop Duplication fallback for anti-cheat compatibility
+- **Continuous full-screen capture** - Records entire screen at all times
+- Rolling buffer (15s-3min configurable) with memory-efficient storage
 - System audio + microphone as separate tracks
 - Hardware encoding via NVENC (minimal performance impact)
 - Global hotkey to save last X seconds
+- Anti-cheat compatible (GDI-based, no injection)
 
-**Game Detection:**
+**Game Detection (File Organization):**
 
-- Auto-detect 150+ popular games
-- Auto-start recording when game is focused
+- Detects 150+ games for automatic clip naming
+- Uses game name in output folder (e.g., `League of Legends_2024-01-15_14-30-22/`)
+- **Note:** Detection is for file naming only - capture is always full-screen
 - Custom game support via JSON configuration
 
 **Output:**

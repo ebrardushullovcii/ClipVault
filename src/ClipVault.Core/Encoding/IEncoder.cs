@@ -52,7 +52,9 @@ public sealed record EncoderSettings
     public required int Width { get; init; }
     public required int Height { get; init; }
     public required int Fps { get; init; }
-    public required string NvencPreset { get; init; } // p1-p7
-    public required int CqLevel { get; init; } // 0-51, lower = better quality
+    public required string NvencPreset { get; init; } // p1-p7 (p1=fastest, p7=slowest/best)
+    public required string RateControl { get; init; } // cqp, cbr, vbr
+    public required int CqLevel { get; init; } // 0-51 for CQP, lower = better quality
+    public required int Bitrate { get; init; } // kbps for CBR/VBR (e.g., 8000 = 8Mbps)
     public required int AudioSampleRate { get; init; }
 }

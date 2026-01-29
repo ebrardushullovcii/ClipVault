@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dotnet clean:*)",
+      "Bash(dotnet build:*)",
+      "Bash(dotnet restore:*)",
+      "Bash(dotnet list:*)",
+      "Bash(findstr:*)",
+      "Bash(taskkill:*)",
+      "Bash(cmd /c \"taskkill /F /IM ClipVault.exe\")",
+      "Bash(dir:*)",
+      "Bash(D:/Projects-Personal/ClipVault/tools/ffmpeg/bin/ffprobe.exe:*)",
+      "Bash(ffprobe:*)"
+    ]
+  }
+}

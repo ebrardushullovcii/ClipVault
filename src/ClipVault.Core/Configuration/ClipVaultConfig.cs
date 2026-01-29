@@ -49,6 +49,9 @@ public sealed class QualitySettings
 
     [JsonPropertyName("bitrateKbps")]
     public int BitrateKbps { get; set; } = 8000;
+
+    [JsonPropertyName("bufferCompressionQuality")]
+    public int BufferCompressionQuality { get; set; } = 90;
 }
 
 public sealed class HotkeySettings

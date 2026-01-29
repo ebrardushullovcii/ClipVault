@@ -1,33 +1,30 @@
-using System.Runtime.InteropServices;
-
 namespace ClipVault.Core.Buffer;
 
-/// <summary>
-/// Synchronized Audio/Video buffer that ensures A/V sync by using common timestamps.
-/// All data is timestamped with the same high-resolution clock.
-/// </summary>
 public sealed class SyncedAVBuffer : IDisposable
 {
     private readonly HybridFrameBuffer _videoBuffer;
     private readonly AudioSampleBuffer _systemAudioBuffer;
     private readonly AudioSampleBuffer _micAudioBuffer;
-    private readonly int _durationSeconds;
     private readonly int _fps;
+    private readonly int _width;
+    private readonly int _height;
     private bool _disposed;
 
-    public SyncedAVBuffer(int width, int height, int fps, int durationSeconds)
+    public SyncedAVBuffer(int width, int height, int fps, int durationSeconds, int compressionQuality = 90)
     {
-        _durationSeconds = durationSeconds;
+        _width = width;
+        _height = height;
         _fps = fps;
         
         _videoBuffer = new HybridFrameBuffer(width, height, fps, 
             ramBufferSeconds: Math.Min(30, durationSeconds), 
-            totalBufferSeconds: durationSeconds);
+            totalBufferSeconds: durationSeconds,
+            compressionQuality: compressionQuality);
             
         _systemAudioBuffer = new AudioSampleBuffer(48000, 2, durationSeconds);
         _micAudioBuffer = new AudioSampleBuffer(48000, 2, durationSeconds);
         
-        Logger.Info($"SyncedAVBuffer: {width}x{height}@{fps}fps, {durationSeconds}s buffer");
+        Logger.Info($"SyncedAVBuffer: {width}x{height}@{fps}fps, {durationSeconds}s buffer, JPEG quality {compressionQuality}");
     }
 
     public void AddVideoFrame(nint texturePointer, long timestampTicks)
@@ -45,39 +42,62 @@ public sealed class SyncedAVBuffer : IDisposable
         _micAudioBuffer.Add(data, timestampTicks);
     }
 
-    /// <summary>
-    /// Get synchronized A/V data for the last N seconds.
-    /// Video frames define the time window, audio is strictly aligned.
-    /// </summary>
+    public (string VideoFilePath, int FrameCount, long StartTimestamp, long EndTimestamp, Encoding.TimestampedAudio[] SystemAudio, Encoding.TimestampedAudio[] MicrophoneAudio) WriteLastSecondsToTempFiles(int seconds, string outputDir)
+    {
+        var now = NativeMethods.GetHighResolutionTimestamp();
+        var targetStartTicks = now - (long)(seconds * NativeMethods.TicksPerSecond);
+
+        var allSystemAudio = _systemAudioBuffer.GetAll();
+        var allMicAudio = _micAudioBuffer.GetAll();
+
+        var videoFilePath = Path.Combine(outputDir, $"video_raw_{Guid.NewGuid():N}.bin");
+        var result = _videoBuffer.WriteRawFramesToFile(videoFilePath, targetStartTicks);
+
+        if (result.FrameCount == 0)
+        {
+            File.Delete(videoFilePath);
+            return (string.Empty, 0, 0, 0, Array.Empty<Encoding.TimestampedAudio>(), Array.Empty<Encoding.TimestampedAudio>());
+        }
+
+        var audioEndMargin = (long)(0.1 * NativeMethods.TicksPerSecond);
+
+        var systemAudio = allSystemAudio
+            .Where(a => a.TimestampTicks >= result.StartTimestamp && a.TimestampTicks <= result.EndTimestamp + audioEndMargin)
+            .ToArray();
+        var micAudio = allMicAudio
+            .Where(a => a.TimestampTicks >= result.StartTimestamp && a.TimestampTicks <= result.EndTimestamp + audioEndMargin)
+            .ToArray();
+
+        var durationSeconds = NativeMethods.TimestampToSeconds(result.EndTimestamp - result.StartTimestamp);
+        Logger.Info($"Synced A/V: {result.FrameCount} frames ({durationSeconds:F1}s), " +
+                    $"{systemAudio.Length} system audio, {micAudio.Length} mic audio");
+
+        return (videoFilePath, result.FrameCount, result.StartTimestamp, result.EndTimestamp, systemAudio, micAudio);
+    }
+
     public SyncedAVData GetLastSeconds(int seconds)
     {
         var now = NativeMethods.GetHighResolutionTimestamp();
         var targetStartTicks = now - (long)(seconds * NativeMethods.TicksPerSecond);
 
-        // Get all data
         var allFrames = _videoBuffer.GetAll();
         var allSystemAudio = _systemAudioBuffer.GetAll();
         var allMicAudio = _micAudioBuffer.GetAll();
 
-        // Filter video to last N seconds
         var frames = allFrames.Where(f => f.TimestampTicks >= targetStartTicks).ToArray();
 
         if (frames.Length == 0)
         {
-            Logger.Warning("No frames in target time window");
             return new SyncedAVData(Array.Empty<Encoding.TimestampedFrame>(),
                 Array.Empty<Encoding.TimestampedAudio>(),
                 Array.Empty<Encoding.TimestampedAudio>(), 0);
         }
 
-        // Use VIDEO timestamps to define the clip window - audio must match exactly
         var videoStartTicks = frames[0].TimestampTicks;
         var videoEndTicks = frames[frames.Length - 1].TimestampTicks;
         var durationSeconds = NativeMethods.TimestampToSeconds(videoEndTicks - videoStartTicks);
 
-        // STRICT audio filtering: only include audio AT OR AFTER video start
-        // Small end margin to include audio chunk that spans video end
-        var audioEndMargin = (long)(0.1 * NativeMethods.TicksPerSecond); // 100ms at end only
+        var audioEndMargin = (long)(0.1 * NativeMethods.TicksPerSecond);
 
         var systemAudio = allSystemAudio
             .Where(a => a.TimestampTicks >= videoStartTicks && a.TimestampTicks <= videoEndTicks + audioEndMargin)
@@ -85,12 +105,6 @@ public sealed class SyncedAVBuffer : IDisposable
         var micAudio = allMicAudio
             .Where(a => a.TimestampTicks >= videoStartTicks && a.TimestampTicks <= videoEndTicks + audioEndMargin)
             .ToArray();
-
-        Logger.Info($"Synced A/V: {frames.Length} frames ({durationSeconds:F1}s), " +
-                    $"{systemAudio.Length} system audio, {micAudio.Length} mic audio");
-        Logger.Debug($"  Video window: {videoStartTicks} to {videoEndTicks}");
-        if (systemAudio.Length > 0)
-            Logger.Debug($"  System audio: {systemAudio[0].TimestampTicks} to {systemAudio[^1].TimestampTicks}");
 
         return new SyncedAVData(frames, systemAudio, micAudio, durationSeconds);
     }

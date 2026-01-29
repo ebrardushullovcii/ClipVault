@@ -101,12 +101,12 @@ public sealed class ClipVaultService : IDisposable
     {
         var bufferSeconds = _configManager.Config.BufferDurationSeconds;
         var fps = _configManager.Config.Quality.Fps;
+        var compressionQuality = _configManager.Config.Quality.BufferCompressionQuality;
         var (width, height) = ParseResolution(_configManager.Config.Quality.Resolution);
 
-        // Use synchronized A/V buffer for proper sync
-        _avBuffer = new SyncedAVBuffer(width, height, fps, bufferSeconds);
+        _avBuffer = new SyncedAVBuffer(width, height, fps, bufferSeconds, compressionQuality);
 
-        Logger.Info($"Synchronized A/V buffer initialized for {width}x{height}@{fps}fps, {bufferSeconds}s duration");
+        Logger.Info($"Synchronized A/V buffer initialized for {width}x{height}@{fps}fps, {bufferSeconds}s duration, JPEG quality {compressionQuality}");
     }
 
     private static (int width, int height) ParseResolution(string resolution)
@@ -321,89 +321,90 @@ public sealed class ClipVaultService : IDisposable
         {
             Logger.Info("Saving clip...");
 
-        var timestamp = DateTime.Now;
-        var gameName = _currentGameName ?? _gameDetector.CurrentGame?.Name ?? "Clip";
+            var timestamp = DateTime.Now;
+            var gameName = _currentGameName ?? _gameDetector.CurrentGame?.Name ?? "Clip";
 
-        var folderName = $"{gameName}_{timestamp:yyyy-MM-dd_HH-mm-ss}";
-        var outputDir = Path.Combine(_basePath, _configManager.Config.OutputDirectory, folderName);
-        Directory.CreateDirectory(outputDir);
+            var folderName = $"{gameName}_{timestamp:yyyy-MM-dd_HH-mm-ss}";
+            var outputDir = Path.Combine(_basePath, _configManager.Config.OutputDirectory, folderName);
+            Directory.CreateDirectory(outputDir);
 
-        if (_avBuffer == null)
-        {
-            Logger.Warning("AV Buffer not initialized, cannot save clip");
-            return;
-        }
-
-        // Get last N seconds of synchronized A/V data
-        var targetDuration = _configManager.Config.BufferDurationSeconds;
-        var avData = _avBuffer.GetLastSeconds(targetDuration);
-
-        if (avData.Frames.Length == 0)
-        {
-            Logger.Warning("No frames in target time window, cannot save clip");
-            return;
-        }
-
-        Logger.Info($"Saving clip: {avData.Frames.Length} frames, {avData.DurationSeconds:F1}s duration");
-
-        var videoPath = Path.Combine(outputDir, "clip.mp4");
-
-        try
-        {
-            var firstFrame = avData.Frames[0];
-            var width = firstFrame.Width;
-            var height = firstFrame.Height;
-
-            Logger.Info($"Encoding at {width}x{height}");
-
-            var settings = new CoreEncoding.EncoderSettings
+            if (_avBuffer == null)
             {
-                Width = width,
-                Height = height,
-                Fps = _configManager.Config.Quality.Fps,
-                NvencPreset = _configManager.Config.Quality.NvencPreset,
-                RateControl = _configManager.Config.Quality.RateControl,
-                CqLevel = _configManager.Config.Quality.CqLevel,
-                Bitrate = _configManager.Config.Quality.BitrateKbps,
-                AudioSampleRate = 48000
+                Logger.Warning("AV Buffer not initialized, cannot save clip");
+                return;
+            }
+
+            var targetDuration = _configManager.Config.BufferDurationSeconds;
+            var avResult = _avBuffer.WriteLastSecondsToTempFiles(targetDuration, outputDir);
+
+            if (avResult.FrameCount == 0)
+            {
+                Logger.Warning("No frames in target time window, cannot save clip");
+                return;
+            }
+
+            var durationSeconds = NativeMethods.TimestampToSeconds(avResult.EndTimestamp - avResult.StartTimestamp);
+            Logger.Info($"Saving clip: {avResult.FrameCount} frames, {durationSeconds:F1}s duration");
+
+            var videoPath = Path.Combine(outputDir, "clip.mp4");
+
+            var (width, height) = ParseResolution(_configManager.Config.Quality.Resolution);
+
+            try
+            {
+                Logger.Info($"Encoding at {width}x{height}");
+
+                var settings = new CoreEncoding.EncoderSettings
+                {
+                    Width = width,
+                    Height = height,
+                    Fps = _configManager.Config.Quality.Fps,
+                    NvencPreset = _configManager.Config.Quality.NvencPreset,
+                    RateControl = _configManager.Config.Quality.RateControl,
+                    CqLevel = _configManager.Config.Quality.CqLevel,
+                    Bitrate = _configManager.Config.Quality.BitrateKbps,
+                    AudioSampleRate = 48000
+                };
+
+                var encoder = new CoreEncoding.FFmpegEncoder();
+                await encoder.EncodeFromFileAsync(
+                    videoPath,
+                    avResult.VideoFilePath,
+                    avResult.FrameCount,
+                    avResult.StartTimestamp,
+                    avResult.EndTimestamp,
+                    avResult.SystemAudio,
+                    avResult.MicrophoneAudio,
+                    settings,
+                    null,
+                    CancellationToken.None);
+            }
+            catch (Exception ex)
+            {
+                Logger.Error("Encoding failed", ex);
+            }
+
+            _avBuffer?.Clear();
+
+            Logger.Debug("AV Buffer cleared");
+
+            var metadata = new
+            {
+                Game = gameName,
+                Timestamp = timestamp,
+                Duration = TimeSpan.FromSeconds(durationSeconds),
+                VideoFrames = avResult.FrameCount,
+                SystemAudioSamples = avResult.SystemAudio.Length,
+                MicrophoneAudioSamples = avResult.MicrophoneAudio.Length,
+                Resolution = $"{_configManager.Config.Quality.Resolution}",
+                Fps = _configManager.Config.Quality.Fps
             };
 
-            var encoder = new CoreEncoding.FFmpegEncoder();
-            await encoder.EncodeAsync(
-                videoPath,
-                avData.Frames.ToList(),
-                avData.SystemAudio.ToList(),
-                avData.MicrophoneAudio.ToList(),
-                settings,
-                null,
-                CancellationToken.None);
-        }
-        catch (Exception ex)
-        {
-            Logger.Error("Encoding failed", ex);
-        }
+            var metadataPath = Path.Combine(outputDir, "metadata.json");
+            var json = System.Text.Json.JsonSerializer.Serialize(metadata, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+            File.WriteAllText(metadataPath, json);
 
-        _avBuffer?.Clear();
-
-        Logger.Debug("AV Buffer cleared");
-
-        var metadata = new
-        {
-            Game = gameName,
-            Timestamp = timestamp,
-            Duration = TimeSpan.FromSeconds(avData.DurationSeconds),
-            VideoFrames = avData.Frames.Length,
-            SystemAudioSamples = avData.SystemAudio.Length,
-            MicrophoneAudioSamples = avData.MicrophoneAudio.Length,
-            Resolution = $"{_configManager.Config.Quality.Resolution}",
-            Fps = _configManager.Config.Quality.Fps
-        };
-
-        var metadataPath = Path.Combine(outputDir, "metadata.json");
-        var json = System.Text.Json.JsonSerializer.Serialize(metadata, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
-        File.WriteAllText(metadataPath, json);
-
-        Logger.ClipSaved(outputDir, avData.DurationSeconds);
+            Logger.ClipSaved(outputDir, durationSeconds);
         }
         finally
         {

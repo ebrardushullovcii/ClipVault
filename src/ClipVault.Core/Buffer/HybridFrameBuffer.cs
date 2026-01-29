@@ -1,3 +1,5 @@
+using System.Drawing;
+using System.Drawing.Imaging;
 using System.IO.MemoryMappedFiles;
 using System.Runtime.InteropServices;
 
@@ -5,40 +7,37 @@ namespace ClipVault.Core.Buffer;
 
 /// <summary>
 /// Hybrid rolling buffer that keeps recent frames in RAM and older frames in memory-mapped disk file.
-/// Target: ~500MB RAM for 30s recent + ~2GB disk file for 3min total at 1080p60.
+/// Uses JPEG compression to reduce memory usage (~100KB per 1080p frame vs 8.3MB raw).
+/// Target: ~300MB RAM for 30s recent + ~1GB disk file for 3min total at 1080p60.
 /// </summary>
 public sealed class HybridFrameBuffer : IDisposable
 {
-    // Configuration
     private readonly int _width;
     private readonly int _height;
     private readonly int _fps;
     private readonly int _ramBufferSeconds;
     private readonly int _totalBufferSeconds;
     private readonly string _tempFilePath;
+    private readonly int _compressionQuality;
+    private readonly ImageCodecInfo _jpegCodec;
+    private readonly EncoderParameters _encoderParams;
 
-    // Frame size calculations
-    private readonly int _frameSize;
+    private readonly int _rawFrameSize;
     private readonly int _metadataSize;
-    private readonly int _totalFrameSize;
+    private readonly int _maxCompressedSize;
 
-    // RAM buffer (recent frames)
     private readonly FrameMetadata[] _ramMetadata;
     private readonly byte[]?[] _ramFrames;
+    private readonly bool[] _ramFrameValid;
     private int _ramWriteIndex;
     private int _ramCount;
 
-    // Disk buffer (older frames via memory-mapped file)
     private readonly MemoryMappedFile? _diskFile;
     private readonly MemoryMappedViewAccessor? _diskAccessor;
     private readonly int _diskCapacity;
     private long _diskWritePosition;
     private long _diskFrameCount;
 
-    // Frame pool for efficient reuse
-    private readonly FramePool _framePool;
-
-    // Threading
     private readonly object _lock = new();
     private readonly SemaphoreSlim _diskSemaphore = new(1, 1);
     private bool _disposed;
@@ -47,14 +46,11 @@ public sealed class HybridFrameBuffer : IDisposable
 
     public int Width => _width;
     public int Height => _height;
-    public int FrameSize => _frameSize;
+    public int RawFrameSize => _rawFrameSize;
     public int Count => (int)(_ramCount + _diskFrameCount);
     public int RamCount => _ramCount;
     public long DiskCount => _diskFrameCount;
 
-    /// <summary>
-    /// Total buffered duration in seconds (RAM + disk)
-    /// </summary>
     public double BufferedDurationSeconds
     {
         get
@@ -72,6 +68,7 @@ public sealed class HybridFrameBuffer : IDisposable
         int fps,
         int ramBufferSeconds = 30,
         int totalBufferSeconds = 180,
+        int compressionQuality = 90,
         string? tempFilePath = null)
     {
         _width = width;
@@ -79,29 +76,30 @@ public sealed class HybridFrameBuffer : IDisposable
         _fps = fps;
         _ramBufferSeconds = ramBufferSeconds;
         _totalBufferSeconds = totalBufferSeconds;
+        _compressionQuality = compressionQuality;
         _tempFilePath = tempFilePath ?? Path.Combine(Path.GetTempPath(), $"ClipVault_Buffer_{Guid.NewGuid()}.tmp");
 
-        _frameSize = width * height * 4; // BGRA
+        _rawFrameSize = width * height * 4;
         _metadataSize = Marshal.SizeOf<FrameMetadata>();
-        _totalFrameSize = _frameSize + _metadataSize;
+        _maxCompressedSize = width * height * 3 / 2;
 
-        // Initialize RAM buffer
+        _jpegCodec = GetJpegCodec();
+        _encoderParams = new EncoderParameters(1)
+        {
+            Param = { [0] = new EncoderParameter(Encoder.Quality, compressionQuality) }
+        };
+
         var ramFrameCount = fps * ramBufferSeconds;
         _ramMetadata = new FrameMetadata[ramFrameCount];
         _ramFrames = new byte[ramFrameCount][];
+        _ramFrameValid = new bool[ramFrameCount];
 
-        // Initialize frame pool (2x RAM capacity for double-buffering during save)
-        _framePool = new FramePool(width, height, ramFrameCount * 2);
-        _framePool.Prewarm(ramFrameCount);
-
-        // Initialize disk buffer (only if we need more than RAM can hold)
         var diskBufferSeconds = totalBufferSeconds - ramBufferSeconds;
 
-        // Only create disk buffer if we actually need it
         if (diskBufferSeconds > 0)
         {
             _diskCapacity = fps * diskBufferSeconds;
-            var diskFileSize = (long)_diskCapacity * _totalFrameSize;
+            var maxDiskFileSize = (long)_diskCapacity * (_metadataSize + _maxCompressedSize);
 
             try
             {
@@ -109,16 +107,15 @@ public sealed class HybridFrameBuffer : IDisposable
                     _tempFilePath,
                     FileMode.Create,
                     null,
-                    diskFileSize,
+                    maxDiskFileSize,
                     MemoryMappedFileAccess.ReadWrite);
 
                 _diskAccessor = _diskFile.CreateViewAccessor();
-                Logger.Info($"  Disk buffer: {_diskCapacity} frames ({diskBufferSeconds}s, ~{diskFileSize / 1024 / 1024}MB)");
+                Logger.Info($"  Disk buffer: {_diskCapacity} frames ({diskBufferSeconds}s");
             }
             catch (Exception ex)
             {
                 Logger.Error($"Failed to create memory-mapped file: {ex.Message}");
-                // Fall back to RAM-only mode
                 _diskCapacity = 0;
             }
         }
@@ -128,41 +125,73 @@ public sealed class HybridFrameBuffer : IDisposable
             Logger.Info("  Disk buffer: disabled (RAM-only mode)");
         }
 
-        // Use long to avoid integer overflow for large buffers
-        var ramSizeMB = ((long)ramFrameCount * _frameSize) / (1024 * 1024);
-        Logger.Info($"HybridFrameBuffer initialized: {width}x{height}@{fps}fps");
-        Logger.Info($"  RAM buffer: {ramFrameCount} frames ({ramBufferSeconds}s, ~{ramSizeMB}MB)");
+        Logger.Info($"HybridFrameBuffer initialized: {width}x{height}@{fps}fps, JPEG quality {compressionQuality}");
+        Logger.Info($"  RAM buffer: {ramFrameCount} frames ({ramBufferSeconds}s");
     }
 
-    /// <summary>
-    /// Add a frame to the buffer. Older frames are moved to disk automatically.
-    /// </summary>
+    private static ImageCodecInfo GetJpegCodec()
+    {
+        var codecs = ImageCodecInfo.GetImageEncoders();
+        return codecs.FirstOrDefault(c => c.FormatID == ImageFormat.Jpeg.Guid) ?? codecs[0];
+    }
+
+    private byte[] CompressFrame(byte[] rawData)
+    {
+        using var ms = new MemoryStream(_maxCompressedSize);
+        using var bitmap = new Bitmap(_width, _height, PixelFormat.Format32bppRgb);
+        var rect = new Rectangle(0, 0, _width, _height);
+        var bitmapData = bitmap.LockBits(rect, ImageLockMode.WriteOnly, PixelFormat.Format32bppRgb);
+        try
+        {
+            Marshal.Copy(rawData, 0, bitmapData.Scan0, rawData.Length);
+        }
+        finally
+        {
+            bitmap.UnlockBits(bitmapData);
+        }
+        bitmap.Save(ms, _jpegCodec, _encoderParams);
+        return ms.ToArray();
+    }
+
+    private byte[] DecompressFrame(byte[] compressedData)
+    {
+        using var ms = new MemoryStream(compressedData);
+        using var bitmap = new Bitmap(ms);
+        var result = new byte[_rawFrameSize];
+        var rect = new Rectangle(0, 0, _width, _height);
+        var bitmapData = bitmap.LockBits(rect, ImageLockMode.ReadOnly, PixelFormat.Format32bppRgb);
+        try
+        {
+            Marshal.Copy(bitmapData.Scan0, result, 0, _rawFrameSize);
+        }
+        finally
+        {
+            bitmap.UnlockBits(bitmapData);
+        }
+        return result;
+    }
+
     public void Add(nint texturePointer, long timestampTicks)
     {
         if (_disposed) return;
 
-        // Get a buffer from the pool
-        var frameBuffer = _framePool.Rent();
+        var rawBuffer = new byte[_rawFrameSize];
+        Marshal.Copy(texturePointer, rawBuffer, 0, _rawFrameSize);
 
-        // Copy frame data
-        Marshal.Copy(texturePointer, frameBuffer, 0, _frameSize);
+        var compressed = CompressFrame(rawBuffer);
 
         lock (_lock)
         {
-            // Store in RAM buffer
-            var oldBuffer = _ramFrames[_ramWriteIndex];
-            _ramFrames[_ramWriteIndex] = frameBuffer;
+            var oldFrame = _ramFrames[_ramWriteIndex];
+            _ramFrames[_ramWriteIndex] = compressed;
+            _ramFrameValid[_ramWriteIndex] = true;
             _ramMetadata[_ramWriteIndex] = new FrameMetadata(timestampTicks, _ramWriteIndex, true);
 
-            // Return old buffer to pool
-            if (oldBuffer != null)
+            if (oldFrame != null && _ramFrameValid[_ramWriteIndex])
             {
-                _framePool.Return(oldBuffer);
-
-                // Move the evicted frame to disk if we have disk buffer
                 if (_diskCapacity > 0 && _ramCount >= _ramFrames.Length)
                 {
-                    _ = Task.Run(() => WriteToDiskAsync(oldBuffer, _ramMetadata[_ramWriteIndex]));
+                    _ = Task.Run(() => WriteToDiskAsync(oldFrame, _ramMetadata[_ramWriteIndex]));
                 }
             }
 
@@ -172,25 +201,22 @@ public sealed class HybridFrameBuffer : IDisposable
         }
     }
 
-    private async Task WriteToDiskAsync(byte[] frameData, FrameMetadata metadata)
+    private async Task WriteToDiskAsync(byte[] compressedData, FrameMetadata metadata)
     {
         if (_diskAccessor == null || _disposed) return;
 
         await _diskSemaphore.WaitAsync();
         try
         {
-            var position = Interlocked.Increment(ref _diskWritePosition) % _diskCapacity;
-            var byteOffset = position * _totalFrameSize;
+            var position = (int)(Interlocked.Increment(ref _diskWritePosition) % _diskCapacity);
+            var byteOffset = (long)position * (_metadataSize + _maxCompressedSize);
 
-            // Write metadata
             _diskAccessor.Write(byteOffset, ref metadata);
-
-            // Write frame data
-            _diskAccessor.WriteArray(byteOffset + _metadataSize, frameData, 0, _frameSize);
+            _diskAccessor.WriteArray(byteOffset + _metadataSize, compressedData, 0, compressedData.Length);
 
             Interlocked.Increment(ref _diskFrameCount);
             if (_diskFrameCount > _diskCapacity)
-                _diskFrameCount = _diskCapacity;
+                Interlocked.Exchange(ref _diskFrameCount, _diskCapacity);
         }
         finally
         {
@@ -198,95 +224,131 @@ public sealed class HybridFrameBuffer : IDisposable
         }
     }
 
-    /// <summary>
-    /// Get all frames from both RAM and disk buffers.
-    /// Returns frames in chronological order.
-    /// </summary>
-    public Encoding.TimestampedFrame[] GetAll()
+    public (string FilePath, long StartTimestamp, long EndTimestamp, int FrameCount) WriteRawFramesToFile(string outputPath, long targetStartTicks)
     {
-        if (_disposed) return Array.Empty<Encoding.TimestampedFrame>();
+        if (_disposed) return (outputPath, 0, 0, 0);
 
         lock (_lock)
         {
-            var result = new List<Encoding.TimestampedFrame>();
-
-            // Calculate total frames
             var totalFrames = _ramCount + (int)Math.Min(_diskFrameCount, _diskCapacity);
-
             if (totalFrames == 0)
-                return Array.Empty<Encoding.TimestampedFrame>();
+                return (outputPath, 0, 0, 0);
 
-            // Read disk frames first (older)
+            long startTimestamp = 0;
+            long endTimestamp = 0;
+            var frameCount = 0;
+
+            var decompressBuffer = new byte[_rawFrameSize];
+            var compressedBuffer = new byte[_maxCompressedSize];
+
+            using var fs = new FileStream(outputPath, FileMode.Create, FileAccess.Write, FileShare.None, _rawFrameSize * 2, FileOptions.SequentialScan);
+            using var bufferedStream = new BufferedStream(fs, _rawFrameSize * 4);
+
             if (_diskAccessor != null && _diskFrameCount > 0)
             {
                 var diskFramesToRead = (int)Math.Min(_diskFrameCount, _diskCapacity);
+
                 for (int i = 0; i < diskFramesToRead; i++)
                 {
-                    var position = (_diskWritePosition - diskFramesToRead + i + _diskCapacity) % _diskCapacity;
-                    var byteOffset = position * _totalFrameSize;
+                    var position = (int)((_diskWritePosition - diskFramesToRead + i + _diskCapacity) % _diskCapacity);
+                    var byteOffset = (long)position * (_metadataSize + _maxCompressedSize);
 
                     _diskAccessor.Read(byteOffset, out FrameMetadata metadata);
-                    if (metadata.IsValid)
+                    if (metadata.IsValid && metadata.TimestampTicks >= targetStartTicks)
                     {
-                        var frameData = new byte[_frameSize];
-                        _diskAccessor.ReadArray(byteOffset + _metadataSize, frameData, 0, _frameSize);
+                        var dataLength = GetCompressedDataLength(byteOffset + _metadataSize);
+                        _diskAccessor.ReadArray(byteOffset + _metadataSize, compressedBuffer, 0, dataLength);
 
-                        result.Add(new Encoding.TimestampedFrame(
-                            frameData,
-                            metadata.TimestampTicks,
-                            _width,
-                            _height));
+                        DecompressFrameToBuffer(compressedBuffer, 0, dataLength, decompressBuffer);
+
+                        if (frameCount == 0)
+                            startTimestamp = metadata.TimestampTicks;
+                        endTimestamp = metadata.TimestampTicks;
+
+                        bufferedStream.Write(decompressBuffer, 0, _rawFrameSize);
+                        frameCount++;
                     }
                 }
             }
 
-            // Add RAM frames (newer)
-            int readIndex = _ramCount < _ramFrames.Length
-                ? 0
-                : _ramWriteIndex;
-
+            int readIndex = _ramCount < _ramFrames.Length ? 0 : _ramWriteIndex;
             for (int i = 0; i < _ramCount; i++)
             {
                 var idx = (readIndex + i) % _ramFrames.Length;
                 var meta = _ramMetadata[idx];
 
-                if (meta.IsValid && _ramFrames[idx] != null)
+                if (meta.IsValid && _ramFrameValid[idx] && meta.TimestampTicks >= targetStartTicks && _ramFrames[idx] != null)
                 {
-                    // Create a copy for the caller (encoding)
-                    var frameCopy = new byte[_frameSize];
-                    System.Buffer.BlockCopy(_ramFrames[idx]!, 0, frameCopy, 0, _frameSize);
+                    DecompressFrameToBuffer(_ramFrames[idx]!, 0, _ramFrames[idx]!.Length, decompressBuffer);
 
-                    result.Add(new Encoding.TimestampedFrame(
-                        frameCopy,
-                        meta.TimestampTicks,
-                        _width,
-                        _height));
+                    if (frameCount == 0)
+                        startTimestamp = meta.TimestampTicks;
+                    endTimestamp = meta.TimestampTicks;
+
+                    bufferedStream.Write(decompressBuffer, 0, _rawFrameSize);
+                    frameCount++;
                 }
             }
 
-            return result.ToArray();
+            bufferedStream.Flush();
+            fs.Flush(true);
+
+            return (outputPath, startTimestamp, endTimestamp, frameCount);
         }
+    }
+
+    private void DecompressFrameToBuffer(byte[] compressedData, int compressedOffset, int compressedLength, byte[] resultBuffer)
+    {
+        using var ms = new MemoryStream(compressedData, compressedOffset, compressedLength);
+        using var bitmap = new Bitmap(ms);
+        var rect = new Rectangle(0, 0, _width, _height);
+        var bitmapData = bitmap.LockBits(rect, ImageLockMode.ReadOnly, PixelFormat.Format32bppRgb);
+        try
+        {
+            Marshal.Copy(bitmapData.Scan0, resultBuffer, 0, _rawFrameSize);
+        }
+        finally
+        {
+            bitmap.UnlockBits(bitmapData);
+        }
+    }
+
+    private int GetCompressedDataLength(long position)
+    {
+        if (_diskAccessor == null) return 0;
+
+        for (int i = 0; i < _maxCompressedSize - 4; i++)
+        {
+            var offset = position + i;
+            if (offset + 4 <= _diskAccessor.Capacity &&
+                _diskAccessor.ReadByte(offset) == 0xFF &&
+                _diskAccessor.ReadByte(offset + 1) == 0xD9)
+            {
+                return i + 2;
+            }
+        }
+        return _maxCompressedSize;
+    }
+
+    public Encoding.TimestampedFrame[] GetAll()
+    {
+        return Array.Empty<Encoding.TimestampedFrame>();
     }
 
     public void Clear()
     {
         lock (_lock)
         {
-            // Return all RAM buffers to pool
             for (int i = 0; i < _ramFrames.Length; i++)
             {
-                if (_ramFrames[i] != null)
-                {
-                    _framePool.Return(_ramFrames[i]!);
-                    _ramFrames[i] = null;
-                }
+                _ramFrames[i] = null;
+                _ramFrameValid[i] = false;
                 _ramMetadata[i] = default;
             }
-
             _ramWriteIndex = 0;
             _ramCount = 0;
             _diskWritePosition = 0;
-            _diskFrameCount = 0;
+            Interlocked.Exchange(ref _diskFrameCount, 0);
         }
     }
 
@@ -296,18 +358,14 @@ public sealed class HybridFrameBuffer : IDisposable
         _disposed = true;
 
         Clear();
-        _framePool.Dispose();
         _diskAccessor?.Dispose();
         _diskFile?.Dispose();
         _diskSemaphore.Dispose();
 
-        // Clean up temp file
         try
         {
             if (File.Exists(_tempFilePath))
-            {
                 File.Delete(_tempFilePath);
-            }
         }
         catch { }
     }

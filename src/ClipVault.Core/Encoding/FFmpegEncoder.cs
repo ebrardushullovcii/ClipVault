@@ -51,6 +51,89 @@ public sealed class FFmpegEncoder : IEncoder, IDisposable
         _ffmpegPath = ffmpegPath;
     }
 
+    public async Task EncodeFromFileAsync(
+        string outputPath,
+        string videoFilePath,
+        int frameCount,
+        long startTimestamp,
+        long endTimestamp,
+        IReadOnlyList<TimestampedAudio> systemAudio,
+        IReadOnlyList<TimestampedAudio>? micAudio,
+        EncoderSettings settings,
+        IProgress<double>? progress = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (!File.Exists(videoFilePath))
+        {
+            Logger.Error($"Video file not found: {videoFilePath}");
+            return;
+        }
+
+        var fileInfo = new FileInfo(videoFilePath);
+        var expectedSize = (long)frameCount * settings.Width * settings.Height * 4;
+        if (fileInfo.Length != expectedSize)
+        {
+            Logger.Warning($"Video file size mismatch: expected {expectedSize}, got {fileInfo.Length}");
+        }
+
+        var outputDir = Path.GetDirectoryName(outputPath)!;
+        var tempAudioFile = Path.Combine(outputDir, $"temp_audio_{Guid.NewGuid():N}.bin");
+        var tempMicAudioFile = Path.Combine(outputDir, $"temp_mic_{Guid.NewGuid():N}.bin");
+
+        var tempFiles = new List<string>();
+        if (videoFilePath.StartsWith(outputDir))
+            tempFiles.Add(videoFilePath);
+
+        try
+        {
+            var videoDurationTicks = endTimestamp - startTimestamp;
+            var videoDurationSeconds = NativeMethods.TimestampToSeconds(videoDurationTicks);
+
+            Logger.Info($"Encoding {frameCount} frames from file over {videoDurationSeconds:F3}s");
+
+            var actualFps = frameCount / videoDurationSeconds;
+            if (actualFps < 1) actualFps = 30;
+            if (actualFps > 120) actualFps = 60;
+
+            var inputFps = Math.Round(actualFps * 2) / 2;
+            Logger.Info($"Actual capture FPS: {actualFps:F2}, using input rate: {inputFps:F1}fps");
+
+            var hasSystemAudio = systemAudio.Count > 0;
+            var hasMicAudio = micAudio != null && micAudio.Count > 0;
+
+            if (hasSystemAudio)
+            {
+                await WriteAudioDataAsync(systemAudio, tempAudioFile, progress, cancellationToken);
+                tempFiles.Add(tempAudioFile);
+            }
+
+            if (hasMicAudio)
+            {
+                await WriteAudioDataAsync(micAudio!, tempMicAudioFile, progress, cancellationToken);
+                tempFiles.Add(tempMicAudioFile);
+            }
+
+            Logger.Info("Encoding with FFmpeg...");
+
+            var videoArgs = BuildVideoArgs(settings);
+            var args = BuildFFmpegArgs(videoFilePath, tempAudioFile, tempMicAudioFile,
+                hasSystemAudio, hasMicAudio, inputFps, settings, videoArgs, outputPath);
+
+            Logger.Debug($"FFmpeg args: {args}");
+
+            await RunFFmpegAsync(args, outputPath, cancellationToken);
+        }
+        finally
+        {
+            foreach (var file in tempFiles)
+            {
+                await CleanupTempFileAsync(file);
+            }
+        }
+
+        progress?.Report(1.0);
+    }
+
     public async Task EncodeAsync(
         string outputPath,
         IReadOnlyList<TimestampedFrame> videoFrames,

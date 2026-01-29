@@ -5,17 +5,17 @@
 Read these files before making changes:
 
 1. `AGENTS.md` - Project overview and technical context
-2. `docs/CONVENTIONS.md` - Code style requirements
-3. `docs/PLAN.md` - Implementation plan and architecture
+2. `CLAUDE.md` - Claude-specific instructions and libobs patterns
+3. Context from previous conversations (check git history)
 
 ## For Human Developers
 
 ### Prerequisites
 
-- Windows 10 Version 1903+ (Build 18362)
-- .NET 8.0 SDK
+- Windows 10 Version 1903+ (Build 18362+)
+- Visual Studio 2022 with C++ Desktop Development
+- CMake 3.28+
 - NVIDIA GPU with NVENC support
-- FFmpeg binaries (see `tools/README.md`)
 
 ### Building
 
@@ -23,40 +23,43 @@ Read these files before making changes:
 # Clone and build
 git clone <repo-url>
 cd ClipVault
-dotnet build
+mkdir build && cd build
+cmake .. -G "Visual Studio 17 2022"
+cmake --build . --config Release
 
 # Run the service
-dotnet run --project src/ClipVault.Service
-# Or run directly (output goes to src/ClipVault.Service/bin/)
+./Release/ClipVault.exe
 ```
 
 ### Project Structure
 
 ```
 src/
-  ClipVault.Core/       # Core library (no UI dependencies!)
-  ClipVault.Service/    # Background service with tray icon
+  clipvault/       # Main application
+    main.cpp       # Entry point
+    hotkey.cpp/h   # Global hotkey handling
+    buffer.cpp/h   # Rolling buffer
+    config.cpp/h   # Configuration loading
+  obs-frontend/    # libobs frontend wrapper
+libobs/            # libobs as submodule
 config/
-  settings.json         # User configuration
-  games.json           # Game detection database
-docs/
-  PLAN.md              # Implementation plan
-  CONVENTIONS.md       # Code conventions
+  settings.json    # User configuration
+  games.json       # Game detection database
 ```
 
 ### Code Style
 
-See `docs/CONVENTIONS.md` for complete guidelines. Key points:
+Follow CLAUDE.md for guidelines. Key points:
 
-- File-scoped namespaces
-- Records for immutable data types
-- Private fields: `_camelCase`
-- Async/await for all I/O operations
-- Implement IDisposable for unmanaged resources
+- C++17 standard
+- File-scoped namespaces where possible
+- RAII for resource management
+- Use libobs APIs before custom code
+- Comment non-obvious code
 
 ### Testing Changes
 
-1. Build succeeds: `dotnet build`
+1. Build succeeds: `cmake --build . --config Release`
 2. No new warnings: Check build output
 3. Test with a windowed game first
 4. Test with Valorant/League last (anti-cheat)
@@ -70,12 +73,11 @@ See `docs/CONVENTIONS.md` for complete guidelines. Key points:
 
 ## Architecture Decisions
 
-Key decisions are documented in `docs/PLAN.md`. Major changes should be discussed first.
+Key decisions should be documented when made. Major changes should be discussed first.
 
-### Why these choices?
+### Why libobs?
 
-- **Windows.Graphics.Capture**: Modern API, window-specific capture, works with anti-cheat
-- **DXGI Desktop Duplication**: Fallback when WGC fails
-- **NAudio**: Most mature C# audio library
-- **FFmpeg.AutoGen**: Direct bindings, better than Process piping for real-time
-- **NVENC**: Hardware encoding, zero game impact
+- **Rock-solid A/V sync**: libobs handles timestamps and synchronization
+- **DXGI capture**: Works with anti-cheat, no injection needed
+- **NVENC integration**: Direct hardware encoding
+- **Battle-tested**: Same core as OBS Studio

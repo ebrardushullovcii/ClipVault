@@ -1,44 +1,97 @@
-# CLAUDE.md - Claude AI Instructions
+# CLAUDE.md
 
-This file provides Claude-specific context for ClipVault. See `AGENTS.md` for general AI assistant instructions.
+This file provides guidance for Claude (Claude Code, Cursor, etc.) when working on ClipVault.
 
 ## Project Overview
 
-ClipVault is a Windows game clipping software built in C#/.NET 8. It captures gameplay with a rolling buffer and saves clips on hotkey press using NVENC hardware encoding.
+ClipVault is a lightweight game clipping tool built on libobs. It's designed to be:
+- Simple and lightweight
+- Anti-cheat compatible
+- Rock-solid A/V sync (via libobs)
+- User-controllable
 
-### Why This Exists
+## Key Principles
 
-Built from frustration with existing clipping tools that have ads, crashes, bloat, and no user control. ClipVault is simple, lightweight, and user-controlled. No ads, no telemetry.
+1. **Use libobs for everything it handles well** - Don't reinvent what libobs does
+2. **Keep it minimal** - No bloat, no unnecessary features
+3. **Anti-cheat first** - No injection, no hooks, no process modification
+4. **Understand before modifying** - Read relevant libobs headers before using APIs
 
-**Trade-offs are acceptable**: Doesn't need perfect quality or minimal resources - just good enough to share, light enough to not impact gameplay, and simple enough to understand and fix. Reliability and control matter more than optimization.
+## libobs Architecture
 
-## Tech Stack (Current Implementation)
-
-- **Screen Capture:** DXGI Desktop Duplication (full screen, 1080p@60fps) - see `src/ClipVault.Core/Capture/DxgiScreenCapture.cs`
-- **Audio:** NAudio 2.2+ with WASAPI (loopback + microphone)
-- **Encoding:** FFmpeg process with NVENC
-- **Configuration:** System.Text.Json
-
-## Build Commands
-
-```bash
-dotnet build              # Build from root
-dotnet run                # Run service (from root)
-dotnet publish -c Release # Release build
+libobs uses a signal/slot system for events:
+```cpp
+// Connect to signals
+obs_source_t *source = obs_get_source_by_name("display_capture");
+signal_handler_t *sh = obs_source_get_signal_handler(source);
+signal_handler_connect(sh, "video_rendered", on_frame_rendered, nullptr);
 ```
 
-## Code Conventions
+Key concepts:
+- **Sources** - Video/audio sources (display capture, audio input, etc.)
+- **Outputs** - Where encoded data goes (RTMP, MP4 recording, etc.)
+- **Services** - Streaming services (Twitch, YouTube, etc.)
+- **Encoders** - NVENC, x264, AAC encoders
+- **Transitions** - Scene switching
 
-See `docs/CONVENTIONS.md` for full guidelines. Key points:
+## Common libobs Patterns
 
-- File-scoped namespaces
-- Records for immutable data
-- Private fields: `_camelCase`
-- Always async/await for I/O
-- Implement IDisposable for unmanaged resources
+### Creating a display capture source:
+```cpp
+obs_data_t *settings = obs_data_create();
+obs_data_set_string(settings, "device", "\\Device\\Display1");
+obs_source_t *source = obs_source_create("monitor_capture", "Display", settings, nullptr);
+obs_data_release(settings);
+```
 
-## Documentation
+### Setting up NVENC encoding:
+```cpp
+obs_encoder_t *encoder = obs_video_encoder_create("h264_nvenc", "video_encoder", nullptr, nullptr);
+obs_encoder_set_video(encoder, obs_get_video());
+obs_encoder_set_bitrate(encoder, 6000);
+```
 
-- `docs/PLAN.md` - Implementation plan and architecture
-- `docs/CONVENTIONS.md` - Code style guide
-- `AGENTS.md` - General AI assistant rules (READ THIS FIRST)
+### Recording to MP4:
+```cpp
+obs_output_t *output = obs_output_create("ffmpeg_muxer", "recording", nullptr, nullptr);
+obs_output_set_video_encoder(output, encoder);
+obs_output_set_mixers(output, 1);
+obs_output_start(output);
+```
+
+## Useful libobs Functions
+
+- `obs_get_video()` - Get video context
+- `obs_get_audio()` - Get audio context  
+- `obs_enum_sources()` - Enumerate available sources
+- `obs_source_add_audio_capture_callback()` - Raw audio access
+- `obs_add_raw_video_callback()` - Raw video access
+- `obs_output_set_delay()` - For buffering/delayed recording
+
+## Build System
+
+Uses CMake. Key targets:
+- `clipvault` - Main application
+- Links against libobs (static or shared)
+
+## Game Detection
+
+Uses the existing `games.json` database:
+- 150+ known games
+- Process name matching
+- Window title optional
+- Results in folder naming only
+
+## LLM Instructions
+
+- When adding new files, follow existing code style
+- Use modern C++17 where it improves readability
+- Keep functions focused and small
+- Comment non-obvious code
+- Don't add TODO comments - just ask the user what to do
+
+## Files to Read First
+
+- libobs/docs/sphinx/reference-core.rst - Core API reference
+- libobs/docs/sphinx/reference-sources.rst - Source types
+- libobs/docs/sphinx/reference-outputs.rst - Output configuration

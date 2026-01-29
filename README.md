@@ -1,10 +1,11 @@
 # ClipVault
 
-A lightweight game clipping software for Windows, built with C# and designed for NVIDIA GPUs.
+A lightweight game clipping software for Windows, built with C++ and libobs.
 
 ## Why ClipVault?
 
 Existing game clipping tools are frustrating:
+
 - **Ads & Upsells**: Free tools nag for upgrades or show ads
 - **Crashes**: Unreliable when you need them most
 - **Bloat**: Heavy resource usage, slow startup, unnecessary features
@@ -12,110 +13,30 @@ Existing game clipping tools are frustrating:
 
 **ClipVault is different**: Simple, lightweight, does exactly what's needed - nothing more. You control everything. No ads, no telemetry, no bloat. If something breaks, you can fix it.
 
-This isn't about achieving perfect quality or minimal resource usage - it's about a reliable tool that works well, runs reasonably light, and stays out of your way. Good enough to share, light enough to forget it's running.
+## Architecture
 
-## Features
+Built on libobs (GPL-2.0) - the same core as OBS Studio, providing:
 
-**Capture:**
-
-- **Continuous full-screen capture** - Records entire screen at all times
-- Rolling buffer (15s-3min configurable) with memory-efficient storage
-- System audio + microphone as separate tracks
-- Hardware encoding via NVENC (minimal performance impact)
-- Global hotkey to save last X seconds
-- Anti-cheat compatible (GDI-based, no injection)
-
-**Game Detection (File Organization):**
-
-- Detects 150+ games for automatic clip naming
-- Uses game name in output folder (e.g., `League of Legends_2024-01-15_14-30-22/`)
-- **Note:** Detection is for file naming only - capture is always full-screen
-- Custom game support via JSON configuration
-
-**Output:**
-
-- Quality presets: 720p/1080p/1440p at 30/60 FPS
-- Multi-track MP4 (video + system audio + mic)
-- JSON metadata sidecar files
-- Automatic thumbnail generation
-
-## Requirements
-
-- Windows 10 Version 1903+ (Build 18362+)
-- .NET 8.0 Runtime
-- NVIDIA GPU with NVENC support (GTX 600+ series)
-- FFmpeg binaries (bundled or user-provided)
-
-## Project Structure
-
-```
-ClipVault/
-├── src/
-│   ├── ClipVault.Core/          # Core library (capture, encoding, detection)
-│   └── ClipVault.Service/       # Background service with tray icon
-├── config/
-│   ├── settings.json            # User configuration
-│   └── games.json               # Game detection database (150+ games)
-├── tools/
-│   └── ffmpeg.exe               # FFmpeg binary (user must provide)
-├── docs/
-│   └── PLAN.md                  # Development plan and architecture
-└── Clips/                       # Default output directory
-```
-
-## Quick Start
-
-1. Clone the repository
-2. Download FFmpeg with NVENC support and place in `tools/`
-3. Build with `dotnet build`
-4. Run `ClipVault.Service.exe`
-5. Press `Ctrl+Alt+F9` (default) to save a clip
-
-## Configuration
-
-Edit `config/settings.json`:
-
-```json
-{
-  "bufferDurationSeconds": 60,
-  "quality": {
-    "resolution": "1080p",
-    "fps": 60,
-    "nvencPreset": "p7",
-    "cqLevel": 22
-  },
-  "hotkey": {
-    "modifiers": ["Ctrl", "Alt"],
-    "key": "F9"
-  },
-  "outputDirectory": "D:\\Clips"
-}
-```
-
-## Development
-
-This project is developed with AI coding assistants. Configuration files:
-
-| File            | Tool                        |
-| --------------- | --------------------------- |
-| `AGENTS.md`     | OpenCode, Codex, generic AI |
-| `CLAUDE.md`     | Claude, Cursor              |
-| `opencode.json` | OpenCode CLI config         |
-| `.cursorrules`  | Cursor IDE                  |
-
-Documentation:
-
-- `docs/PLAN.md` - Implementation plan with architecture
-- `docs/CONVENTIONS.md` - Code style and conventions
-- `CONTRIBUTING.md` - Setup and contribution guide
+- **Rock-solid A/V sync** - libobs handles timestamps and synchronization
+- **Display capture** via DXGI Desktop Duplication
+- **Audio capture** via WASAPI
+- **Hardware encoding** via NVIDIA NVENC
+- **Anti-cheat compatible** - no injection, no process hooks
 
 ## Tech Stack
 
-- **Screen Capture:** Windows.Graphics.Capture API + DXGI Desktop Duplication
-- **Audio:** NAudio with WASAPI
-- **Encoding:** FFmpeg.AutoGen with NVENC
-- **DirectX:** Vortice.Windows
+- **Capture**: libobs + DXGI Desktop Duplication
+- **Audio**: WASAPI through libobs
+- **Encoding**: NVENC through libobs
+- **UI**: Minimal native Win32
+
+## Building
+
+Requires:
+
+- CMake 3.28+
+- NVIDIA GPU with NVENC support
 
 ## License
 
-MIT
+GNU General Public License Version 2 (GPL-2.0)

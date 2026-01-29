@@ -1,252 +1,323 @@
-# Code Conventions for ClipVault
+# Code Conventions
 
-This document defines coding standards for ClipVault. All AI assistants and contributors should follow these conventions.
+## C++17 Standard
 
-## C# Style
+ClipVault uses C++17. Prefer:
+- `[[nodiscard]]`, `[[maybe_unused]]` attributes
+- `std::string_view` for string parameters
+- `std::optional<T>` for optional values
+- Structured bindings: `auto& [key, value] : map`
+- `if constexpr` for compile-time conditionals
 
-### Namespaces
+## Naming Conventions
 
-```csharp
-// Use file-scoped namespaces
-namespace ClipVault.Core.Capture;
+| Item | Convention | Example |
+|------|------------|---------|
+| Files | `snake_case.cpp` | `hotkey_handler.cpp` |
+| Classes | `PascalCase` | `ClipVaultService` |
+| Functions | `snake_case()` | `start_capture()` |
+| Variables | `snake_case` | `frame_buffer` |
+| Member variables | `snake_case_` | `capture_source_` |
+| Constants | `SCREAMING_SNAKE_CASE` | `MAX_BUFFER_SECONDS` |
+| Templates | `PascalCase` | `Observable<T>` |
+| Namespaces | `snake_case` | `clipvault::buffer` |
 
-public class WindowsGraphicsCapture { }
+## Include Order
+
+```cpp
+// 1. Corresponding header
+#include "hotkey_handler.h"
+
+// 2. C standard library
+#include <cstdint>
+#include <cstring>
+
+// 3. C++ standard library
+#include <string>
+#include <vector>
+#include <optional>
+
+// 4. Third-party libraries
+#include <obs.h>
+
+// 5. Project headers
+#include "buffer.h"
+#include "config.h"
 ```
 
-### Naming
+## Code Organization
 
-| Element         | Convention  | Example             |
-| --------------- | ----------- | ------------------- |
-| Classes/Records | PascalCase  | `VideoFrameBuffer`  |
-| Interfaces      | IPascalCase | `IScreenCapture`    |
-| Methods         | PascalCase  | `StartCaptureAsync` |
-| Properties      | PascalCase  | `IsCapturing`       |
-| Private fields  | \_camelCase | `_frameBuffer`      |
-| Parameters      | camelCase   | `cancellationToken` |
-| Constants       | PascalCase  | `DefaultBufferSize` |
+### Header Files (`.h`)
 
-### Types
+```cpp
+#pragma once
 
-```csharp
-// Use records for immutable data
-public record TimestampedFrame(
-    nint TexturePointer,
-    long TimestampTicks,
-    int Width,
-    int Height);
+// Forward declarations
+struct ObsContext;
 
-// Use required for mandatory properties
-public sealed class EncoderSettings
+namespace clipvault {
+
+// Forward declarations within namespace
+class CaptureBuffer;
+
+class HotkeyHandler
 {
-    public required int Width { get; init; }
-    public required int Height { get; init; }
+public:
+    explicit HotkeyHandler(HWND window);
+    ~HotkeyHandler();
+
+    bool Register(UINT modifiers, UINT key);
+    void Unregister();
+
+    // Signals
+    std::function<void()> OnClipRequested;
+
+private:
+    static LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam);
+
+    HWND window_ = nullptr;
+    UINT hotkey_id_ = 0;
+};
+
+} // namespace clipvault
+```
+
+### Implementation Files (`.cpp`)
+
+```cpp
+#include "hotkey_handler.h"
+
+#include "config.h"
+
+namespace clipvault {
+
+HotkeyHandler::HotkeyHandler(HWND window)
+    : window_(window)
+{
 }
 
-// Use sealed for classes not designed for inheritance
-public sealed class FFmpegEncoder : IEncoder { }
+HotkeyHandler::~HotkeyHandler()
+{
+    Unregister();
+}
+
+bool HotkeyHandler::Register(UINT modifiers, UINT key)
+{
+    hotkey_id_ = GlobalAddAtom(std::to_string(modifiers + key).c_str());
+    return RegisterHotKey(window_, hotkey_id_, modifiers, key);
+}
+
+// ... rest of implementation
+
+} // namespace clipvault
 ```
 
-### Async/Await
+## Memory Management
 
-```csharp
-// Always use async/await for I/O
-// Suffix async methods with Async
-// Accept CancellationToken
-public async Task StartAsync(CancellationToken ct = default)
+### Prefer RAII
+
+```cpp
+// BAD: Manual cleanup
+void CaptureRecorder::Stop()
 {
-    await _capture.InitializeAsync(ct);
+    obs_output_stop(output_);
+    obs_output_release(output_);
+}
 
-    while (!ct.IsCancellationRequested)
-    {
-        await ProcessFrameAsync(ct);
+// GOOD: RAII with scope guard
+class ObsOutputGuard
+{
+public:
+    explicit ObsOutputGuard(obs_output_t* output) : output_(output) {}
+    ~Guard() { if (output_) obs_output_stop(output_); }
+
+    // ... move semantics, no copy
+
+private:
+    obs_output_t* output_ = nullptr;
+};
+```
+
+### Smart Pointers
+
+- Use `std::unique_ptr<T>` for exclusive ownership
+- Use `std::shared_ptr<T>` for shared ownership
+- Use raw pointers for non-owning references
+- Don't use `std::auto_ptr` (removed in C++17)
+
+## Error Handling
+
+### Result Types for Expected Errors
+
+```cpp
+struct ClipSaveResult
+{
+    bool success;
+    std::string error_message;
+    std::string file_path;
+};
+
+class ClipVaultError : public std::runtime_error
+{
+public:
+    using std::runtime::runtime_error;
+    explicit ClipVaultError(const char* msg) : std::runtime_error(msg) {}
+};
+
+// For functions that can fail expectedly:
+std::expected<ClipSaveResult, std::string> SaveClip(Config config);
+
+// For unrecoverable errors:
+void CheckObsError(obs_property_t* prop, bool success)
+{
+    if (!success) {
+        const char* error = obs_property_get_description(prop);
+        throw ClipVaultError(error ? error : "Unknown OBS error");
     }
 }
 ```
 
-### Disposal
+### Assertions in Debug
 
-```csharp
-// Implement IDisposable for unmanaged resources
-public sealed class WindowsGraphicsCapture : IScreenCapture
+```cpp
+#define CV_ASSERT(expr) assert(expr)
+
+// Use for invariants that should never fail
+CV_ASSERT(source != nullptr);
+CV_ASSERT(buffer_size > 0);
+```
+
+## Logging
+
+```cpp
+#include "logging.h"
+
+void StartCapture()
 {
-    private readonly ID3D11Device _device;
-    private Direct3D11CaptureFramePool? _framePool;
-    private bool _disposed;
+    CV_LOG_INFO("Starting capture at {}x{}", width, height);
 
-    public void Dispose()
-    {
-        if (_disposed) return;
-        _disposed = true;
-
-        _framePool?.Dispose();
-        _device?.Dispose();
+    if (!obs_output_start(output_)) {
+        CV_LOG_ERROR("Failed to start output: {}", obs_output_get_last_error(output_));
+        return false;
     }
+
+    CV_LOG_INFO("Capture started successfully");
 }
 ```
 
-### Error Handling
+## libobs Integration
 
-```csharp
-// Use specific exception types
-public void SetBufferDuration(int seconds)
+### Object Lifecycle
+
+```cpp
+// Creation
+obs_source_t* source = obs_source_create("monitor_capture", "Display", settings, nullptr);
+obs_data_release(settings);
+
+// Ownership transfer (for outputs that take ownership)
+obs_output_set_video_encoder(output_, encoder);  // encoder must be retained
+
+// Cleanup
+obs_source_release(source);
+```
+
+### Signal Connection
+
+```cpp
+void ConnectSignals(obs_output_t* output)
 {
-    if (seconds <= 0)
-        throw new ArgumentOutOfRangeException(nameof(seconds), "Must be positive");
-
-    if (seconds > 300)
-        throw new ArgumentOutOfRangeException(nameof(seconds), "Maximum is 5 minutes");
+    signal_handler_t* sh = obs_output_get_signal_handler(output);
+    signal_handler_connect(sh, "start", OnOutputStart, this);
+    signal_handler_connect(sh, "stop", OnOutputStop, this);
+    signal_handler_connect(sh, "upload", OnUploadChunk, this);
 }
-
-// Log errors before throwing/handling
-catch (COMException ex) when (ex.HResult == E_ACCESSDENIED)
-{
-    _logger.LogError(ex, "Access denied during capture initialization");
-    throw new CaptureException("Cannot access display - check permissions", ex);
-}
-```
-
-## Architecture Rules
-
-### Project Dependencies
-
-```
-ClipVault.Service
-    └── ClipVault.Core (reference)
-        └── No UI dependencies!
-```
-
-### Interface Segregation
-
-```csharp
-// Small, focused interfaces
-public interface IScreenCapture : IDisposable
-{
-    event EventHandler<FrameCapturedEventArgs>? FrameCaptured;
-    bool IsCapturing { get; }
-    Task StartAsync(CancellationToken ct);
-    Task StopAsync();
-}
-
-// Not: ICapture with 20 methods
-```
-
-### Event Patterns
-
-```csharp
-// Use nullable events with EventArgs derivatives
-public event EventHandler<FrameCapturedEventArgs>? FrameCaptured;
-
-// Copy data in event handlers - buffers may be reused!
-private void OnDataAvailable(object? sender, WaveInEventArgs e)
-{
-    if (e.BytesRecorded == 0) return;
-
-    // CRITICAL: Copy immediately
-    var copy = new byte[e.BytesRecorded];
-    Buffer.BlockCopy(e.Buffer, 0, copy, 0, e.BytesRecorded);
-
-    _buffer.Add(new TimestampedAudio(copy, GetTimestamp(), e.BytesRecorded));
-}
-```
-
-## Performance Guidelines
-
-### Memory
-
-```csharp
-// Keep frames in GPU memory until encoding
-// Don't copy to CPU unless necessary
-var texture = frame.Surface.As<ID3D11Texture2D>();
-_gpuBuffer.Add(texture); // Keep on GPU
-
-// Use object pooling for hot paths
-private readonly ObjectPool<byte[]> _audioBufferPool;
 ```
 
 ### Threading
 
-```csharp
-// Use lock-free structures where possible
-private readonly ConcurrentQueue<TimestampedFrame> _pendingFrames;
+libobs is NOT thread-safe for most operations:
+- Call libobs functions from the main/graphics thread
+- Use `obs_queue_video()`, `obs_queue_audio()` for threaded callbacks
+- Use signals for event notification
 
-// For simple synchronization, use lock
-private readonly object _lock = new();
-lock (_lock)
-{
-    _buffer[_position] = frame;
+## Performance
+
+### Avoid Unnecessary Copies
+
+```cpp
+// BAD: Copy
+auto frames = buffer.GetAllFrames();
+
+// GOOD: Const reference
+const auto& frames = buffer.GetFrames();
+
+// GOOD: Span for arrays
+void ProcessFrames(std::span<const Frame> frames);
+```
+
+### Reserve Capacity
+
+```cpp
+std::vector<Frame> frames;
+frames.reserve(expected_frame_count);
+
+for (const auto& frame : source_frames) {
+    frames.push_back(frame);
 }
 ```
 
-### Allocations
+### Use Move Semantics
 
-```csharp
-// Avoid allocations in capture loop
-// Bad:
-while (capturing)
+```cpp
+std::vector<Frame> ProcessAndMove(std::vector<Frame>&& input)
 {
-    var list = new List<Frame>(); // Allocation every iteration!
-}
-
-// Good:
-var list = new List<Frame>(capacity);
-while (capturing)
-{
-    list.Clear(); // Reuse
+    // Modify input directly (no copy)
+    input.resize(desired_count);
+    return std::move(input);  // Move return
 }
 ```
 
-## Documentation
+## Comments
 
-### XML Comments
+### When to Comment
 
-```csharp
-/// <summary>
-/// Captures frames from a window using Windows.Graphics.Capture API.
-/// </summary>
-/// <remarks>
-/// This is the primary capture method. Falls back to DXGI Desktop Duplication
-/// if the target window has protected content.
-/// </remarks>
-public sealed class WindowsGraphicsCapture : IScreenCapture
-{
-    /// <summary>
-    /// Start capturing frames from the target window.
-    /// </summary>
-    /// <param name="ct">Cancellation token to stop capture.</param>
-    /// <exception cref="CaptureException">Window not found or access denied.</exception>
-    public async Task StartAsync(CancellationToken ct = default)
-}
+- Why something is done, not what (obvious from code)
+- Non-obvious assumptions
+- TODO items (but prefer creating issues)
+- Complex algorithms
+
+### Style
+
+```cpp
+// Single line comment (use sparingly)
+
+// Multi-line explanation
+// of something non-obvious
+// that requires context
 ```
 
-### Code Comments
+### Doxygen (Public API Only)
 
-```csharp
-// Only comment WHY, not WHAT
-// Bad: Increment counter by 1
-// Good: Skip first frame which may be stale from previous capture session
-_frameIndex++;
+```cpp
+/**
+ * Starts the rolling buffer capture.
+ *
+ * @param duration_seconds How many seconds to keep in the buffer
+ * @return true if capture started successfully
+ */
+bool StartCapture(int duration_seconds);
 ```
 
-## Testing
+## Formatting
 
-### Test Naming
+Use clang-format with this config:
 
-```csharp
-[Fact]
-public async Task StartAsync_WhenWindowNotFound_ThrowsCaptureException()
-{
-    // Arrange
-    var capture = new WindowsGraphicsCapture(invalidHwnd);
-
-    // Act & Assert
-    await Assert.ThrowsAsync<CaptureException>(() => capture.StartAsync());
-}
+```yaml
+BasedOnStyle: LLVM
+IndentWidth: 4
+ColumnLimit: 120
+AllowShortFunctionsOnASingleLine: Empty
+KeepEmptyLinesAtTheStartOfBlocks: false
 ```
 
-### Test Priority
-
-1. Capture produces frames
-2. Audio produces samples
-3. A/V timestamps are synchronized
-4. Hotkey triggers save
-5. Anti-cheat games work (Valorant, League)
+Run: `clang-format -i src/*.cpp src/*.h`

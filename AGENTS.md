@@ -1,148 +1,73 @@
-# AGENTS.md - AI Coding Assistant Instructions
+# Agent Configuration
 
-This file provides instructions for AI coding assistants (OpenCode, Claude, Cursor, etc.)
+This file configures how AI assistants should approach the ClipVault project.
 
-> **OpenCode users**: This file is auto-loaded. See also `opencode.json` for config.
-> Additional context in `docs/CONVENTIONS.md` and `docs/PLAN.md`.
+## Project Context
 
-## Project Overview
-
-**ClipVault** is a Windows game clipping software built in C#/.NET 8. It captures gameplay with a rolling buffer and saves clips on hotkey press using NVENC hardware encoding.
-
-### Why This Exists
-
-This project was born from frustration with existing clipping tools:
-- **Ads & bloat** - Most tools are heavy, slow, and nag for upgrades
-- **Crashes** - Unreliable when you need them most
-- **No control** - Can't customize or fix issues yourself
-
-**Design philosophy**: Simple, lightweight, user-controlled. No ads, no telemetry. Does exactly what's needed - nothing more.
-
-**Acceptable trade-offs**: This isn't about perfect quality or minimal resources - it's about reliability and control. Good quality (not lossless), reasonable performance (not wasteful), core features done well. The goal is a tool that works reliably and can be understood and modified when needed.
-
-## Quick Reference
-
-- **Language:** C# 12 / .NET 8.0
-- **Platform:** Windows 10+ (Build 18362+)
-- **GPU:** NVIDIA with NVENC (GTX 600+)
+ClipVault is a lightweight game clipping tool built on libobs (the core of OBS Studio). The key goals are:
+- Rock-solid A/V sync (handled by libobs)
+- Minimal resource usage during capture
+- Anti-cheat compatibility (no injection)
+- Simple, understandable codebase
 
 ## Tech Stack
 
-| Component      | Technology                                      | Status      |
-| -------------- | ----------------------------------------------- | ----------- |
-| Screen Capture | DXGI Desktop Duplication (full screen, 1080p)   | Implemented |
-| Screen Capture | GDI fallback                                    | Implemented |
-| Audio          | NAudio 2.2+ with WASAPI (system + mic)          | Implemented |
-| Encoding       | FFmpeg process with NVENC                       | Implemented |
-| DirectX        | Vortice.Direct3D11/DXGI                         | In use      |
+- **Language**: C++17
+- **Build System**: CMake
+- **Capture Engine**: libobs (OBS Studio core)
+- **Rendering**: Direct3D 11 (via libobs)
+- **Encoding**: NVIDIA NVENC (via libobs)
+- **Audio**: WASAPI (via libobs)
+- **UI**: Minimal Win32
 
-## Project Structure
+## What libobs Provides
+
+libobs handles:
+- Screen capture via DXGI Desktop Duplication
+- Audio capture via WASAPI
+- A/V synchronization (timestamps, clock management)
+- NVENC encoding
+- Output muxer (MP4, FLV, etc.)
+- Signal/slot system for events
+
+## What We Need to Build
+
+1. **libobs integration** - Compile and link libobs
+2. **Custom frontend** - Minimal app that uses libobs Frontend API
+3. **Hotkey handling** - Win32 RegisterHotKey
+4. **Rolling buffer** - Store recent frames in memory
+5. **Clip saving** - Save last N seconds on hotkey
+6. **Game detection** - Detect focused game for folder naming
+
+## Key Files Structure
 
 ```
-root/
-  Program.cs              # Entry point (WinExe)
-  ClipVault.csproj        # Main project
-  src/
-    ClipVault.Core/        # Core library (no UI dependencies)
-      Audio/               # WASAPI capture
-      Buffer/              # Ring buffers
-      Capture/             # Screen capture (GDI)
-      Configuration/       # Settings
-      Detection/           # Game detection
-      Encoding/            # FFmpeg/NVENC
-    ClipVault.Service/     # Library (ClipVaultService class)
-config/
-  settings.json          # User settings
-  games.json             # 150+ game definitions
-docs/
-  PLAN.md               # Implementation plan
-  CONVENTIONS.md        # Code conventions
+ClipVault/
+├── libobs/              # libobs as submodule or bundled
+├── src/
+│   ├── clipvault/       # Main application
+│   │   ├── main.cpp
+│   │   ├── hotkey.cpp/h
+│   │   ├── buffer.cpp/h
+│   │   └── config.cpp/h
+│   └── obs-frontend/    # Minimal OBS frontend wrapper
+├── CMakeLists.txt
+└── config/
+    ├── settings.json
+    └── games.json
 ```
 
-## Code Conventions
-
-See `docs/CONVENTIONS.md` for full guidelines:
-
-- File-scoped namespaces
-- `required` modifier for mandatory properties
-- Records for immutable data types
-- Private fields: `_camelCase`
-- Async/await for I/O
-- IDisposable for unmanaged resources
-
-## Important Rules
-
-- **NEVER commit changes to git** - The user will commit manually
-- **Always run/build from root** - Use `dotnet build` and `dotnet run` from the project root, not from subdirectories
-- **Document recurring preferences** - If the user expresses a rule like "always X" or "never Y" (e.g., "always put logs in one file", "never require cd into subdirectories"), ask if they want it added to AGENTS.md so future assistants follow it too
-
-## Key Interfaces
-
-```csharp
-// Screen capture
-public interface IScreenCapture : IDisposable
-{
-    event EventHandler<FrameCapturedEventArgs>? FrameCaptured;
-    bool IsCapturing { get; }
-    Task StartAsync(CancellationToken ct = default);
-    Task StopAsync();
-}
-
-// Audio capture
-public interface IAudioCapture : IDisposable
-{
-    event EventHandler<AudioDataEventArgs>? DataAvailable;
-    AudioFormat Format { get; }
-    Task StartAsync(CancellationToken ct = default);
-    Task StopAsync();
-}
-```
-
-## Critical Implementation Notes
-
-### Screen Capture
-
-- **Always full-screen capture** - Records entire screen continuously
-- Uses GDI `Screen.CopyFromScreen` (anti-cheat compatible)
-- Target resolution configurable (720p/1080p/1440p) via settings.json
-- No window-specific capture (future: Windows.Graphics.Capture API)
-
-### Game Detection (File Naming Only)
-
-- Detects focused game for **folder naming** (e.g., `GameName_2024-01-15_14-30-22/`)
-- Detection does NOT start/stop capture - capture is always running
-- Capture continues regardless of which window is focused
-
-### NVENC Encoding
-
-- Process-based FFmpeg (not FFmpeg.AutoGen)
-- P7 preset, CQP 22 rate control, zero-latency settings
-- Multi-track audio: system + mic as separate streams
-
-### Audio (NAudio)
-
-- 48kHz stereo float32
-- **Copy buffers immediately** in DataAvailable handlers (they're reused!)
-
-## Build Commands
+## Build Instructions
 
 ```bash
-dotnet build              # Build from root
-dotnet run                # Run service (from root)
-dotnet publish -c Release # Release build
+mkdir build && cd build
+cmake .. -G "Visual Studio 17 2022"
+cmake --build . --config Release
 ```
 
-## Testing Priority
+## Important Notes
 
-1. Capture works with windowed games
-2. Audio produces valid samples
-3. A/V sync maintained
-4. Hotkey triggers save
-5. Valorant/League work (anti-cheat)
-
-## File References
-
-- [Implementation Plan](docs/PHASE1_PLAN.md)
-- [Code Conventions](docs/CONVENTIONS.md)
-- [Settings Schema](config/settings.json)
-- [Game Database](config/games.json)
+- libobs is GPL-2.0 licensed - this project must be GPL-2.0 compatible
+- libobs provides excellent A/V sync - don't try to reimplement it
+- Use libobs signals for frame capture events
+- Rolling buffer can use libobs video callbacks

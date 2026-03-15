@@ -461,6 +461,51 @@ const ffprobePath = isDev
   ? join(appDir, '..', '..', '..', 'bin', 'ffprobe.exe')
   : join(process.resourcesPath, 'bin', 'ffprobe.exe')
 
+async function readStartupRegistryValue(runKey: string, keyName: string): Promise<string | null> {
+  try {
+    const { stdout } = await execFileAsync('reg', ['query', runKey, '/v', keyName])
+    const valueLine = stdout
+      .split(/\r?\n/)
+      .find(line => line.trim().startsWith(keyName) && line.includes('REG_'))
+
+    if (!valueLine) {
+      return null
+    }
+
+    const match = valueLine.match(/\bREG_\w+\b\s+(.*)$/)
+    return match ? match[1].trim() : null
+  } catch {
+    return null
+  }
+}
+
+async function updateStartupRegistryValue(
+  runKey: string,
+  keyName: string,
+  value: string | null
+): Promise<void> {
+  if (value != null) {
+    await execFileAsync('reg', ['add', runKey, '/v', keyName, '/t', 'REG_SZ', '/d', value, '/f'])
+    console.log('[Startup] Added ClipVault to Windows startup (background mode)')
+    return
+  }
+
+  try {
+    await execFileAsync('reg', ['delete', runKey, '/v', keyName, '/f'])
+    console.log('[Startup] Removed ClipVault from Windows startup')
+  } catch (deleteError) {
+    try {
+      await execFileAsync('reg', ['query', runKey, '/v', keyName])
+      throw deleteError
+    } catch (queryError) {
+      if (queryError === deleteError) {
+        throw deleteError
+      }
+      console.log('[Startup] Startup registry entry was already absent')
+    }
+  }
+}
+
 console.log('FFmpeg paths:', { isDev, ffmpegPath, ffprobePath })
 
 if (existsSync(ffmpegPath)) {
@@ -1759,41 +1804,22 @@ ipcMain.handle('settings:setStartup', async (_, enabled: boolean) => {
     const keyName = 'ClipVault'
     const runKey = 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run'
     const startupValue = `"${exePath}" --startup`
+    const previousRegistryValue = await readStartupRegistryValue(runKey, keyName)
 
-    if (enabled) {
-      // Write the Run key without going through shell parsing so quoted paths work.
-      await execFileAsync('reg', [
-        'add',
-        runKey,
-        '/v',
-        keyName,
-        '/t',
-        'REG_SZ',
-        '/d',
-        startupValue,
-        '/f',
-      ])
-      console.log('[Startup] Added ClipVault to Windows startup (background mode)')
-    } else {
-      try {
-        await execFileAsync('reg', ['delete', runKey, '/v', keyName, '/f'])
-        console.log('[Startup] Removed ClipVault from Windows startup')
-      } catch (deleteError) {
-        try {
-          await execFileAsync('reg', ['query', runKey, '/v', keyName])
-          throw deleteError
-        } catch (queryError) {
-          if (queryError === deleteError) {
-            throw deleteError
-          }
-          console.log('[Startup] Startup registry entry was already absent')
-        }
-      }
-    }
+    await updateStartupRegistryValue(runKey, keyName, enabled ? startupValue : null)
 
     const settings = await readNormalizedSettings()
     settings.ui.start_with_windows = enabled
-    await persistNormalizedSettings(settings)
+    try {
+      await persistNormalizedSettings(settings)
+    } catch (persistError) {
+      try {
+        await updateStartupRegistryValue(runKey, keyName, previousRegistryValue)
+      } catch (restoreError) {
+        console.error('[Startup] Failed to restore previous startup registry state:', restoreError)
+      }
+      throw persistError
+    }
 
     return { success: true }
   } catch (error) {

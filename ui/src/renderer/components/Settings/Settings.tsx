@@ -262,6 +262,7 @@ export const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsSaved }) 
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [isSettingStartup, setIsSettingStartup] = useState(false)
   const [saveSuccess, setSaveSuccess] = useState(false)
   const [monitors, setMonitors] = useState<MonitorInfo[]>([])
   const [audioOutputDevices, setAudioOutputDevices] = useState<AudioDeviceInfo[]>([])
@@ -971,23 +972,54 @@ export const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsSaved }) 
                   role="switch"
                   aria-checked={!!settings.ui?.start_with_windows}
                   aria-label="Start with Windows"
+                  disabled={isSettingStartup}
                   onClick={async () => {
-                    if (!settings) return
+                    if (!settings || isSettingStartup) return
                     const newValue = !settings.ui?.start_with_windows
+                    const previousStartupValue = settings.ui?.start_with_windows
                     setSettings(prev =>
                       prev
                         ? { ...prev, ui: { ...(prev.ui || {}), start_with_windows: newValue } }
                         : null
                     )
+                    setIsSettingStartup(true)
                     try {
-                      await window.electronAPI.setStartup(newValue)
+                      const result = await window.electronAPI.setStartup(newValue)
+                      if (!result.success) {
+                        setSettings(prev =>
+                          prev
+                            ? {
+                                ...prev,
+                                ui: {
+                                  ...(prev.ui || {}),
+                                  start_with_windows: previousStartupValue,
+                                },
+                              }
+                            : prev
+                        )
+                        setError(result.error || 'Failed to update startup setting')
+                      }
                     } catch (error) {
+                      setSettings(prev =>
+                        prev
+                          ? {
+                              ...prev,
+                              ui: {
+                                ...(prev.ui || {}),
+                                start_with_windows: previousStartupValue,
+                              },
+                            }
+                          : prev
+                      )
+                      setError('Failed to update startup setting')
                       console.error('Failed to set startup:', error)
+                    } finally {
+                      setIsSettingStartup(false)
                     }
                   }}
                   className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                     settings.ui?.start_with_windows ? 'bg-accent-primary' : 'bg-background-tertiary'
-                  }`}
+                  } ${isSettingStartup ? 'cursor-not-allowed opacity-60' : ''}`}
                 >
                   <span
                     className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${

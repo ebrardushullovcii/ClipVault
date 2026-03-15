@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.2] - 2026-03-15
+
+### Fixed
+
+- Startup registry changes now roll back cleanly if saving `start_with_windows` fails, so Windows autostart and persisted settings stay in sync.
+- The Settings startup switch now blocks overlapping toggle requests while a change is in flight.
+- The first-run setup flow now shows startup/save failures inline instead of trapping users with silent errors.
+
+## [1.5.1] - 2026-03-15
+
+### Fixed
+
+- Windows startup registration now writes a valid `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` entry for installed builds, so ClipVault can launch correctly at login.
+- The `Start with Windows` setting now persists immediately and rolls back in the UI if startup registration fails.
+
 ## [1.5.0] - 2026-03-09
 
 ### Added

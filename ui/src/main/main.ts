@@ -33,6 +33,7 @@ import { exportPreviewTemplate } from './exportPreviewTemplate'
 import chokidar from 'chokidar'
 
 const thumbnailLogPath = join(app.getPath('userData'), 'thumbnail.log')
+const execFileAsync = promisify(execFile)
 
 function logThumbnail(message: string): void {
   const timestamp = new Date().toISOString()
@@ -459,6 +460,51 @@ const ffmpegPath = isDev
 const ffprobePath = isDev
   ? join(appDir, '..', '..', '..', 'bin', 'ffprobe.exe')
   : join(process.resourcesPath, 'bin', 'ffprobe.exe')
+
+async function readStartupRegistryValue(runKey: string, keyName: string): Promise<string | null> {
+  try {
+    const { stdout } = await execFileAsync('reg', ['query', runKey, '/v', keyName])
+    const valueLine = stdout
+      .split(/\r?\n/)
+      .find(line => line.trim().startsWith(keyName) && line.includes('REG_'))
+
+    if (!valueLine) {
+      return null
+    }
+
+    const match = valueLine.match(/\bREG_\w+\b\s+(.*)$/)
+    return match ? match[1].trim() : null
+  } catch {
+    return null
+  }
+}
+
+async function updateStartupRegistryValue(
+  runKey: string,
+  keyName: string,
+  value: string | null
+): Promise<void> {
+  if (value != null) {
+    await execFileAsync('reg', ['add', runKey, '/v', keyName, '/t', 'REG_SZ', '/d', value, '/f'])
+    console.log('[Startup] Added ClipVault to Windows startup (background mode)')
+    return
+  }
+
+  try {
+    await execFileAsync('reg', ['delete', runKey, '/v', keyName, '/f'])
+    console.log('[Startup] Removed ClipVault from Windows startup')
+  } catch (deleteError) {
+    try {
+      await execFileAsync('reg', ['query', runKey, '/v', keyName])
+      throw deleteError
+    } catch (queryError) {
+      if (queryError === deleteError) {
+        throw deleteError
+      }
+      console.log('[Startup] Startup registry entry was already absent')
+    }
+  }
+}
 
 console.log('FFmpeg paths:', { isDev, ffmpegPath, ffprobePath })
 
@@ -1756,31 +1802,23 @@ ipcMain.handle('settings:setStartup', async (_, enabled: boolean) => {
   try {
     const exePath = process.execPath
     const keyName = 'ClipVault'
+    const runKey = 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run'
+    const startupValue = `"${exePath}" --startup`
+    const previousRegistryValue = await readStartupRegistryValue(runKey, keyName)
 
-    if (enabled) {
-      // Add to registry Run key with --startup flag (no window, backend only)
-      const { exec } = require('child_process')
-      // Escape quotes for registry
-      const quotedPath = `"${exePath}"`
-      const regCmd = `reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run" /v "${keyName}" /t REG_SZ /d "${quotedPath} --startup" /f`
-      exec(regCmd, (err: Error | null) => {
-        if (err) {
-          console.error('Failed to add startup registry:', err)
-        } else {
-          console.log('[Startup] Added ClipVault to Windows startup (background mode)')
-        }
-      })
-    } else {
-      // Remove from registry Run key
-      const { exec } = require('child_process')
-      const regCmd = `reg delete "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run" /v "${keyName}" /f`
-      exec(regCmd, (err: Error | null) => {
-        if (err) {
-          console.error('Failed to remove startup registry:', err)
-        } else {
-          console.log('[Startup] Removed ClipVault from Windows startup')
-        }
-      })
+    await updateStartupRegistryValue(runKey, keyName, enabled ? startupValue : null)
+
+    const settings = await readNormalizedSettings()
+    settings.ui.start_with_windows = enabled
+    try {
+      await persistNormalizedSettings(settings)
+    } catch (persistError) {
+      try {
+        await updateStartupRegistryValue(runKey, keyName, previousRegistryValue)
+      } catch (restoreError) {
+        console.error('[Startup] Failed to restore previous startup registry state:', restoreError)
+      }
+      throw persistError
     }
 
     return { success: true }
@@ -1808,9 +1846,6 @@ ipcMain.handle('system:getMonitors', async () => {
     throw error
   }
 })
-
-// Get audio devices - async implementation to avoid blocking main process
-const execFileAsync = promisify(execFile)
 
 ipcMain.handle('audio:getDevices', async (_, type: 'output' | 'input') => {
   try {

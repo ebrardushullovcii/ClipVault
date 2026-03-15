@@ -974,7 +974,7 @@ export const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsSaved }) 
                   onClick={async () => {
                     if (!settings) return
                     const newValue = !settings.ui?.start_with_windows
-                    const previousSettings = settings
+                    const previousStartupValue = settings.ui?.start_with_windows
                     setSettings(prev =>
                       prev
                         ? { ...prev, ui: { ...(prev.ui || {}), start_with_windows: newValue } }
@@ -983,11 +983,31 @@ export const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsSaved }) 
                     try {
                       const result = await window.electronAPI.setStartup(newValue)
                       if (!result.success) {
-                        setSettings(previousSettings)
+                        setSettings(prev =>
+                          prev
+                            ? {
+                                ...prev,
+                                ui: {
+                                  ...(prev.ui || {}),
+                                  start_with_windows: previousStartupValue,
+                                },
+                              }
+                            : prev
+                        )
                         setError(result.error || 'Failed to update startup setting')
                       }
                     } catch (error) {
-                      setSettings(previousSettings)
+                      setSettings(prev =>
+                        prev
+                          ? {
+                              ...prev,
+                              ui: {
+                                ...(prev.ui || {}),
+                                start_with_windows: previousStartupValue,
+                              },
+                            }
+                          : prev
+                      )
                       setError('Failed to update startup setting')
                       console.error('Failed to set startup:', error)
                     }

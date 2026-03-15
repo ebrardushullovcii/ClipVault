@@ -1778,12 +1778,16 @@ ipcMain.handle('settings:setStartup', async (_, enabled: boolean) => {
       try {
         await execFileAsync('reg', ['delete', runKey, '/v', keyName, '/f'])
         console.log('[Startup] Removed ClipVault from Windows startup')
-      } catch (error) {
-        const message = String(error)
-        if (!message.includes('unable to find the specified registry key or value')) {
-          throw error
+      } catch (deleteError) {
+        try {
+          await execFileAsync('reg', ['query', runKey, '/v', keyName])
+          throw deleteError
+        } catch (queryError) {
+          if (queryError === deleteError) {
+            throw deleteError
+          }
+          console.log('[Startup] Startup registry entry was already absent')
         }
-        console.log('[Startup] Startup registry entry was already absent')
       }
     }
 

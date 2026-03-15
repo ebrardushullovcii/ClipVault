@@ -211,12 +211,14 @@ const withDefaultDevice = (
 
 interface FirstRunWizardProps {
   initialSettings: AppSettings
+  errorMessage?: string | null
   onComplete: (settings: AppSettings) => void
   onSkip: (settings: AppSettings) => void
 }
 
 export const FirstRunWizard: React.FC<FirstRunWizardProps> = ({
   initialSettings,
+  errorMessage,
   onComplete,
   onSkip,
 }) => {
@@ -1013,6 +1015,14 @@ export const FirstRunWizard: React.FC<FirstRunWizardProps> = ({
           </div>
 
           <div className="flex flex-wrap items-center justify-between gap-4">
+            {errorMessage && (
+              <div
+                role="alert"
+                className="w-full rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-100"
+              >
+                {errorMessage}
+              </div>
+            )}
             <button
               type="button"
               onClick={handleBack}

@@ -99,6 +99,7 @@ function App() {
   const [showEditor, setShowEditor] = useState(false)
   const [showFirstRun, setShowFirstRun] = useState(false)
   const [firstRunSettings, setFirstRunSettings] = useState<AppSettings | null>(null)
+  const [firstRunError, setFirstRunError] = useState<string | null>(null)
   const [appSettings, setAppSettings] = useState<AppSettings | null>(null)
   // Navigation history for browser-like back/forward
   const [{ history, historyIndex }, dispatchHistory] = useReducer(
@@ -120,6 +121,7 @@ function App() {
         if (!mounted) return
         setFirstRunSettings(settings)
         setAppSettings(settings)
+        setFirstRunError(null)
         setShowFirstRun(!settings.ui?.first_run_completed)
       } catch (error) {
         console.error('Failed to load settings for first run:', error)
@@ -134,18 +136,31 @@ function App() {
   }, [])
 
   const handleFirstRunFinish = useCallback(async (settings: AppSettings) => {
+    setFirstRunError(null)
     try {
-      await window.electronAPI.saveSettings(settings)
+      const saveResult = await window.electronAPI.saveSettings(settings)
+      if (!saveResult.success) {
+        setFirstRunError(saveResult.error || 'Failed to save setup settings.')
+        return
+      }
+
+      setFirstRunSettings(settings)
+      setAppSettings(settings)
+
       const startupResult = await window.electronAPI.setStartup(
         settings.ui?.start_with_windows ?? false
       )
       if (!startupResult.success) {
-        throw new Error(startupResult.error || 'Failed to update startup setting')
+        setFirstRunError(
+          startupResult.error ||
+            'ClipVault saved your setup, but Windows startup registration failed. Disable Start with Windows to continue or retry.'
+        )
+        return
       }
-      setFirstRunSettings(settings)
-      setAppSettings(settings)
+
       setShowFirstRun(false)
     } catch (error) {
+      setFirstRunError('Failed to save setup settings.')
       console.error('Failed to save first-run settings:', error)
     }
   }, [])
@@ -409,6 +424,7 @@ function App() {
       {showFirstRun && firstRunSettings && (
         <FirstRunWizard
           initialSettings={firstRunSettings}
+          errorMessage={firstRunError}
           onComplete={handleFirstRunFinish}
           onSkip={handleFirstRunFinish}
         />

@@ -33,6 +33,7 @@ import { exportPreviewTemplate } from './exportPreviewTemplate'
 import chokidar from 'chokidar'
 
 const thumbnailLogPath = join(app.getPath('userData'), 'thumbnail.log')
+const execFileAsync = promisify(execFile)
 
 function logThumbnail(message: string): void {
   const timestamp = new Date().toISOString()
@@ -1756,32 +1757,39 @@ ipcMain.handle('settings:setStartup', async (_, enabled: boolean) => {
   try {
     const exePath = process.execPath
     const keyName = 'ClipVault'
+    const runKey = 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run'
+    const startupValue = `"${exePath}" --startup`
 
     if (enabled) {
-      // Add to registry Run key with --startup flag (no window, backend only)
-      const { exec } = require('child_process')
-      // Escape quotes for registry
-      const quotedPath = `"${exePath}"`
-      const regCmd = `reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run" /v "${keyName}" /t REG_SZ /d "${quotedPath} --startup" /f`
-      exec(regCmd, (err: Error | null) => {
-        if (err) {
-          console.error('Failed to add startup registry:', err)
-        } else {
-          console.log('[Startup] Added ClipVault to Windows startup (background mode)')
-        }
-      })
+      // Write the Run key without going through shell parsing so quoted paths work.
+      await execFileAsync('reg', [
+        'add',
+        runKey,
+        '/v',
+        keyName,
+        '/t',
+        'REG_SZ',
+        '/d',
+        startupValue,
+        '/f',
+      ])
+      console.log('[Startup] Added ClipVault to Windows startup (background mode)')
     } else {
-      // Remove from registry Run key
-      const { exec } = require('child_process')
-      const regCmd = `reg delete "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run" /v "${keyName}" /f`
-      exec(regCmd, (err: Error | null) => {
-        if (err) {
-          console.error('Failed to remove startup registry:', err)
-        } else {
-          console.log('[Startup] Removed ClipVault from Windows startup')
+      try {
+        await execFileAsync('reg', ['delete', runKey, '/v', keyName, '/f'])
+        console.log('[Startup] Removed ClipVault from Windows startup')
+      } catch (error) {
+        const message = String(error)
+        if (!message.includes('unable to find the specified registry key or value')) {
+          throw error
         }
-      })
+        console.log('[Startup] Startup registry entry was already absent')
+      }
     }
+
+    const settings = await readNormalizedSettings()
+    settings.ui.start_with_windows = enabled
+    await persistNormalizedSettings(settings)
 
     return { success: true }
   } catch (error) {
@@ -1808,9 +1816,6 @@ ipcMain.handle('system:getMonitors', async () => {
     throw error
   }
 })
-
-// Get audio devices - async implementation to avoid blocking main process
-const execFileAsync = promisify(execFile)
 
 ipcMain.handle('audio:getDevices', async (_, type: 'output' | 'input') => {
   try {

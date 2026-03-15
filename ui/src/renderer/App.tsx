@@ -136,7 +136,12 @@ function App() {
   const handleFirstRunFinish = useCallback(async (settings: AppSettings) => {
     try {
       await window.electronAPI.saveSettings(settings)
-      await window.electronAPI.setStartup(settings.ui?.start_with_windows ?? false)
+      const startupResult = await window.electronAPI.setStartup(
+        settings.ui?.start_with_windows ?? false
+      )
+      if (!startupResult.success) {
+        throw new Error(startupResult.error || 'Failed to update startup setting')
+      }
       setFirstRunSettings(settings)
       setAppSettings(settings)
       setShowFirstRun(false)

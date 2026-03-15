@@ -974,14 +974,21 @@ export const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsSaved }) 
                   onClick={async () => {
                     if (!settings) return
                     const newValue = !settings.ui?.start_with_windows
+                    const previousSettings = settings
                     setSettings(prev =>
                       prev
                         ? { ...prev, ui: { ...(prev.ui || {}), start_with_windows: newValue } }
                         : null
                     )
                     try {
-                      await window.electronAPI.setStartup(newValue)
+                      const result = await window.electronAPI.setStartup(newValue)
+                      if (!result.success) {
+                        setSettings(previousSettings)
+                        setError(result.error || 'Failed to update startup setting')
+                      }
                     } catch (error) {
+                      setSettings(previousSettings)
+                      setError('Failed to update startup setting')
                       console.error('Failed to set startup:', error)
                     }
                   }}

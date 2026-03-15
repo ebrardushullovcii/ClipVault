@@ -174,7 +174,7 @@ export interface ElectronAPI {
   restartBackend: () => Promise<{ success: boolean; restarted?: boolean }>
   getMonitors: () => Promise<MonitorInfo[]>
   getAudioDevices: (type: 'output' | 'input') => Promise<AudioDeviceInfo[]>
-  setStartup: (enabled: boolean) => Promise<{ success: boolean }>
+  setStartup: (enabled: boolean) => Promise<{ success: boolean; error?: string }>
   getClipsList: () => Promise<ClipInfo[]>
   saveClipMetadata: (clipId: string, metadata: ClipMetadata) => Promise<boolean>
   getClipMetadata: (clipId: string) => Promise<ClipMetadata | null>

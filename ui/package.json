@@ -1,6 +1,6 @@
 {
   "name": "clipvault-ui",
-  "version": "1.5.2",
+  "version": "1.5.5",
   "description": "ClipVault Editor UI - Modern video clip library and editor",
   "main": "dist/main/main.js",
   "author": "ClipVault Team",
@@ -106,6 +106,9 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
+      "installerIcon": "public/icons/icon.ico",
+      "uninstallerIcon": "public/icons/icon.ico",
+      "installerHeaderIcon": "public/icons/icon.ico",
       "shortcutName": "ClipVault",
       "menuCategory": "ClipVault",
       "artifactName": "ClipVault-Setup-${version}.exe",

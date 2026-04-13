@@ -175,10 +175,9 @@ foreach ($dll in $MinGWDLLs) {
     }
 }
 
-# Copy icon assets used by the backend and packaged app
-Write-Host "`n[Copy] Copying icon assets..."
+# Copy tray icon asset used by the backend
+Write-Host "`n[Copy] Copying tray icon asset..."
 $IconAssets = @(
-    @{ Source = Join-Path $ProjectRoot "64x64.png"; Destination = Join-Path $DestDir "64x64.png" },
     @{ Source = Join-Path $ProjectRoot "64x64-2.png"; Destination = Join-Path $DestDir "64x64-2.png" }
 )
 
@@ -197,11 +196,16 @@ $BackendExe = Join-Path $ProjectRoot "bin\ClipVault.exe"
 $AppIcon = Join-Path $ProjectRoot "ui\public\icons\icon.ico"
 $Node = Get-Command node -ErrorAction SilentlyContinue
 if ($Node -and (Test-Path $BackendExe) -and (Test-Path $AppIcon)) {
-    & $Node.Source -e "const path = require('path'); const rcedit = require('rcedit'); const exePath = path.resolve(process.argv[1]); const iconPath = path.resolve(process.argv[2]); rcedit(exePath, { icon: iconPath }).catch(err => { console.error(err); process.exit(1); });" "$BackendExe" "$AppIcon"
+    Push-Location $ProjectRoot
+    try {
+        & $Node.Source -e "const path = require('path'); const rcedit = require('rcedit'); const exePath = path.resolve(process.argv[1]); const iconPath = path.resolve(process.argv[2]); rcedit(exePath, { icon: iconPath }).catch(err => { console.error(err); process.exit(1); });" "$BackendExe" "$AppIcon"
+    } finally {
+        Pop-Location
+    }
     if ($LASTEXITCODE -eq 0) {
         Write-Host "  Updated: ClipVault.exe icon" -ForegroundColor Gray
     } else {
-        Write-Host "  WARNING: Failed to update ClipVault.exe icon" -ForegroundColor Yellow
+        Write-Host "  WARNING: Failed to update ClipVault.exe icon via rcedit" -ForegroundColor Yellow
     }
 } else {
     Write-Host "  WARNING: Skipping icon update because node, icon.ico, or ClipVault.exe is missing" -ForegroundColor Yellow

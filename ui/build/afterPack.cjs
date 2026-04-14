@@ -3,7 +3,7 @@ const path = require('path')
 const rcedit = require('rcedit')
 
 exports.default = async function afterPack(context) {
-  if (process.platform !== 'win32') return
+  if (context.electronPlatformName !== 'win32') return
 
   const iconPath = path.join(__dirname, '..', 'public', 'icons', 'icon.ico')
   if (!fs.existsSync(iconPath)) {

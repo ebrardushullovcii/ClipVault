@@ -175,6 +175,42 @@ foreach ($dll in $MinGWDLLs) {
     }
 }
 
+# Copy tray icon asset used by the backend
+Write-Host "`n[Copy] Copying tray icon asset..."
+$IconAssets = @(
+    @{ Source = Join-Path $ProjectRoot "64x64-2.png"; Destination = Join-Path $DestDir "64x64-2.png" }
+)
+
+foreach ($asset in $IconAssets) {
+    if (Test-Path $asset.Source) {
+        Copy-Item $asset.Source $asset.Destination -Force
+        Write-Host "  Copied: $(Split-Path $asset.Destination -Leaf)" -ForegroundColor Gray
+    } else {
+        Write-Host "  WARNING: $(Split-Path $asset.Source -Leaf) not found" -ForegroundColor Yellow
+    }
+}
+
+# Stamp the backend executable with the app icon for Explorer/Task Manager.
+Write-Host "`n[Resource] Updating backend executable icon..."
+$BackendExe = Join-Path $ProjectRoot "bin\ClipVault.exe"
+$AppIcon = Join-Path $ProjectRoot "ui\public\icons\icon.ico"
+$Node = Get-Command node -ErrorAction SilentlyContinue
+if ($Node -and (Test-Path $BackendExe) -and (Test-Path $AppIcon)) {
+    Push-Location $ProjectRoot
+    try {
+        & $Node.Source -e "const path = require('path'); const rcedit = require('rcedit'); const exePath = path.resolve(process.argv[1]); const iconPath = path.resolve(process.argv[2]); rcedit(exePath, { icon: iconPath }).catch(err => { console.error(err); process.exit(1); });" "$BackendExe" "$AppIcon"
+    } finally {
+        Pop-Location
+    }
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host "  Updated: ClipVault.exe icon" -ForegroundColor Gray
+    } else {
+        Write-Host "  WARNING: Failed to update ClipVault.exe icon via rcedit" -ForegroundColor Yellow
+    }
+} else {
+    Write-Host "  WARNING: Skipping icon update because node, icon.ico, or ClipVault.exe is missing" -ForegroundColor Yellow
+}
+
 # Copy FFmpeg tools (required for video metadata and thumbnails)
 Write-Host "`n[Copy] Copying FFmpeg tools..."
 $FFmpegPath = (Get-Command ffprobe).Source | Split-Path

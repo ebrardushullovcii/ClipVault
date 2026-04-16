@@ -192,6 +192,67 @@ let tray: Tray | null = null
 let isQuitting = false
 let suppressFileWatcher = false
 let backendProcess: ReturnType<typeof spawn> | null = null
+let backendStatus: 'stopped' | 'starting' | 'running' = 'stopped'
+
+function getBackendStatusLabel(): string {
+  if (backendStatus === 'running') {
+    return backendProcess?.pid
+      ? `Backend: Running (PID ${backendProcess.pid})`
+      : 'Backend: Running'
+  }
+
+  if (backendStatus === 'starting') {
+    return 'Backend: Starting...'
+  }
+
+  return 'Backend: Not Running'
+}
+
+function updateTrayPresentation(): void {
+  if (!tray) {
+    return
+  }
+
+  const statusLabel = getBackendStatusLabel()
+  tray.setToolTip(`ClipVault\n${statusLabel}`)
+  tray.setContextMenu(
+    Menu.buildFromTemplate([
+      {
+        label: statusLabel,
+        enabled: false,
+      },
+      { type: 'separator' },
+      {
+        label: 'Open ClipVault',
+        click: () => {
+          if (mainWindow) {
+            mainWindow.show()
+            mainWindow.focus()
+          } else {
+            void createWindow()
+          }
+        },
+      },
+      {
+        label: 'Open Clips Folder',
+        click: async () => {
+          const clipsFolder = getClipsPath()
+          if (!existsSync(clipsFolder)) {
+            await mkdir(clipsFolder, { recursive: true })
+          }
+          await shell.openPath(clipsFolder)
+        },
+      },
+      { type: 'separator' },
+      {
+        label: 'Exit',
+        click: () => {
+          app.quit()
+        },
+      },
+    ])
+  )
+}
 
 type WindowState = {
   bounds: Rectangle
@@ -301,6 +362,7 @@ const getBackendPaths = () => {
 // Start backend process
 function startBackend(): boolean {
   const { backendPath, backendLogPath } = getBackendPaths()
+  const backendArgs = ['--background']
 
   if (!existsSync(backendPath)) {
     console.warn('Backend executable not found:', backendPath)
@@ -314,13 +376,15 @@ function startBackend(): boolean {
   }
 
   try {
+    backendStatus = 'starting'
+    updateTrayPresentation()
     console.log('Spawning backend from:', backendPath)
     console.log('Backend log path:', backendLogPath)
 
     const logStream = createWriteStream(backendLogPath, { flags: 'a' })
     logStream.write(`\n--- Backend started at ${new Date().toISOString()} ---\n`)
 
-    const backendProc = spawn(backendPath, [], {
+    const backendProc = spawn(backendPath, backendArgs, {
       detached: true,
       stdio: ['ignore', 'pipe', 'pipe'],
     })
@@ -342,6 +406,11 @@ function startBackend(): boolean {
 
     backendProc.on('error', error => {
       console.error('Backend spawn error:', error)
+      backendStatus = 'stopped'
+      if (backendProcess === backendProc) {
+        backendProcess = null
+      }
+      updateTrayPresentation()
       logStream.write(`[ERROR] Spawn error: ${error}\n`)
       logStream.end()
     })
@@ -350,18 +419,24 @@ function startBackend(): boolean {
       console.log(`Backend exited with code ${code} and signal ${signal}`)
       logStream.write(`--- Backend exited: code=${code}, signal=${signal} ---\n`)
       logStream.end()
+      backendStatus = 'stopped'
       if (backendProcess === backendProc) {
         backendProcess = null
       }
+      updateTrayPresentation()
     })
 
     console.log('Backend spawned with PID:', backendProc.pid)
     backendProcess = backendProc
+    backendStatus = 'running'
+    updateTrayPresentation()
 
     backendProc.unref()
     return true
   } catch (error) {
     console.error('Failed to start backend:', error)
+    backendStatus = 'stopped'
+    updateTrayPresentation()
     dialog.showMessageBoxSync({
       type: 'error',
       title: 'ClipVault Error',
@@ -392,6 +467,8 @@ function killBackend(): boolean {
     console.log('Killing backend process with PID:', backendProcess.pid)
     backendProcess.kill()
     backendProcess = null
+    backendStatus = 'stopped'
+    updateTrayPresentation()
     return true
   } catch (error) {
     console.error('Failed to kill backend:', error)
@@ -568,7 +645,7 @@ if (!gotTheLock) {
     if (existsSync(backendPath)) {
       try {
         console.log('Second instance: Spawning backend from:', backendPath)
-        const backendProc = spawn(backendPath, [], {
+        const backendProc = spawn(backendPath, ['--background'], {
           detached: true,
           stdio: ['ignore', 'ignore', 'ignore'],
         })
@@ -617,50 +694,11 @@ function createTray(): void {
   }
 
   tray = new Tray(icon || nativeImage.createEmpty())
-  tray.setToolTip('ClipVault Editor')
-  tray.setContextMenu(
-    Menu.buildFromTemplate([
-      {
-        label: 'Open ClipVault',
-        click: () => {
-          if (mainWindow) {
-            mainWindow.show()
-            mainWindow.focus()
-          }
-        },
-      },
-      {
-        label: 'Open Clips Folder',
-        click: async () => {
-          const clipsFolder = getClipsPath()
-          if (!existsSync(clipsFolder)) {
-            await mkdir(clipsFolder, { recursive: true })
-          }
-          await shell.openPath(clipsFolder)
-        },
-      },
-      { type: 'separator' },
-      {
-        label: 'Exit',
-        click: () => {
-          app.quit()
-        },
-      },
-    ])
-  )
+  updateTrayPresentation()
 
   tray.on('click', () => {
-    if (mainWindow) {
-      if (mainWindow.isVisible()) {
-        mainWindow.hide()
-      } else {
-        mainWindow.show()
-        mainWindow.focus()
-      }
-    } else {
-      // Window doesn't exist (startup mode), create it
-      createWindow()
-    }
+    updateTrayPresentation()
+    tray?.popUpContextMenu()
   })
 
   tray.on('double-click', () => {

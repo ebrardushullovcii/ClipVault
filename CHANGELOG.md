@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.6] - 2026-04-14
+
+### Changed
+
+- Consolidated ClipVault down to a single Electron tray icon by launching the bundled backend in background mode instead of giving the backend its own tray entry.
+- Updated the tray menu to show whether the backend is running so you can confirm clipping is active from the remaining tray icon.
+- Bumped the app version metadata to 1.5.6 for the root project and Electron UI package.
+
+## [1.5.5] - 2026-04-14
+
+### Changed
+
+- Refreshed the Windows app branding by replacing the existing icon assets across the packaged app, backend executable, tray icon, and installer resources.
+- Updated the Windows packaging flow to stamp both the Electron app and bundled backend executable with the shared application icon.
+- Bumped the app version metadata to 1.5.5 for the root project and Electron UI package.
+
 ## [1.5.2] - 2026-03-15
 
 ### Fixed

@@ -153,19 +153,49 @@ int run_background_mode()
     
     // Create event for shutdown signaling
     g_shutdown_event = CreateEventA(nullptr, TRUE, FALSE, "ClipVaultShutdown");
+    if (!g_shutdown_event) {
+        LOG_ERROR("Failed to create shutdown event");
+        return 1;
+    }
     
     MSG msg;
     bool running = true;
+    HANDLE wait_handles[] = { g_shutdown_event };
     
     while (running) {
-        // Check for shutdown event (from parent process)
-        if (WaitForSingleObject(g_shutdown_event, 0) == WAIT_OBJECT_0) {
+        DWORD wait_result = MsgWaitForMultipleObjects(
+            1,
+            wait_handles,
+            FALSE,
+            INFINITE,
+            QS_ALLINPUT
+        );
+
+        if (wait_result == WAIT_OBJECT_0) {
             LOG_INFO("Shutdown event received");
             running = false;
             break;
         }
-        
-        // Process Windows messages (needed for hotkey)
+
+        if (wait_result == WAIT_OBJECT_0 + 1) {
+            while (PeekMessageA(&msg, nullptr, 0, 0, PM_REMOVE)) {
+                if (msg.message == WM_QUIT) {
+                    running = false;
+                    break;
+                }
+                TranslateMessage(&msg);
+                DispatchMessageA(&msg);
+            }
+            continue;
+        }
+
+        if (wait_result == WAIT_FAILED) {
+            LOG_ERROR("Background wait failed: " + std::to_string(GetLastError()));
+            running = false;
+            break;
+        }
+
+        // Unexpected wakeup - drain any pending messages before waiting again.
         while (PeekMessageA(&msg, nullptr, 0, 0, PM_REMOVE)) {
             if (msg.message == WM_QUIT) {
                 running = false;
@@ -174,9 +204,6 @@ int run_background_mode()
             TranslateMessage(&msg);
             DispatchMessageA(&msg);
         }
-        
-        // Sleep to prevent busy-waiting
-        Sleep(100);
     }
     
     if (g_shutdown_event) {

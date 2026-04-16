@@ -7,13 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.5.6] - 2026-04-14
+## [1.5.7] - 2026-04-14
 
 ### Changed
 
 - Consolidated ClipVault down to a single Electron tray icon by launching the bundled backend in background mode instead of giving the backend its own tray entry.
 - Updated the tray menu to show whether the backend is running so you can confirm clipping is active from the remaining tray icon.
-- Bumped the app version metadata to 1.5.6 for the root project and Electron UI package.
+- Bumped the app version metadata to 1.5.7 for the root project and Electron UI package.
 
 ## [1.5.5] - 2026-04-14
 

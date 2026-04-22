@@ -139,8 +139,8 @@ void on_menu_action(int menu_id)
             break;
         }
 
-        case clipvault::SystemTray::MENU_EXIT:
-            LOG_INFO("Exit requested from menu");
+        case clipvault::SystemTray::MENU_EXIT_SERVICE:
+            LOG_INFO("Exit service requested from menu");
             clipvault::SystemTray::instance().quit();
             break;
     }
@@ -400,7 +400,14 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         if (!launcher_config.ui_path.empty()) {
             tray.set_open_ui_callback([ui_path = launcher_config.ui_path]() {
                 LOG_INFO("Opening UI: " + ui_path);
-                ShellExecuteA(nullptr, "open", ui_path.c_str(), nullptr, nullptr, SW_SHOW);
+                HINSTANCE result = ShellExecuteA(nullptr, "open", ui_path.c_str(), "--from-backend-tray", nullptr, SW_SHOW);
+                if (reinterpret_cast<INT_PTR>(result) > 32) {
+                    clipvault::SystemTray::instance().set_app_running(true);
+                    clipvault::SystemTray::instance().quit();
+                    return;
+                }
+
+                LOG_ERROR("Failed to launch UI: " + ui_path + " (ShellExecuteA=" + std::to_string(reinterpret_cast<INT_PTR>(result)) + ")");
             });
         } else {
             // Try to find UI relative to backend
@@ -410,9 +417,39 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             LOG_INFO("Looking for UI at: " + ui_exe);
             tray.set_open_ui_callback([ui_exe]() {
                 LOG_INFO("Opening UI: " + ui_exe);
-                ShellExecuteA(nullptr, "open", ui_exe.c_str(), nullptr, nullptr, SW_SHOW);
+                HINSTANCE result = ShellExecuteA(nullptr, "open", ui_exe.c_str(), "--from-backend-tray", nullptr, SW_SHOW);
+                if (reinterpret_cast<INT_PTR>(result) > 32) {
+                    clipvault::SystemTray::instance().set_app_running(true);
+                    clipvault::SystemTray::instance().quit();
+                    return;
+                }
+
+                LOG_ERROR("Failed to launch UI: " + ui_exe + " (ShellExecuteA=" + std::to_string(reinterpret_cast<INT_PTR>(result)) + ")");
             });
         }
+        tray.set_tray_click_callback([ui_path = launcher_config.ui_path, ui_exe = std::string(exe_dir + "\\..\\..\\ClipVault.exe")]() {
+            if (!ui_path.empty()) {
+                LOG_INFO("Opening UI from tray click: " + ui_path);
+                HINSTANCE result = ShellExecuteA(nullptr, "open", ui_path.c_str(), "--from-backend-tray", nullptr, SW_SHOW);
+                if (reinterpret_cast<INT_PTR>(result) > 32) {
+                    clipvault::SystemTray::instance().set_app_running(true);
+                    clipvault::SystemTray::instance().quit();
+                    return;
+                }
+
+                LOG_ERROR("Failed to launch UI from tray click: " + ui_path + " (ShellExecuteA=" + std::to_string(reinterpret_cast<INT_PTR>(result)) + ")");
+            } else {
+                LOG_INFO("Opening UI from tray click: " + ui_exe);
+                HINSTANCE result = ShellExecuteA(nullptr, "open", ui_exe.c_str(), "--from-backend-tray", nullptr, SW_SHOW);
+                if (reinterpret_cast<INT_PTR>(result) > 32) {
+                    clipvault::SystemTray::instance().set_app_running(true);
+                    clipvault::SystemTray::instance().quit();
+                    return;
+                }
+
+                LOG_ERROR("Failed to launch UI from tray click: " + ui_exe + " (ShellExecuteA=" + std::to_string(reinterpret_cast<INT_PTR>(result)) + ")");
+            }
+        });
 
         // Setup hotkey callback to trigger save
         auto& hotkey = clipvault::HotkeyManager::instance();

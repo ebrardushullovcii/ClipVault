@@ -50,6 +50,60 @@ SystemTray::~SystemTray()
     shutdown();
 }
 
+void SystemTray::refresh_app_state()
+{
+    // Keep the last known app state until a real detection path is added.
+}
+
+void SystemTray::set_app_running(bool app_running)
+{
+    app_running_ = app_running;
+
+    if (initialized_) {
+        rebuild_menu();
+    }
+}
+
+void SystemTray::hide_icon()
+{
+    if (!initialized_ || !icon_visible_) {
+        return;
+    }
+
+    if (!Shell_NotifyIconA(NIM_DELETE, &nid_)) {
+        LOG_WARNING("Failed to delete tray icon");
+        return;
+    }
+
+    icon_visible_ = false;
+}
+
+void SystemTray::rebuild_menu()
+{
+    if (menu_) {
+        DestroyMenu(menu_);
+        menu_ = nullptr;
+    }
+
+    const char* app_status = app_running_ ? "App: Running" : "App: Exited";
+
+    menu_ = CreatePopupMenu();
+    AppendMenuA(menu_, MF_STRING | MF_GRAYED, MENU_STATUS_APP, app_status);
+    AppendMenuA(menu_, MF_STRING | MF_GRAYED, MENU_STATUS_SERVICE, "Service: Running");
+    AppendMenuA(menu_, MF_SEPARATOR, 0, nullptr);
+    AppendMenuA(menu_, MF_STRING, MENU_OPEN, "Open ClipVault");
+    AppendMenuA(menu_, MF_STRING | MF_GRAYED, MENU_START_SERVICE, "Start Service");
+    AppendMenuA(menu_, MF_STRING, MENU_OPEN_FOLDER, "Open Clips Folder");
+    AppendMenuA(menu_, MF_SEPARATOR, 0, nullptr);
+    AppendMenuA(menu_, MF_STRING, MENU_EXIT_SERVICE, "Exit Service");
+    AppendMenuA(menu_, MF_STRING, MENU_HIDE_TRAY_ICON, "Hide Tray Icon");
+
+    snprintf(nid_.szTip, sizeof(nid_.szTip), "ClipVault\n%s\nService: Running", app_status);
+    if (icon_visible_) {
+        Shell_NotifyIconA(NIM_MODIFY, &nid_);
+    }
+}
+
 bool SystemTray::initialize(HINSTANCE hInstance)
 {
     if (initialized_) {
@@ -126,7 +180,7 @@ bool SystemTray::initialize(HINSTANCE hInstance)
     }
     nid_.hIcon = hIcon_;
 
-    strcpy_s(nid_.szTip, "ClipVault - Ready");
+    strcpy_s(nid_.szTip, "ClipVault\nApp: Exited\nService: Running");
 
     if (!Shell_NotifyIconA(NIM_ADD, &nid_)) {
         LOG_ERROR("Failed to add tray icon");
@@ -134,15 +188,9 @@ bool SystemTray::initialize(HINSTANCE hInstance)
         hwnd_ = nullptr;
         return false;
     }
+    icon_visible_ = true;
 
-    // Create context menu
-    menu_ = CreatePopupMenu();
-    AppendMenuA(menu_, MF_STRING | MF_GRAYED, MENU_STATUS, "ClipVault - Ready");
-    AppendMenuA(menu_, MF_SEPARATOR, 0, nullptr);
-    AppendMenuA(menu_, MF_STRING, MENU_OPEN, "Open");
-    AppendMenuA(menu_, MF_STRING, MENU_OPEN_FOLDER, "Open Clips Folder");
-    AppendMenuA(menu_, MF_SEPARATOR, 0, nullptr);
-    AppendMenuA(menu_, MF_STRING, MENU_EXIT, "Exit");
+    rebuild_menu();
 
     initialized_ = true;
     LOG_INFO("System tray initialized successfully");
@@ -166,7 +214,10 @@ void SystemTray::shutdown()
         menu_ = nullptr;
     }
 
-    Shell_NotifyIconA(NIM_DELETE, &nid_);
+    if (icon_visible_) {
+        Shell_NotifyIconA(NIM_DELETE, &nid_);
+        icon_visible_ = false;
+    }
 
     if (hIcon_) {
         DestroyIcon(hIcon_);
@@ -251,6 +302,8 @@ LRESULT CALLBACK SystemTray::WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPAR
                 int command = LOWORD(wParam);
                 if (command == MENU_OPEN && self->open_ui_callback_) {
                     self->open_ui_callback_();
+                } else if (command == MENU_HIDE_TRAY_ICON) {
+                    self->hide_icon();
                 } else if (self->menu_callback_) {
                     self->menu_callback_(command);
                 }
@@ -289,17 +342,16 @@ void SystemTray::handle_tray_message(WPARAM wParam, LPARAM lParam)
             break;
 
         case WM_LBUTTONDBLCLK:
-            // Double-click - open clips folder
+            // Double-click is logged only; single-click handles opening.
             LOG_INFO("Tray icon double-clicked");
-            if (menu_callback_) {
-                menu_callback_(MENU_OPEN_FOLDER);
-            }
             break;
     }
 }
 
 void SystemTray::show_context_menu()
 {
+    rebuild_menu();
+
     POINT pt;
     GetCursorPos(&pt);
 

@@ -35,11 +35,19 @@ public:
     using OpenUICallback = std::function<void()>;
     void set_open_ui_callback(OpenUICallback callback) { open_ui_callback_ = callback; }
 
+    void set_app_running(bool app_running);
+    bool is_app_running() const { return app_running_; }
+    void rebuild_menu();
+    void hide_icon();
+
     // Menu item IDs
-    static constexpr int MENU_STATUS = 1;
-    static constexpr int MENU_OPEN = 2;
-    static constexpr int MENU_OPEN_FOLDER = 3;
-    static constexpr int MENU_EXIT = 4;
+    static constexpr int MENU_STATUS_APP = 1;
+    static constexpr int MENU_STATUS_SERVICE = 2;
+    static constexpr int MENU_OPEN = 3;
+    static constexpr int MENU_OPEN_FOLDER = 4;
+    static constexpr int MENU_START_SERVICE = 5;
+    static constexpr int MENU_EXIT_SERVICE = 6;
+    static constexpr int MENU_HIDE_TRAY_ICON = 7;
 
 private:
     SystemTray() = default;
@@ -51,6 +59,7 @@ private:
     static LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
     void handle_tray_message(WPARAM wParam, LPARAM lParam);
     void show_context_menu();
+    void refresh_app_state();
 
     HWND hwnd_ = nullptr;
     NOTIFYICONDATAA nid_ = {};
@@ -58,7 +67,9 @@ private:
     HICON hIcon_ = nullptr;
     ULONG_PTR gdiplus_token_ = 0;
     bool initialized_ = false;
+    bool icon_visible_ = false;
     bool running_ = false;
+    bool app_running_ = false;
     MenuCallback menu_callback_;
     TrayClickCallback tray_click_callback_;
     OpenUICallback open_ui_callback_;

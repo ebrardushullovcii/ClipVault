@@ -190,22 +190,154 @@ app.disableHardwareAcceleration()
 let mainWindow: BrowserWindow | null = null
 let tray: Tray | null = null
 let isQuitting = false
+let shouldDestroyTrayOnQuit = true
+let trayHidden = false
 let suppressFileWatcher = false
 let backendProcess: ReturnType<typeof spawn> | null = null
 let backendStatus: 'stopped' | 'starting' | 'running' = 'stopped'
 
 function getBackendStatusLabel(): string {
   if (backendStatus === 'running') {
-    return backendProcess?.pid
-      ? `Backend: Running (PID ${backendProcess.pid})`
-      : 'Backend: Running'
+    return 'Service: Running'
   }
 
   if (backendStatus === 'starting') {
-    return 'Backend: Starting...'
+    return 'Service: Starting...'
   }
 
-  return 'Backend: Not Running'
+  return 'Service: Not Running'
+}
+
+function getAppStatusLabel(): string {
+  return mainWindow ? 'App: Running' : 'App: Exited'
+}
+
+function shouldKeepTrayAlive(): boolean {
+  return Boolean(mainWindow) || backendStatus !== 'stopped'
+}
+
+function updateTrayVisibility(): void {
+  if (!tray) {
+    return
+  }
+
+  if (trayHidden || !shouldKeepTrayAlive()) {
+    destroyTray()
+    return
+  }
+
+  updateTrayPresentation()
+}
+
+function showMainWindow(): void {
+  if (mainWindow) {
+    if (mainWindow.isMinimized()) {
+      mainWindow.restore()
+    }
+    mainWindow.show()
+    mainWindow.focus()
+    return
+  }
+
+  void createWindow()
+}
+
+function ensureTray(): void {
+  if (tray || trayHidden) {
+    return
+  }
+
+  createTray()
+}
+
+function destroyTray(): void {
+  if (!tray) {
+    return
+  }
+
+  tray.destroy()
+  tray = null
+}
+
+async function startBackendWithTray(): Promise<boolean> {
+  const { backendPath, backendLogPath } = getBackendPaths()
+
+  if (!existsSync(backendPath)) {
+    console.warn('Backend executable not found:', backendPath)
+    return false
+  }
+
+  try {
+    console.log('Starting backend with tray from:', backendPath)
+    const logStream = createWriteStream(backendLogPath, { flags: 'a' })
+    logStream.write(`\n--- Backend tray handoff at ${new Date().toISOString()} ---\n`)
+    logStream.end()
+
+    const backendProc = spawn(backendPath, [], {
+      detached: true,
+      stdio: 'ignore',
+    })
+
+    backendProc.unref()
+    return true
+  } catch (error) {
+    console.error('Failed to start backend with tray:', error)
+    return false
+  }
+}
+
+function exitAppWindow(): void {
+  if (!mainWindow) {
+    return
+  }
+
+  isQuitting = true
+  mainWindow.close()
+}
+
+async function exitApp(): Promise<void> {
+  if (backendStatus !== 'stopped') {
+    killBackend()
+    await new Promise(resolve => setTimeout(resolve, 1000))
+
+    const handedOff = await startBackendWithTray()
+    if (!handedOff) {
+      const restarted = startBackend()
+      dialog.showMessageBoxSync({
+        type: 'error',
+        title: 'ClipVault Error',
+        message: 'Failed to exit the app cleanly',
+        detail: restarted
+          ? 'ClipVault could not hand tray ownership back to the service, so the app was left running.'
+          : 'ClipVault could not hand tray ownership back to the service and failed to restart it. The app was left running without the service.',
+      })
+      return
+    }
+  }
+
+  shouldDestroyTrayOnQuit = false
+  isQuitting = true
+  app.quit()
+}
+
+function exitService(): void {
+  killBackend()
+  ensureTray()
+  updateTrayVisibility()
+}
+
+function startService(): void {
+  if (backendStatus !== 'stopped') {
+    return
+  }
+
+  ensureTray()
+  startBackend()
+}
+
+function hideTrayIcon(): void {
+  trayHidden = true
+  destroyTray()
 }
 
 function updateTrayPresentation(): void {
@@ -213,24 +345,31 @@ function updateTrayPresentation(): void {
     return
   }
 
-  const statusLabel = getBackendStatusLabel()
-  tray.setToolTip(`ClipVault\n${statusLabel}`)
+  const appStatusLabel = getAppStatusLabel()
+  const backendStatusLabel = getBackendStatusLabel()
+  tray.setToolTip(`ClipVault\n${appStatusLabel}\n${backendStatusLabel}`)
   tray.setContextMenu(
     Menu.buildFromTemplate([
       {
-        label: statusLabel,
+        label: appStatusLabel,
+        enabled: false,
+      },
+      {
+        label: backendStatusLabel,
         enabled: false,
       },
       { type: 'separator' },
       {
         label: 'Open ClipVault',
         click: () => {
-          if (mainWindow) {
-            mainWindow.show()
-            mainWindow.focus()
-          } else {
-            void createWindow()
-          }
+          showMainWindow()
+        },
+      },
+      {
+        label: 'Start Service',
+        enabled: backendStatus === 'stopped',
+        click: () => {
+          startService()
         },
       },
       {
@@ -245,9 +384,23 @@ function updateTrayPresentation(): void {
       },
       { type: 'separator' },
       {
-        label: 'Exit',
+        label: 'Exit App',
+        enabled: Boolean(mainWindow),
         click: () => {
-          app.quit()
+          void exitApp()
+        },
+      },
+      {
+        label: 'Exit Service',
+        enabled: backendStatus !== 'stopped',
+        click: () => {
+          exitService()
+        },
+      },
+      {
+        label: 'Hide Tray Icon',
+        click: () => {
+          hideTrayIcon()
         },
       },
     ])
@@ -377,7 +530,7 @@ function startBackend(): boolean {
 
   try {
     backendStatus = 'starting'
-    updateTrayPresentation()
+    updateTrayVisibility()
     console.log('Spawning backend from:', backendPath)
     console.log('Backend log path:', backendLogPath)
 
@@ -410,7 +563,7 @@ function startBackend(): boolean {
       if (backendProcess === backendProc) {
         backendProcess = null
       }
-      updateTrayPresentation()
+      updateTrayVisibility()
       logStream.write(`[ERROR] Spawn error: ${error}\n`)
       logStream.end()
     })
@@ -423,20 +576,20 @@ function startBackend(): boolean {
       if (backendProcess === backendProc) {
         backendProcess = null
       }
-      updateTrayPresentation()
+      updateTrayVisibility()
     })
 
     console.log('Backend spawned with PID:', backendProc.pid)
     backendProcess = backendProc
     backendStatus = 'running'
-    updateTrayPresentation()
+    updateTrayVisibility()
 
     backendProc.unref()
     return true
   } catch (error) {
     console.error('Failed to start backend:', error)
     backendStatus = 'stopped'
-    updateTrayPresentation()
+    updateTrayVisibility()
     dialog.showMessageBoxSync({
       type: 'error',
       title: 'ClipVault Error',
@@ -445,6 +598,15 @@ function startBackend(): boolean {
     })
     return false
   }
+}
+
+function requestBackendStartIfNeeded(): void {
+  if (backendStatus !== 'stopped') {
+    return
+  }
+
+  console.log('Attempting to start backend...')
+  startBackend()
 }
 
 // Kill backend process
@@ -456,6 +618,8 @@ function killBackend(): boolean {
         stdio: 'ignore',
       })
       console.log('Killed existing backend processes')
+      backendStatus = 'stopped'
+      updateTrayVisibility()
       return true
     } catch {
       // No processes found or already killed
@@ -468,7 +632,7 @@ function killBackend(): boolean {
     backendProcess.kill()
     backendProcess = null
     backendStatus = 'stopped'
-    updateTrayPresentation()
+    updateTrayVisibility()
     return true
   } catch (error) {
     console.error('Failed to kill backend:', error)
@@ -608,7 +772,9 @@ console.log('Config:', {
 
 // Check if running in startup mode (no window, just backend)
 const isStartupMode = process.argv.includes('--startup')
+const launchedFromBackendTray = process.argv.includes('--from-backend-tray')
 console.log('[Main] Startup mode:', isStartupMode)
+console.log('[Main] Launched from backend tray:', launchedFromBackendTray)
 const isWinUnpackedBuild =
   !isDev && process.execPath.toLowerCase().includes('\\win-unpacked\\')
 let unpackedBuildWarningShown = false
@@ -642,15 +808,10 @@ if (!gotTheLock) {
       ? join(process.resourcesPath, 'bin', 'ClipVault.exe')
       : join(appDir, '..', '..', '..', 'bin', 'ClipVault.exe')
 
-    if (existsSync(backendPath)) {
+    if (backendStatus === 'stopped' && existsSync(backendPath)) {
       try {
-        console.log('Second instance: Spawning backend from:', backendPath)
-        const backendProc = spawn(backendPath, ['--background'], {
-          detached: true,
-          stdio: ['ignore', 'ignore', 'ignore'],
-        })
-        backendProc.unref()
-        console.log('Second instance: Backend spawn attempted with PID:', backendProc.pid)
+        console.log('Second instance: Starting backend through shared path')
+        requestBackendStartIfNeeded()
       } catch (error) {
         console.error('Second instance: Failed to start backend:', error)
       }
@@ -694,18 +855,20 @@ function createTray(): void {
   }
 
   tray = new Tray(icon || nativeImage.createEmpty())
+  trayHidden = false
   updateTrayPresentation()
 
   tray.on('click', () => {
-    updateTrayPresentation()
-    tray?.popUpContextMenu()
+    showMainWindow()
   })
 
   tray.on('double-click', () => {
-    if (mainWindow) {
-      mainWindow.show()
-      mainWindow.focus()
-    }
+    showMainWindow()
+  })
+
+  tray.on('right-click', () => {
+    updateTrayPresentation()
+    tray?.popUpContextMenu()
   })
 
   console.log('Tray icon created')
@@ -815,7 +978,7 @@ async function createWindow() {
 
   // Minimize to tray instead of closing
   mainWindow.on('close', event => {
-    if (!isQuitting) {
+    if (!isQuitting && tray && !trayHidden) {
       event.preventDefault()
       console.log('Minimizing to tray instead of closing')
       scheduleWindowStateSave()
@@ -829,6 +992,9 @@ async function createWindow() {
 
   mainWindow.on('closed', () => {
     mainWindow = null
+    // Reset quitting state so a manual window close still leaves the tray active.
+    isQuitting = false
+    updateTrayVisibility()
   })
 
   // F12 to toggle devtools
@@ -4439,12 +4605,11 @@ app.whenReady().then(async () => {
     }
   })
 
-  // Create tray icon (only if not in startup mode)
+  // Create tray icon for the normal app window owner.
   if (!isStartupMode) {
     createTray()
   } else {
-    console.log('[Main] Startup mode: Creating minimal tray icon only')
-    createTray()
+    console.log('[Main] Skipping Electron tray creation')
   }
 
   // Create the main window (skip in startup mode)
@@ -4456,9 +4621,16 @@ app.whenReady().then(async () => {
     })
   }
 
-  // Start the backend
-  console.log('Attempting to start backend...')
-  startBackend()
+  // If the backend tray launched us, give it a moment to exit before we start the background service.
+  const backendStartDelayMs = launchedFromBackendTray ? 1500 : 0
+  if (backendStartDelayMs > 0) {
+    backendStatus = 'starting'
+    updateTrayVisibility()
+    console.log(`Delaying backend startup by ${backendStartDelayMs}ms for tray handoff`)
+  }
+  setTimeout(() => {
+    requestBackendStartIfNeeded()
+  }, backendStartDelayMs)
 
   try {
     await ensureClipsDirectory()
@@ -4622,9 +4794,8 @@ app.on('before-quit', _event => {
   isQuitting = true
   saveWindowStateImmediate()
   stopClipsWatcher()
-  if (tray) {
-    tray.destroy()
-    tray = null
+  if (shouldDestroyTrayOnQuit) {
+    destroyTray()
   }
 })
 

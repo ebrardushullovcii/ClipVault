@@ -139,8 +139,8 @@ void on_menu_action(int menu_id)
             break;
         }
 
-        case clipvault::SystemTray::MENU_EXIT:
-            LOG_INFO("Exit requested from menu");
+        case clipvault::SystemTray::MENU_EXIT_SERVICE:
+            LOG_INFO("Exit service requested from menu");
             clipvault::SystemTray::instance().quit();
             break;
     }
@@ -400,7 +400,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         if (!launcher_config.ui_path.empty()) {
             tray.set_open_ui_callback([ui_path = launcher_config.ui_path]() {
                 LOG_INFO("Opening UI: " + ui_path);
-                ShellExecuteA(nullptr, "open", ui_path.c_str(), nullptr, nullptr, SW_SHOW);
+                ShellExecuteA(nullptr, "open", ui_path.c_str(), "--from-backend-tray", nullptr, SW_SHOW);
+                clipvault::SystemTray::instance().quit();
             });
         } else {
             // Try to find UI relative to backend
@@ -410,9 +411,21 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             LOG_INFO("Looking for UI at: " + ui_exe);
             tray.set_open_ui_callback([ui_exe]() {
                 LOG_INFO("Opening UI: " + ui_exe);
-                ShellExecuteA(nullptr, "open", ui_exe.c_str(), nullptr, nullptr, SW_SHOW);
+                ShellExecuteA(nullptr, "open", ui_exe.c_str(), "--from-backend-tray", nullptr, SW_SHOW);
+                clipvault::SystemTray::instance().quit();
             });
         }
+        tray.set_tray_click_callback([&launcher_config, ui_exe = std::string(exe_dir + "\\..\\..\\ClipVault.exe")]() {
+            if (!launcher_config.ui_path.empty()) {
+                LOG_INFO("Opening UI from tray click: " + launcher_config.ui_path);
+                ShellExecuteA(nullptr, "open", launcher_config.ui_path.c_str(), "--from-backend-tray", nullptr, SW_SHOW);
+                clipvault::SystemTray::instance().quit();
+            } else {
+                LOG_INFO("Opening UI from tray click: " + ui_exe);
+                ShellExecuteA(nullptr, "open", ui_exe.c_str(), "--from-backend-tray", nullptr, SW_SHOW);
+                clipvault::SystemTray::instance().quit();
+            }
+        });
 
         // Setup hotkey callback to trigger save
         auto& hotkey = clipvault::HotkeyManager::instance();

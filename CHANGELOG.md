@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.8] - 2026-04-22
+
+### Fixed
+
+- Reworked tray ownership handoff between the Electron app and the fallback service tray so reopening ClipVault restores the main tray menu and keeps app and service controls in sync.
+- Updated tray status labels and controls to use `Service` terminology, support starting and stopping the service from the Electron tray, and keep service state visible without showing backend PIDs.
+- Hardened fallback tray launch behavior so failed UI launches no longer shut down the service tray, double-clicks do not trigger duplicate launches, and detached service handoff no longer keeps Electron alive through piped stdio.
+
 ## [1.5.7] - 2026-04-14
 
 ### Changed

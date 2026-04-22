@@ -47,7 +47,7 @@ public:
     static constexpr int MENU_OPEN_FOLDER = 4;
     static constexpr int MENU_START_SERVICE = 5;
     static constexpr int MENU_EXIT_SERVICE = 6;
-    static constexpr int MENU_HIDE_TRAY_ICON = 8;
+    static constexpr int MENU_HIDE_TRAY_ICON = 7;
 
 private:
     SystemTray() = default;

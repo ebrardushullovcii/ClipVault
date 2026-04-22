@@ -271,37 +271,11 @@ async function startBackendWithTray(): Promise<boolean> {
     console.log('Starting backend with tray from:', backendPath)
     const logStream = createWriteStream(backendLogPath, { flags: 'a' })
     logStream.write(`\n--- Backend tray handoff at ${new Date().toISOString()} ---\n`)
+    logStream.end()
 
     const backendProc = spawn(backendPath, [], {
       detached: true,
-      stdio: ['ignore', 'pipe', 'pipe'],
-    })
-
-    backendProc.stdout.on('data', data => {
-      const text = data.toString().trim()
-      if (text) {
-        logStream.write(`[STDOUT] ${text}\n`)
-      }
-    })
-
-    backendProc.stderr.on('data', data => {
-      const text = data.toString().trim()
-      if (text) {
-        logStream.write(`[STDERR] ${text}\n`)
-        console.error('[Backend stderr]', text)
-      }
-    })
-
-    backendProc.on('error', error => {
-      console.error('Backend tray handoff error:', error)
-      logStream.write(`[ERROR] Spawn error: ${error}\n`)
-      logStream.end()
-    })
-
-    backendProc.on('exit', (code, signal) => {
-      console.log(`Backend tray handoff process exited with code ${code} and signal ${signal}`)
-      logStream.write(`--- Backend tray handoff exited: code=${code}, signal=${signal} ---\n`)
-      logStream.end()
+      stdio: 'ignore',
     })
 
     backendProc.unref()
@@ -328,12 +302,14 @@ async function exitApp(): Promise<void> {
 
     const handedOff = await startBackendWithTray()
     if (!handedOff) {
-      startBackend()
+      const restarted = startBackend()
       dialog.showMessageBoxSync({
         type: 'error',
         title: 'ClipVault Error',
         message: 'Failed to exit the app cleanly',
-        detail: 'ClipVault could not hand tray ownership back to the backend, so the app was left running.',
+        detail: restarted
+          ? 'ClipVault could not hand tray ownership back to the service, so the app was left running.'
+          : 'ClipVault could not hand tray ownership back to the service and failed to restart it. The app was left running without the service.',
       })
       return
     }
@@ -624,6 +600,15 @@ function startBackend(): boolean {
   }
 }
 
+function requestBackendStartIfNeeded(): void {
+  if (backendStatus !== 'stopped') {
+    return
+  }
+
+  console.log('Attempting to start backend...')
+  startBackend()
+}
+
 // Kill backend process
 function killBackend(): boolean {
   if (!backendProcess) {
@@ -825,15 +810,8 @@ if (!gotTheLock) {
 
     if (backendStatus === 'stopped' && existsSync(backendPath)) {
       try {
-        console.log('Second instance: Spawning backend from:', backendPath)
-        const backendProc = spawn(backendPath, ['--background'], {
-          detached: true,
-          stdio: ['ignore', 'ignore', 'ignore'],
-        })
-        backendProc.unref()
-        console.log('Second instance: Backend spawn attempted with PID:', backendProc.pid)
-        backendStatus = 'starting'
-        updateTrayVisibility()
+        console.log('Second instance: Starting backend through shared path')
+        requestBackendStartIfNeeded()
       } catch (error) {
         console.error('Second instance: Failed to start backend:', error)
       }
@@ -1014,6 +992,7 @@ async function createWindow() {
 
   mainWindow.on('closed', () => {
     mainWindow = null
+    // Reset quitting state so a manual window close still leaves the tray active.
     isQuitting = false
     updateTrayVisibility()
   })
@@ -4650,8 +4629,7 @@ app.whenReady().then(async () => {
     console.log(`Delaying backend startup by ${backendStartDelayMs}ms for tray handoff`)
   }
   setTimeout(() => {
-    console.log('Attempting to start backend...')
-    startBackend()
+    requestBackendStartIfNeeded()
   }, backendStartDelayMs)
 
   try {

@@ -52,7 +52,7 @@ SystemTray::~SystemTray()
 
 void SystemTray::refresh_app_state()
 {
-    app_running_ = false;
+    // Keep the last known app state until a real detection path is added.
 }
 
 void SystemTray::set_app_running(bool app_running)
@@ -70,21 +70,25 @@ void SystemTray::hide_icon()
         return;
     }
 
-    Shell_NotifyIconA(NIM_DELETE, &nid_);
+    if (!Shell_NotifyIconA(NIM_DELETE, &nid_)) {
+        LOG_WARNING("Failed to delete tray icon");
+        return;
+    }
+
     icon_visible_ = false;
 }
 
 void SystemTray::rebuild_menu()
 {
-    refresh_app_state();
-
     if (menu_) {
         DestroyMenu(menu_);
         menu_ = nullptr;
     }
 
+    const char* app_status = app_running_ ? "App: Running" : "App: Exited";
+
     menu_ = CreatePopupMenu();
-    AppendMenuA(menu_, MF_STRING | MF_GRAYED, MENU_STATUS_APP, "App: Exited");
+    AppendMenuA(menu_, MF_STRING | MF_GRAYED, MENU_STATUS_APP, app_status);
     AppendMenuA(menu_, MF_STRING | MF_GRAYED, MENU_STATUS_SERVICE, "Service: Running");
     AppendMenuA(menu_, MF_SEPARATOR, 0, nullptr);
     AppendMenuA(menu_, MF_STRING, MENU_OPEN, "Open ClipVault");
@@ -94,7 +98,7 @@ void SystemTray::rebuild_menu()
     AppendMenuA(menu_, MF_STRING, MENU_EXIT_SERVICE, "Exit Service");
     AppendMenuA(menu_, MF_STRING, MENU_HIDE_TRAY_ICON, "Hide Tray Icon");
 
-    strcpy_s(nid_.szTip, "ClipVault\nApp: Exited\nService: Running");
+    snprintf(nid_.szTip, sizeof(nid_.szTip), "ClipVault\n%s\nService: Running", app_status);
     if (icon_visible_) {
         Shell_NotifyIconA(NIM_MODIFY, &nid_);
     }
@@ -338,18 +342,14 @@ void SystemTray::handle_tray_message(WPARAM wParam, LPARAM lParam)
             break;
 
         case WM_LBUTTONDBLCLK:
-            // Double-click matches single-click and opens the UI
+            // Double-click is logged only; single-click handles opening.
             LOG_INFO("Tray icon double-clicked");
-            if (tray_click_callback_) {
-                tray_click_callback_();
-            }
             break;
     }
 }
 
 void SystemTray::show_context_menu()
 {
-    refresh_app_state();
     rebuild_menu();
 
     POINT pt;

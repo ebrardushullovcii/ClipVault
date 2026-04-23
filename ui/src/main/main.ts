@@ -4605,8 +4605,8 @@ app.whenReady().then(async () => {
     }
   })
 
-  // Create tray icon for the normal app window owner.
-  if (!isStartupMode) {
+  // Keep the Electron tray available for normal launches and Windows startup mode.
+  if (!launchedFromBackendTray) {
     createTray()
   } else {
     console.log('[Main] Skipping Electron tray creation')

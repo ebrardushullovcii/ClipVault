@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.9] - 2026-04-23
+
+### Fixed
+
+- Restored the Electron tray icon during Windows startup launches so enabling `Start with Windows` brings ClipVault up in the tray after a reboot instead of starting silently without any tray access.
+
 ## [1.5.8] - 2026-04-22
 
 ### Fixed

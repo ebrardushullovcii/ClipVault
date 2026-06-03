@@ -23,9 +23,11 @@ Debug/
 Release/
 x64/
 
+
 # IDE
 .idea/
 .vscode/
+.codex
 *.swp
 *.swo
 *~

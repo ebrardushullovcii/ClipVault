@@ -1,32 +1,21 @@
-## Description
+## Summary
 
-Brief description of the changes.
+What changed and why?
 
-## Type of Change
+## Risk Areas
 
-- [ ] Bug fix (non-breaking change which fixes an issue)
-- [ ] New feature (non-breaking change which adds functionality)
-- [ ] Breaking change (fix or feature that would cause existing functionality to not work as expected)
-- [ ] Documentation update
+- [ ] Backend capture, OBS setup, encoders, replay saving, hotkey, tray, or service behavior
+- [ ] Electron main process, IPC, persisted settings, runtime paths, or packaged resources
+- [ ] Installer, portable packaging, icons, Windows startup registration, or release metadata
+- [ ] User-facing UI behavior
+- [ ] Documentation only
 
 ## Testing
 
-- [ ] Tested on Windows 10/11
-- [ ] Tested packaged version (`npm run package:portable`)
-- [ ] Checked logs for errors (`type bin/clipvault.log`)
+- [ ] Ran relevant build/lint/typecheck commands
+- [ ] Tested packaged Windows behavior when backend, packaging, resources, tray, startup, or installer behavior changed
+- [ ] Checked relevant logs for runtime errors
 
-## Checklist
+## Notes
 
-- [ ] My code follows the style guidelines of this project
-- [ ] I have performed a self-review of my own code
-- [ ] I have commented my code, particularly in hard-to-understand areas
-- [ ] My changes generate no new warnings
-- [ ] Any dependent changes have been merged and published
-
-## Related Issues
-
-Fixes #(issue number)
-
-## Screenshots (if applicable)
-
-Add screenshots to help explain your changes.
+Link issues, screenshots, logs, or follow-up decisions if useful.

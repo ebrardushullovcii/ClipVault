@@ -23,13 +23,13 @@ A clear and concise description of what you expected to happen.
 **Screenshots**
 If applicable, add screenshots to help explain your problem.
 
-**System Info:**
- - OS: [e.g. Windows 10/11]
- - GPU: [e.g. NVIDIA GTX 1080]
- - ClipVault Version: [e.g. 1.1.3]
+**System info**
+- OS: [e.g. Windows 10/11]
+- GPU: [e.g. NVIDIA GTX 1080]
+- ClipVault version/build: [e.g. installer, portable, or dev build]
 
 **Additional context**
 Add any other context about the problem here.
 
 **Logs**
-If applicable, add relevant log output from `bin/clipvault.log`.
+If applicable, add relevant backend or Electron log output.

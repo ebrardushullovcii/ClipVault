@@ -1,150 +1,119 @@
-# ClipVault - Agent Reference
+# ClipVault Agent Guide
 
-> **Read this first.** This file tells you what to read and how to work on this codebase.
+Read this first. For any product behavior, backend, packaging, persistent path, release-flow, tray/startup, or OBS change, also read:
 
-## What is ClipVault?
+- [docs/GOALS.md](docs/GOALS.md) for product intent and boundaries.
+- [docs/DECISIONS.md](docs/DECISIONS.md) for rationale that should not be rediscovered.
 
-A Windows game clipping tool. Press F9 to save the last 2 minutes of gameplay as MP4 with separate game audio and microphone tracks.
+## What Is ClipVault?
 
-**Two components:**
-- **C++ Backend** (`src/`) - OBS-based recording, runs in system tray
-- **Electron UI** (`ui/`) - React clip browser and editor
+ClipVault is a Windows game clipping tool. It keeps a rolling gameplay buffer and saves a local MP4 clip when the user presses the configured hotkey, F9 by default. Desktop/game audio and microphone audio are kept on separate tracks for editing.
 
-## Files to Read for Context
+The repo has two main parts:
 
-| File | What You'll Learn |
-|------|-------------------|
-| `COMMANDS.md` | How to build, run, and test |
-| `docs/ARCHITECTURE.md` | System design, component responsibilities |
-| `docs/FILE_PATHS.md` | Where all files are stored (clips, config, cache) |
-| `docs/LIBOBS.md` | OBS API patterns (critical for backend work) |
-| `docs/BUILD.md` | Detailed build instructions |
-| `docs/TROUBLESHOOTING.md` | Common issues and fixes |
+- `src/`: C++ backend using libobs for capture, encoding, replay saving, hotkey, tray/service behavior, settings, logging, and game detection.
+- `ui/`: Electron + React UI for clip browsing, editing, settings, exports, thumbnails, audio extraction, IPC, packaging, and installer behavior.
 
-## Quick Orientation
+## Source Of Truth
 
-```text
-src/                 # C++ backend (recording engine)
-├── main.cpp        # Entry point
-├── capture.cpp     # Video/audio capture
-├── encoder.cpp     # NVENC/x264 encoding
-├── replay.cpp      # Replay buffer + save
-└── config.cpp      # Settings
+Use source and scripts for exact facts:
 
-ui/src/              # Electron + React UI
-├── main/           # Electron main process
-├── renderer/       # React components
-└── preload/        # IPC bridge
+- `package.json` and `ui/package.json`: build, test, lint, package, and release scripts.
+- `build.ps1`, `setup-obs.ps1`, `scripts/`: backend build and OBS/FFmpeg runtime setup.
+- `src/obs_core.cpp`, `src/capture.cpp`, `src/encoder.cpp`, `src/replay.cpp`, `src/hotkey.cpp`: critical recording pipeline behavior.
+- `ui/src/main/main.ts`, `ui/build/afterPack.cjs`, `ui/package.json`: Electron paths, IPC, backend launch, packaging, resources, installer metadata.
+- `CHANGELOG.md`: release history.
 
-bin/                 # Backend build output
-ui/release/          # Packaged app output
+## Common Commands
+
+Run from the repo root unless a script says otherwise:
+
+```powershell
+npm install
+npm run backend:build
+npm run build:react
+npm run build:electron
+npm run typecheck
+npm run lint
+npm run format
+npm run package:portable
+npm run package:win
 ```
 
-## Current State
+For backend or packaging work, smoke-test a packaged app when practical:
 
-The app is **feature-complete**. Main functionality works:
-- Recording with NVENC/x264
-- F9 hotkey saves clips
-- UI for browsing, editing, exporting clips
-- Settings UI for all configuration
+```powershell
+npm run package:portable
+.\ui\release\win-unpacked\ClipVault.exe
+type .\ui\release\win-unpacked\resources\bin\clipvault.log
+```
+
+Use `npm run package:win` when installer behavior, Windows registration, or release artifacts are affected.
 
 ## Git Workflow
 
-All work on branches, merged via PR:
+All work should happen on branches and be merged via PR.
 
-```bash
-git checkout -b feature/your-feature
-# Make changes
+```powershell
+git checkout -b docs/your-change
 git add <files>
-git commit -m "feat: description"
-git push -u origin feature/your-feature
-# Create PR on GitHub
+git commit -m "docs: describe change"
+git push -u origin docs/your-change
 ```
 
-**Branch naming:** `feature/*`, `fix/*`, `refactor/*`, `docs/*`
+Never commit directly to `master`, push to `master`, commit, push, tag, or create releases without explicit user permission.
 
-**Never:** Commit directly to master, push to master, commit/push without permission
-
-**Default scope:** If the user says "commit and PR", include all current changes unless they explicitly ask to exclude something
+If the user says "commit and PR", include all current changes by default unless they explicitly ask to exclude something.
 
 ## Code Style
 
-### C++ (Backend)
+C++ backend:
 
-- **Files:** `snake_case.cpp`, `snake_case.h`
-- **Classes:** `PascalCase`
-- **Functions/variables:** `snake_case`
-- **Constants:** `SCREAMING_SNAKE_CASE`
-- **Private members:** `snake_case_` (trailing underscore)
-- **Indentation:** 4 spaces
+- Files: `snake_case.cpp`, `snake_case.h`
+- Classes: `PascalCase`
+- Functions and variables: `snake_case`
+- Constants: `SCREAMING_SNAKE_CASE`
+- Private members: trailing underscore
+- Indentation: 4 spaces
 
-```cpp
-void my_function()
-{
-    if (condition) {
-        do_something();
-    }
-}
-```
+TypeScript/React UI:
 
-### TypeScript/React (UI)
+- Files: `camelCase.ts`, `PascalCase.tsx`
+- Components: `PascalCase`
+- Hooks: `useCamelCase`
+- Run `npm run format` before committing UI changes.
 
-- **Files:** `camelCase.ts`, `PascalCase.tsx`
-- **Components:** `PascalCase`
-- **Hooks:** `useCamelCase`
-- Run `npm run format` before committing
+## Backend Guardrails
 
-## OBS Patterns (Critical for Backend)
+- Always release libobs objects on every success and failure path.
+- Preserve OBS initialization order: startup, data/module paths, load/post-load modules, then video/audio reset.
+- Keep `graphics_module = "libobs-d3d11"` on Windows video init.
+- Capture should prefer monitor capture for anti-cheat safety; see [docs/DECISIONS.md](docs/DECISIONS.md) before changing capture order.
+- Audio sources must be activated, connected to OBS output channels, and routed to separate mixer tracks.
+- The replay output should use the scene source, not only the raw capture source.
+- Save replay through the replay buffer procedure handler and handle the `saved` callback.
+- The hotkey uses a low-level keyboard hook so fullscreen games cannot easily swallow F9.
+- Check OBS and Win32 return values and log actionable failure details.
 
-**Always release OBS objects:**
+## UI And Packaging Guardrails
 
-```cpp
-obs_data_t* settings = obs_data_create();
-// ... use settings ...
-obs_data_release(settings);  // REQUIRED
-```
+- Packaged Windows behavior matters more than dev mode.
+- Be careful with differences between repo-root paths, `bin/`, Electron `process.resourcesPath`, and Electron `userData`.
+- Persisted settings live in `%APPDATA%\ClipVault\settings.json`; treat migrations and defaults carefully.
+- Keep backend launch, tray ownership, startup behavior, installer metadata, bundled icons, OBS runtime files, and FFmpeg paths aligned when packaging changes.
 
-**Initialization order:**
+## Docs Policy
 
-```cpp
-obs_startup("en-US", config_path, nullptr);
-obs_add_data_path("./data/libobs/");  // Trailing slash!
-obs_add_module_path(plugin_bin, plugin_data);
-obs_load_all_modules();     // BEFORE video/audio reset
-obs_post_load_modules();
-obs_reset_video(&ovi);      // AFTER modules
-obs_reset_audio(&oai);
-```
+Keep docs small and durable:
 
-## Testing Changes
+- Add or update [docs/GOALS.md](docs/GOALS.md) when product intent changes.
+- Add or update [docs/DECISIONS.md](docs/DECISIONS.md) when the reason behind a technical choice changes.
+- Do not add long command references, path inventories, or API guides that simply mirror source.
 
-1. Build: `npm run backend:build`
-2. Package: `npm run package:portable`
-3. Run: `.\ui\release\win-unpacked\ClipVault.exe`
-4. Check log: `type bin\clipvault.log`
+## Do Not
 
-**Always test the packaged version**, not just dev mode.
-
-## Don't Do
-
-- ❌ Commit/push without permission
-- ❌ Commit directly to master
-- ❌ Skip testing packaged version
-- ❌ Ignore OBS function return values
-- ❌ Forget to release OBS objects
-- ❌ Create releases without user permission
-
-## Creating Releases
-
-When explicitly asked to create a release:
-
-1. Update version in `ui/package.json` and root `package.json`
-2. Update `CHANGELOG.md` with changes
-3. Build: `npm run package:win`
-4. Create release with gh CLI:
-
-   ```powershell
-   gh release create vX.Y.Z --title "ClipVault X.Y.Z" --notes-file CHANGELOG.md ./ui/release/*.exe
-   ```
-
-See `docs/RELEASES.md` for full details.
+- Do not skip packaged verification for backend or packaging changes unless you clearly say why it was not run.
+- Do not ignore OBS function return values.
+- Do not forget libobs release paths.
+- Do not change release/version/tag behavior without explicit permission.
+- Do not revert user changes or unrelated dirty worktree files.

@@ -19,9 +19,7 @@ This project is primarily a personal tool that I'm sharing. While contributions 
 
 ## Development Setup
 
-See [docs/BUILD.md](docs/BUILD.md) for detailed build instructions.
-
-Quick start:
+Build and package scripts live in `package.json` and `ui/package.json`. Quick start:
 
 ```powershell
 npm install
@@ -49,6 +47,8 @@ npm --prefix ui run test:ui
 ```
 
 Use a Windows runner for backend builds and packaging.
+
+For agent-specific context, see [AGENTS.md](AGENTS.md), [docs/GOALS.md](docs/GOALS.md), and [docs/DECISIONS.md](docs/DECISIONS.md).
 
 ## Questions?
 

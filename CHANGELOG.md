@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-07-11
+
+### Added
+
+- Added independent NVENC performance preset controls so encoder speed can be tuned without changing recording resolution, frame rate, or CQP quality.
+- Added selectable DXGI, Windows Graphics Capture, and automatic full-monitor capture methods, plus an optional captured-cursor toggle.
+- Added local OBS render, encode, output, CPU, memory, and source telemetry for evidence-based performance comparisons.
+
+### Changed
+
+- Switched OBS 31 NVENC recording to the native texture encoder path and kept high-quality CQP settings independent from the selected performance preset.
+- Connected the single full-monitor source directly to the OBS video mix to remove an unnecessary composition layer.
+- Kept the OBS graphics device at the driver-default GPU priority after testing showed that lowering it starved capture rendering and duplicated frames.
+- Made the OBS runtime setup deterministic at version 31.0.0 and hardened the build against missing optional FFmpeg runtime files.
+
+### Fixed
+
+- Fixed OBS 31 monitor selection by resolving and writing the required string `monitor_id` instead of the obsolete numeric `monitor` setting.
+- Corrected capture method values to OBS 31 semantics: Auto `0`, DXGI `1`, and WGC `2`.
+- Fixed the legacy NVENC compatibility path silently replacing the requested fast preset with a slower preset.
+
 ## [1.5.9] - 2026-04-23
 
 ### Fixed

@@ -1,6 +1,6 @@
 {
   "name": "clipvault-ui",
-  "version": "1.5.9",
+  "version": "1.6.0",
   "description": "ClipVault Editor UI - Modern video clip library and editor",
   "main": "dist/main/main.js",
   "author": "ClipVault Team",
@@ -74,7 +74,9 @@
         "from": "../bin",
         "to": "bin",
         "filter": [
-          "**/*"
+          "**/*",
+          "!clipvault.log",
+          "!test_*.txt"
         ]
       },
       {

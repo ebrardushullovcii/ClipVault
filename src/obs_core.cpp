@@ -5,6 +5,8 @@
 #include <obs.h>
 
 #include <windows.h>
+#include <dxgi.h>
+#include <cstdlib>
 
 using obs_startup_t = bool(*)(const char *locale, const char *module_config_path, void *store);
 using obs_shutdown_t = void(*)(void);
@@ -14,6 +16,9 @@ using obs_reset_video_t = int(*)(struct obs_video_info *ovi);
 using obs_reset_audio_t = bool(*)(const struct obs_audio_info *oai);
 using obs_load_all_modules_t = void(*)(void);
 using obs_post_load_modules_t = void(*)(void);
+using obs_enter_graphics_t = void(*)(void);
+using obs_leave_graphics_t = void(*)(void);
+using gs_get_device_obj_t = void*(*)(void);
 
 using obs_data_create_t = obs_data_t*(*)(void);
 using obs_data_release_t = void(*)(obs_data_t *data);
@@ -25,6 +30,8 @@ using obs_source_release_t = void(*)(obs_source_t *source);
 using obs_source_set_audio_mixers_t = void(*)(obs_source_t *source, uint32_t mixers);
 using obs_set_output_source_t = void(*)(uint32_t channel, obs_source_t *source);
 using obs_source_active_t = bool(*)(obs_source_t *source);
+using obs_source_get_width_t = uint32_t(*)(obs_source_t *source);
+using obs_source_get_height_t = uint32_t(*)(obs_source_t *source);
 using obs_source_activate_t = void(*)(obs_source_t *source);
 using obs_source_deactivate_t = void(*)(obs_source_t *source, uint32_t hint);
 
@@ -37,6 +44,13 @@ using obs_encoder_set_video_t = void(*)(obs_encoder_t *encoder, video_t *video);
 using obs_encoder_set_audio_t = void(*)(obs_encoder_t *encoder, audio_t *audio);
 using obs_get_video_t = video_t*(*)(void);
 using obs_get_audio_t = audio_t*(*)(void);
+using obs_get_active_fps_t = double(*)(void);
+using obs_get_average_frame_time_ns_t = uint64_t(*)(void);
+using obs_get_total_frames_t = uint32_t(*)(void);
+using obs_get_lagged_frames_t = uint32_t(*)(void);
+using video_output_get_total_frames_t = uint32_t(*)(const video_t *video);
+using video_output_get_skipped_frames_t = uint32_t(*)(const video_t *video);
+using obs_encoder_get_encoded_frames_t = uint32_t(*)(const obs_encoder_t *encoder);
 
 using obs_output_create_t = obs_output_t*(*)(const char *id, const char *name, obs_data_t *settings, obs_data_t *hotkey_data);
 using obs_output_release_t = void(*)(obs_output_t *output);
@@ -45,6 +59,8 @@ using obs_output_set_audio_encoder_t = void(*)(obs_output_t *output, obs_encoder
 using obs_output_start_t = bool(*)(obs_output_t *output);
 using obs_output_stop_t = void(*)(obs_output_t *output);
 using obs_output_active_t = bool(*)(obs_output_t *output);
+using obs_output_get_total_frames_t = int(*)(const obs_output_t *output);
+using obs_output_get_frames_dropped_t = int(*)(const obs_output_t *output);
 using obs_output_get_signal_handler_t = signal_handler_t*(*)(obs_output_t *output);
 using signal_handler_connect_t = void(*)(signal_handler_t *handler, const char *signal, void (*callback)(void*, calldata_t*), void *data);
 using obs_output_signal_t = void(*)(obs_output_t *output, const char *signal);
@@ -53,7 +69,6 @@ using obs_output_get_last_error_t = const char*(*)(obs_output_t *output);
 using obs_output_get_last_replay_t = const char*(*)(obs_output_t *output);
 using obs_output_can_begin_data_capture_t = bool(*)(obs_output_t *output, uint32_t flags);
 using obs_output_set_mixers_t = void(*)(obs_output_t *output, uint32_t mixers);
-using obs_output_set_video_source_t = void(*)(obs_output_t *output, obs_source_t *source);
 
 using obs_output_get_flags_t = uint32_t(*)(obs_output_t *output);
 using obs_encoder_get_id_t = const char*(*)(const obs_encoder_t *encoder);
@@ -86,6 +101,9 @@ static obs_reset_video_t g_obs_reset_video = nullptr;
 static obs_reset_audio_t g_obs_reset_audio = nullptr;
 static obs_load_all_modules_t g_obs_load_all_modules = nullptr;
 static obs_post_load_modules_t g_obs_post_load_modules = nullptr;
+static obs_enter_graphics_t g_obs_enter_graphics = nullptr;
+static obs_leave_graphics_t g_obs_leave_graphics = nullptr;
+static gs_get_device_obj_t g_gs_get_device_obj = nullptr;
 
 // Source/data function pointers
 static obs_data_create_t g_obs_data_create = nullptr;
@@ -98,6 +116,8 @@ static obs_source_release_t g_obs_source_release = nullptr;
 static obs_source_set_audio_mixers_t g_obs_source_set_audio_mixers = nullptr;
 static obs_set_output_source_t g_obs_set_output_source = nullptr;
 static obs_source_active_t g_obs_source_active = nullptr;
+static obs_source_get_width_t g_obs_source_get_width = nullptr;
+static obs_source_get_height_t g_obs_source_get_height = nullptr;
 static obs_source_activate_t g_obs_source_activate = nullptr;
 static obs_source_deactivate_t g_obs_source_deactivate = nullptr;
 
@@ -112,6 +132,13 @@ static obs_encoder_set_video_t g_obs_encoder_set_video = nullptr;
 static obs_encoder_set_audio_t g_obs_encoder_set_audio = nullptr;
 static obs_get_video_t g_obs_get_video = nullptr;
 static obs_get_audio_t g_obs_get_audio = nullptr;
+static obs_get_active_fps_t g_obs_get_active_fps = nullptr;
+static obs_get_average_frame_time_ns_t g_obs_get_average_frame_time_ns = nullptr;
+static obs_get_total_frames_t g_obs_get_total_frames = nullptr;
+static obs_get_lagged_frames_t g_obs_get_lagged_frames = nullptr;
+static video_output_get_total_frames_t g_video_output_get_total_frames = nullptr;
+static video_output_get_skipped_frames_t g_video_output_get_skipped_frames = nullptr;
+static obs_encoder_get_encoded_frames_t g_obs_encoder_get_encoded_frames = nullptr;
 
 // Output function pointers
 static obs_output_create_t g_obs_output_create = nullptr;
@@ -121,6 +148,8 @@ static obs_output_set_audio_encoder_t g_obs_output_set_audio_encoder = nullptr;
 static obs_output_start_t g_obs_output_start = nullptr;
 static obs_output_stop_t g_obs_output_stop = nullptr;
 static obs_output_active_t g_obs_output_active = nullptr;
+static obs_output_get_total_frames_t g_obs_output_get_total_frames = nullptr;
+static obs_output_get_frames_dropped_t g_obs_output_get_frames_dropped = nullptr;
 static obs_output_get_signal_handler_t g_obs_output_get_signal_handler = nullptr;
 static signal_handler_connect_t g_signal_handler_connect = nullptr;
 static obs_output_signal_t g_obs_output_signal = nullptr;
@@ -129,7 +158,6 @@ static obs_output_get_last_error_t g_obs_output_get_last_error = nullptr;
 static obs_output_get_last_replay_t g_obs_output_get_last_replay = nullptr;
 static obs_output_can_begin_data_capture_t g_obs_output_can_begin_data_capture = nullptr;
 static obs_output_set_mixers_t g_obs_output_set_mixers = nullptr;
-static obs_output_set_video_source_t g_obs_output_set_video_source = nullptr;
 
 // Debug function pointers
 static obs_output_get_flags_t g_obs_output_get_flags = nullptr;
@@ -180,6 +208,9 @@ static bool load_obs_functions()
     g_obs_reset_audio = (obs_reset_audio_t)GetProcAddress(g_obs_module, "obs_reset_audio");
     g_obs_load_all_modules = (obs_load_all_modules_t)GetProcAddress(g_obs_module, "obs_load_all_modules");
     g_obs_post_load_modules = (obs_post_load_modules_t)GetProcAddress(g_obs_module, "obs_post_load_modules");
+    g_obs_enter_graphics = (obs_enter_graphics_t)GetProcAddress(g_obs_module, "obs_enter_graphics");
+    g_obs_leave_graphics = (obs_leave_graphics_t)GetProcAddress(g_obs_module, "obs_leave_graphics");
+    g_gs_get_device_obj = (gs_get_device_obj_t)GetProcAddress(g_obs_module, "gs_get_device_obj");
 
     // Source/data functions
     g_obs_data_create = (obs_data_create_t)GetProcAddress(g_obs_module, "obs_data_create");
@@ -192,6 +223,8 @@ static bool load_obs_functions()
     g_obs_source_set_audio_mixers = (obs_source_set_audio_mixers_t)GetProcAddress(g_obs_module, "obs_source_set_audio_mixers");
     g_obs_set_output_source = (obs_set_output_source_t)GetProcAddress(g_obs_module, "obs_set_output_source");
     g_obs_source_active = (obs_source_active_t)GetProcAddress(g_obs_module, "obs_source_active");
+    g_obs_source_get_width = (obs_source_get_width_t)GetProcAddress(g_obs_module, "obs_source_get_width");
+    g_obs_source_get_height = (obs_source_get_height_t)GetProcAddress(g_obs_module, "obs_source_get_height");
     g_obs_source_activate = (obs_source_activate_t)GetProcAddress(g_obs_module, "obs_source_activate");
     g_obs_source_deactivate = (obs_source_deactivate_t)GetProcAddress(g_obs_module, "obs_source_deactivate");
     
@@ -224,6 +257,13 @@ static bool load_obs_functions()
     g_obs_encoder_set_audio = (obs_encoder_set_audio_t)GetProcAddress(g_obs_module, "obs_encoder_set_audio");
     g_obs_get_video = (obs_get_video_t)GetProcAddress(g_obs_module, "obs_get_video");
     g_obs_get_audio = (obs_get_audio_t)GetProcAddress(g_obs_module, "obs_get_audio");
+    g_obs_get_active_fps = (obs_get_active_fps_t)GetProcAddress(g_obs_module, "obs_get_active_fps");
+    g_obs_get_average_frame_time_ns = (obs_get_average_frame_time_ns_t)GetProcAddress(g_obs_module, "obs_get_average_frame_time_ns");
+    g_obs_get_total_frames = (obs_get_total_frames_t)GetProcAddress(g_obs_module, "obs_get_total_frames");
+    g_obs_get_lagged_frames = (obs_get_lagged_frames_t)GetProcAddress(g_obs_module, "obs_get_lagged_frames");
+    g_video_output_get_total_frames = (video_output_get_total_frames_t)GetProcAddress(g_obs_module, "video_output_get_total_frames");
+    g_video_output_get_skipped_frames = (video_output_get_skipped_frames_t)GetProcAddress(g_obs_module, "video_output_get_skipped_frames");
+    g_obs_encoder_get_encoded_frames = (obs_encoder_get_encoded_frames_t)GetProcAddress(g_obs_module, "obs_encoder_get_encoded_frames");
 
     if (!g_obs_video_encoder_create || !g_obs_audio_encoder_create ||
         !g_obs_encoder_release || !g_obs_get_video || !g_obs_get_audio) {
@@ -239,6 +279,8 @@ static bool load_obs_functions()
     g_obs_output_start = (obs_output_start_t)GetProcAddress(g_obs_module, "obs_output_start");
     g_obs_output_stop = (obs_output_stop_t)GetProcAddress(g_obs_module, "obs_output_stop");
     g_obs_output_active = (obs_output_active_t)GetProcAddress(g_obs_module, "obs_output_active");
+    g_obs_output_get_total_frames = (obs_output_get_total_frames_t)GetProcAddress(g_obs_module, "obs_output_get_total_frames");
+    g_obs_output_get_frames_dropped = (obs_output_get_frames_dropped_t)GetProcAddress(g_obs_module, "obs_output_get_frames_dropped");
     g_obs_output_get_signal_handler = (obs_output_get_signal_handler_t)GetProcAddress(g_obs_module, "obs_output_get_signal_handler");
     g_signal_handler_connect = (signal_handler_connect_t)GetProcAddress(g_obs_module, "signal_handler_connect");
     g_obs_output_signal = (obs_output_signal_t)GetProcAddress(g_obs_module, "obs_output_signal");
@@ -247,7 +289,6 @@ static bool load_obs_functions()
     g_obs_output_get_last_replay = (obs_output_get_last_replay_t)GetProcAddress(g_obs_module, "obs_output_get_last_replay");
     g_obs_output_can_begin_data_capture = (obs_output_can_begin_data_capture_t)GetProcAddress(g_obs_module, "obs_output_can_begin_data_capture");
     g_obs_output_set_mixers = (obs_output_set_mixers_t)GetProcAddress(g_obs_module, "obs_output_set_mixers");
-    g_obs_output_set_video_source = (obs_output_set_video_source_t)GetProcAddress(g_obs_module, "obs_output_set_video_source");
 
 // Debug functions (optional - don't fail if not found)
     g_obs_output_get_flags = (obs_output_get_flags_t)GetProcAddress(g_obs_module, "obs_output_get_flags");
@@ -284,6 +325,74 @@ static bool load_obs_functions()
     }
 
     return true;
+}
+
+// Keep the OBS device at the driver's default GPU priority in production.
+// Lower priorities caused measurable render starvation and duplicate frames.
+// This opt-in override remains only for controlled A/B diagnostics (valid DXGI
+// range: -7 through 7).
+static void configure_background_gpu_priority()
+{
+    char override_value[16] = {};
+    const DWORD override_length = GetEnvironmentVariableA(
+        "CLIPVAULT_GPU_PRIORITY", override_value, sizeof(override_value));
+    if (override_length == 0) {
+        LOG_INFO("OBS GPU thread priority: driver default (diagnostic override not set)");
+        return;
+    }
+    if (override_length >= sizeof(override_value)) {
+        LOG_WARNING("Ignoring oversized CLIPVAULT_GPU_PRIORITY value");
+        return;
+    }
+
+    char* end = nullptr;
+    const long parsed = std::strtol(override_value, &end, 10);
+    if (end == override_value || *end != '\0' || parsed < -7 || parsed > 7) {
+        LOG_WARNING("Ignoring invalid CLIPVAULT_GPU_PRIORITY='" +
+                    std::string(override_value) + "' (expected -7 through 7)");
+        return;
+    }
+
+    if (!g_obs_enter_graphics || !g_obs_leave_graphics || !g_gs_get_device_obj) {
+        LOG_WARNING("GPU priority diagnostics are unavailable in this OBS runtime");
+        return;
+    }
+
+    const int requested_priority = static_cast<int>(parsed);
+
+    g_obs_enter_graphics();
+    IUnknown* device_object = static_cast<IUnknown*>(g_gs_get_device_obj());
+    if (!device_object) {
+        LOG_WARNING("Could not access OBS D3D11 device; GPU priority unchanged");
+        g_obs_leave_graphics();
+        return;
+    }
+
+    IDXGIDevice* dxgi_device = nullptr;
+    const HRESULT query_result = device_object->QueryInterface(
+        __uuidof(IDXGIDevice), reinterpret_cast<void**>(&dxgi_device));
+    if (FAILED(query_result) || !dxgi_device) {
+        LOG_WARNING("OBS graphics device does not expose IDXGIDevice; GPU priority unchanged");
+        g_obs_leave_graphics();
+        return;
+    }
+
+    INT previous_priority = 0;
+    const HRESULT get_result = dxgi_device->GetGPUThreadPriority(&previous_priority);
+    const HRESULT set_result = dxgi_device->SetGPUThreadPriority(requested_priority);
+    if (SUCCEEDED(set_result)) {
+        const std::string previous = SUCCEEDED(get_result)
+            ? std::to_string(previous_priority)
+            : "unknown";
+        LOG_INFO("OBS GPU thread priority: " + previous + " -> " +
+                 std::to_string(requested_priority) + " (background capture)");
+    } else {
+        LOG_WARNING("Failed to lower OBS GPU thread priority (HRESULT=" +
+                    std::to_string(static_cast<unsigned long>(set_result)) + ")");
+    }
+
+    dxgi_device->Release();
+    g_obs_leave_graphics();
 }
 
 bool OBSCore::initialize(const std::string& exe_dir)
@@ -402,6 +511,7 @@ bool OBSCore::initialize(const std::string& exe_dir)
     }
     LOG_INFO("    Video initialized: " + std::to_string(video_cfg.width) + "x" +
              std::to_string(video_cfg.height) + "@" + std::to_string(video_cfg.fps) + "fps");
+    configure_background_gpu_priority();
 
     // Step 6: Reset audio (AFTER modules are loaded!)
     LOG_INFO("  Step 6: obs_reset_audio()");
@@ -453,6 +563,9 @@ void OBSCore::shutdown()
     g_obs_reset_audio = nullptr;
     g_obs_load_all_modules = nullptr;
     g_obs_post_load_modules = nullptr;
+    g_obs_enter_graphics = nullptr;
+    g_obs_leave_graphics = nullptr;
+    g_gs_get_device_obj = nullptr;
 
     initialized_ = false;
     LOG_INFO("OBS shutdown complete");
@@ -511,6 +624,16 @@ bool source_active(obs_source_t* source)
     return g_obs_source_active && source ? g_obs_source_active(source) : false;
 }
 
+uint32_t source_get_width(obs_source_t* source)
+{
+    return g_obs_source_get_width && source ? g_obs_source_get_width(source) : 0;
+}
+
+uint32_t source_get_height(obs_source_t* source)
+{
+    return g_obs_source_get_height && source ? g_obs_source_get_height(source) : 0;
+}
+
 void source_activate(obs_source_t* source)
 {
     if (g_obs_source_activate && source) g_obs_source_activate(source);
@@ -562,6 +685,41 @@ audio_t* get_audio()
     return g_obs_get_audio ? g_obs_get_audio() : nullptr;
 }
 
+double get_active_fps()
+{
+    return g_obs_get_active_fps ? g_obs_get_active_fps() : 0.0;
+}
+
+uint64_t get_average_frame_time_ns()
+{
+    return g_obs_get_average_frame_time_ns ? g_obs_get_average_frame_time_ns() : 0;
+}
+
+uint32_t get_total_frames()
+{
+    return g_obs_get_total_frames ? g_obs_get_total_frames() : 0;
+}
+
+uint32_t get_lagged_frames()
+{
+    return g_obs_get_lagged_frames ? g_obs_get_lagged_frames() : 0;
+}
+
+uint32_t video_output_get_total_frames(video_t* video)
+{
+    return g_video_output_get_total_frames && video ? g_video_output_get_total_frames(video) : 0;
+}
+
+uint32_t video_output_get_skipped_frames(video_t* video)
+{
+    return g_video_output_get_skipped_frames && video ? g_video_output_get_skipped_frames(video) : 0;
+}
+
+uint32_t encoder_get_encoded_frames(obs_encoder_t* encoder)
+{
+    return g_obs_encoder_get_encoded_frames && encoder ? g_obs_encoder_get_encoded_frames(encoder) : 0;
+}
+
 // Output functions
 obs_output_t* output_create(const char* id, const char* name, obs_data_t* settings, obs_data_t* hotkey_data)
 {
@@ -588,11 +746,6 @@ void output_set_mixers(obs_output_t* output, uint32_t mixers)
     if (g_obs_output_set_mixers && output) g_obs_output_set_mixers(output, mixers);
 }
 
-void output_set_video_source(obs_output_t* output, obs_source_t* source)
-{
-    if (g_obs_output_set_video_source && output) g_obs_output_set_video_source(output, source);
-}
-
 bool output_start(obs_output_t* output)
 {
     return g_obs_output_start && output ? g_obs_output_start(output) : false;
@@ -606,6 +759,16 @@ void output_stop(obs_output_t* output)
 bool output_active(obs_output_t* output)
 {
     return g_obs_output_active && output ? g_obs_output_active(output) : false;
+}
+
+int output_get_total_frames(obs_output_t* output)
+{
+    return g_obs_output_get_total_frames && output ? g_obs_output_get_total_frames(output) : 0;
+}
+
+int output_get_frames_dropped(obs_output_t* output)
+{
+    return g_obs_output_get_frames_dropped && output ? g_obs_output_get_frames_dropped(output) : 0;
 }
 
 signal_handler_t* output_get_signal_handler(obs_output_t* output)

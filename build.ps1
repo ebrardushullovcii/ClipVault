@@ -96,7 +96,7 @@ if ($Setup) {
     $ObsDir = Join-Path $ThirdParty "obs-studio-src"
     if (!(Test-Path $ObsDir)) {
         Write-Host "Cloning OBS Studio (this may take a while)..."
-        git clone --depth 1 --branch 30.0.0 https://github.com/obsproject/obs-studio.git $ObsDir
+        git clone --depth 1 --branch 31.0.0 https://github.com/obsproject/obs-studio.git $ObsDir
         if ($LASTEXITCODE -ne 0) {
             Write-Host "ERROR: Failed to clone OBS Studio" -ForegroundColor Red
             exit 1
@@ -213,17 +213,24 @@ if ($Node -and (Test-Path $BackendExe) -and (Test-Path $AppIcon)) {
 
 # Copy FFmpeg tools (required for video metadata and thumbnails)
 Write-Host "`n[Copy] Copying FFmpeg tools..."
-$FFmpegPath = (Get-Command ffprobe).Source | Split-Path
 $FFmpegTools = @("ffprobe.exe", "ffmpeg.exe")
 
-foreach ($tool in $FFmpegTools) {
-    $Src = Join-Path $FFmpegPath $tool
-    if (Test-Path $Src) {
-        Copy-Item $Src $DestDir -Force
-        Write-Host "  Copied: $tool" -ForegroundColor Gray
-    } else {
-        Write-Host "  WARNING: $tool not found" -ForegroundColor Yellow
+$FFprobeCommand = Get-Command ffprobe -ErrorAction SilentlyContinue
+if ($FFprobeCommand) {
+    $FFmpegPath = $FFprobeCommand.Source | Split-Path
+    foreach ($tool in $FFmpegTools) {
+        $Src = Join-Path $FFmpegPath $tool
+        if (Test-Path $Src) {
+            Copy-Item $Src $DestDir -Force
+            Write-Host "  Copied: $tool" -ForegroundColor Gray
+        } else {
+            Write-Host "  WARNING: $tool not found" -ForegroundColor Yellow
+        }
     }
+} elseif ($FFmpegTools | Where-Object { -not (Test-Path (Join-Path $DestDir $_)) }) {
+    Write-Host "  WARNING: ffprobe is not on PATH and bundled FFmpeg tools are incomplete" -ForegroundColor Yellow
+} else {
+    Write-Host "  Bundled FFmpeg tools already present" -ForegroundColor Gray
 }
 
 # Copy clip saved sound (notification)

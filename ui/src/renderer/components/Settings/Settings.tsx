@@ -554,6 +554,65 @@ export const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsSaved }) 
                 </div>
               )}
 
+              {/* Capture Method */}
+              <div>
+                <label className="mb-2 block text-sm font-medium text-text-secondary">
+                  Capture Method
+                </label>
+                <div className="flex flex-wrap gap-3">
+                  {(
+                    [
+                      ['dxgi', 'DXGI (Recommended)'],
+                      ['wgc', 'Windows Graphics Capture'],
+                      ['auto', 'Auto'],
+                    ] as const
+                  ).map(([method, label]) => (
+                    <button
+                      key={method}
+                      onClick={() => updateVideoSetting('capture_method', method)}
+                      className={`rounded-lg border px-4 py-2 text-sm transition-colors ${
+                        settings.video.capture_method === method
+                          ? 'border-accent-primary bg-accent-primary/10 text-accent-primary'
+                          : 'hover:border-border-hover border-border bg-background-tertiary text-text-secondary'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <p className="mt-2 text-xs text-text-muted">
+                  DXGI usually has the lowest full-monitor capture overhead. WGC is available for
+                  compatibility and performance comparisons.
+                </p>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={settings.video.capture_cursor}
+                  onClick={() =>
+                    updateVideoSetting('capture_cursor', !settings.video.capture_cursor)
+                  }
+                  className="mt-3 flex w-full items-center justify-between rounded-lg border border-border bg-background-tertiary px-4 py-3 text-left"
+                >
+                  <span>
+                    <span className="block text-sm font-medium text-text-primary">
+                      Capture mouse cursor
+                    </span>
+                    <span className="mt-1 block text-xs text-text-muted">
+                      Disable if full-monitor capture makes a high-polling-rate mouse look choppy.
+                    </span>
+                  </span>
+                  <span
+                    className={`rounded-full px-3 py-1 text-xs font-medium ${
+                      settings.video.capture_cursor
+                        ? 'bg-accent-primary/15 text-accent-primary'
+                        : 'bg-background-secondary text-text-muted'
+                    }`}
+                  >
+                    {settings.video.capture_cursor ? 'On' : 'Off'}
+                  </span>
+                </button>
+              </div>
+
               {/* Resolution & FPS */}
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 {/* Resolution Presets */}
@@ -705,6 +764,41 @@ export const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsSaved }) 
                   NVENC uses your NVIDIA GPU for minimal performance impact
                 </p>
               </div>
+
+              {settings.video.encoder !== 'x264' && (
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-text-secondary">
+                    NVENC Performance
+                  </label>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                    {(
+                      [
+                        ['p1', 'P1', 'Lowest encoder load'],
+                        ['p2', 'P2', 'Faster'],
+                        ['p3', 'P3', 'Balanced (Recommended)'],
+                      ] as const
+                    ).map(([preset, label, description]) => (
+                      <button
+                        key={preset}
+                        onClick={() => updateVideoSetting('nvenc_preset', preset)}
+                        className={`rounded-lg border p-3 text-left transition-colors ${
+                          settings.video.nvenc_preset === preset
+                            ? 'border-accent-primary bg-accent-primary/10'
+                            : 'hover:border-border-hover border-border bg-background-tertiary'
+                        }`}
+                      >
+                        <div className="text-sm font-medium text-text-primary">{label}</div>
+                        <div className="mt-1 text-xs text-text-muted">{description}</div>
+                      </button>
+                    ))}
+                  </div>
+                  <p className="mt-2 text-xs text-text-muted">
+                    This controls encoder speed independently from the quality preset. Faster
+                    presets leave more NVENC capacity for Discord but can produce larger files at
+                    the same CQP quality.
+                  </p>
+                </div>
+              )}
 
               {/* File Size Estimation */}
               <div className="rounded-lg border border-accent-primary/30 bg-accent-primary/5 p-4">

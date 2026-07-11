@@ -47,6 +47,8 @@ namespace obs_api {
     void source_set_audio_mixers(obs_source_t* source, uint32_t mixers);
     void set_output_source(uint32_t channel, obs_source_t* source);
     bool source_active(obs_source_t* source);
+    uint32_t source_get_width(obs_source_t* source);
+    uint32_t source_get_height(obs_source_t* source);
     void source_activate(obs_source_t* source);
     void source_deactivate(obs_source_t* source, uint32_t hint = 0);
     
@@ -61,6 +63,13 @@ namespace obs_api {
     void encoder_set_audio(obs_encoder_t* encoder, audio_t* audio);
     video_t* get_video();
     audio_t* get_audio();
+    double get_active_fps();
+    uint64_t get_average_frame_time_ns();
+    uint32_t get_total_frames();
+    uint32_t get_lagged_frames();
+    uint32_t video_output_get_total_frames(video_t* video);
+    uint32_t video_output_get_skipped_frames(video_t* video);
+    uint32_t encoder_get_encoded_frames(obs_encoder_t* encoder);
 
     // Output functions (replay buffer)
     obs_output_t* output_create(const char* id, const char* name, obs_data_t* settings, obs_data_t* hotkey_data);
@@ -68,10 +77,11 @@ namespace obs_api {
     void output_set_video_encoder(obs_output_t* output, obs_encoder_t* encoder);
     void output_set_audio_encoder(obs_output_t* output, obs_encoder_t* encoder, size_t idx);
     void output_set_mixers(obs_output_t* output, uint32_t mixers);
-    void output_set_video_source(obs_output_t* output, obs_source_t* source);
     bool output_start(obs_output_t* output);
     void output_stop(obs_output_t* output);
     bool output_active(obs_output_t* output);
+    int output_get_total_frames(obs_output_t* output);
+    int output_get_frames_dropped(obs_output_t* output);
     signal_handler_t* output_get_signal_handler(obs_output_t* output);
     void signal_handler_connect(signal_handler_t* handler, const char* signal, void (*callback)(void*, calldata_t*), void* data);
 

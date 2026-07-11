@@ -286,15 +286,6 @@ async function startBackendWithTray(): Promise<boolean> {
   }
 }
 
-function exitAppWindow(): void {
-  if (!mainWindow) {
-    return
-  }
-
-  isQuitting = true
-  mainWindow.close()
-}
-
 async function exitApp(): Promise<void> {
   if (backendStatus !== 'stopped') {
     killBackend()
@@ -775,8 +766,7 @@ const isStartupMode = process.argv.includes('--startup')
 const launchedFromBackendTray = process.argv.includes('--from-backend-tray')
 console.log('[Main] Startup mode:', isStartupMode)
 console.log('[Main] Launched from backend tray:', launchedFromBackendTray)
-const isWinUnpackedBuild =
-  !isDev && process.execPath.toLowerCase().includes('\\win-unpacked\\')
+const isWinUnpackedBuild = !isDev && process.execPath.toLowerCase().includes('\\win-unpacked\\')
 let unpackedBuildWarningShown = false
 
 // Single instance lock - prevent multiple app instances
@@ -1044,6 +1034,9 @@ const defaultSettings = {
     fps: 60,
     encoder: 'auto',
     quality: 20,
+    nvenc_preset: 'p3',
+    capture_method: 'dxgi',
+    capture_cursor: true,
     monitor: 0,
   },
   audio: {
@@ -1138,6 +1131,18 @@ const normalizeSettings = (raw: unknown, fileExists: boolean) => {
 
   if (!Number.isFinite(merged.video.monitor)) {
     merged.video.monitor = 0
+  }
+
+  if (!/^p[1-7]$/.test(merged.video.nvenc_preset)) {
+    merged.video.nvenc_preset = 'p3'
+  }
+
+  if (!['auto', 'dxgi', 'wgc'].includes(merged.video.capture_method)) {
+    merged.video.capture_method = 'dxgi'
+  }
+
+  if (typeof merged.video.capture_cursor !== 'boolean') {
+    merged.video.capture_cursor = true
   }
 
   if (typeof merged.audio.system_audio_device_id !== 'string') {
@@ -4106,11 +4111,15 @@ ipcMain.handle(
       try {
         canonicalExpectedVideoPath = await fsRealpath(ensureSafeClipVideoPath(clipId))
       } catch {
-        throw new Error('Audio extraction rejected because the clip ID does not match an existing clip.')
+        throw new Error(
+          'Audio extraction rejected because the clip ID does not match an existing clip.'
+        )
       }
 
       if (canonicalExpectedVideoPath.toLowerCase() !== canonicalVideoPath.toLowerCase()) {
-        throw new Error('Audio extraction rejected because the clip ID does not match the requested clip file.')
+        throw new Error(
+          'Audio extraction rejected because the clip ID does not match the requested clip file.'
+        )
       }
 
       // Ensure audio cache directory exists

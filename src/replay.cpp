@@ -195,15 +195,15 @@ bool ReplayManager::initialize()
     obs_api::output_set_video_encoder(replay_output_, video_enc);
     LOG_INFO("[REPLAY] Video encoder connected");
     
-    // CRITICAL: Connect scene source to replay output
-    // The scene is what actually renders video frames (not the raw capture source)
+    // CaptureManager already connects this source to OBS's global video mix.
+    // Replay outputs consume the encoder's video mix; OBS 31 has no
+    // per-output video-source setter.
     auto& capture = CaptureManager::instance();
-    obs_source_t* scene_source = capture.get_scene_source();
-    if (scene_source) {
-        obs_api::output_set_video_source(replay_output_, scene_source);
-        LOG_INFO("[REPLAY] Scene source connected to output (this renders the video)");
+    obs_source_t* output_source = capture.get_output_source();
+    if (output_source) {
+        LOG_INFO("[REPLAY] Capture source is connected to the OBS video mix");
     } else {
-        LOG_WARNING("[REPLAY] WARNING: Scene source is NULL - black video likely!");
+        LOG_WARNING("[REPLAY] WARNING: Video output source is NULL - black video likely!");
         LOG_WARNING("[REPLAY]   Make sure capture sources were initialized before replay buffer");
     }
     
@@ -574,7 +574,7 @@ void ReplayManager::log_pipeline_stats()
     auto& capture = CaptureManager::instance();
     obs_encoder_t* video_enc = encoder.get_video_encoder();
     obs_source_t* video_src = capture.get_video_source();
-    obs_source_t* scene_src = capture.get_scene_source();
+    obs_source_t* output_src = capture.get_output_source();
     
     if (video_enc) {
         const char* enc_id = obs_api::encoder_get_id(video_enc);
@@ -593,12 +593,12 @@ void ReplayManager::log_pipeline_stats()
         LOG_INFO("[REPLAY] Video source: NULL");
     }
     
-    // Check scene status
-    if (scene_src) {
-        bool scene_active = obs_api::source_active(scene_src);
-        LOG_INFO("[REPLAY] Scene source: VALID (active: " + std::string(scene_active ? "YES" : "NO") + ")");
+    // Check replay video source status
+    if (output_src) {
+        bool output_active = obs_api::source_active(output_src);
+        LOG_INFO("[REPLAY] Output source: VALID (active: " + std::string(output_active ? "YES" : "NO") + ")");
     } else {
-        LOG_INFO("[REPLAY] Scene source: NULL");
+        LOG_INFO("[REPLAY] Output source: NULL");
     }
     
     LOG_INFO("[REPLAY] ==========================================");
@@ -844,12 +844,13 @@ void ReplayManager::render_thread_loop()
     const auto check_interval = std::chrono::milliseconds(5000);
 
     last_stats_time_.store(GetTickCount64());
+    previous_performance_snapshot_ = capture_performance_snapshot();
 
     while (render_thread_running_.load()) {
         auto start_time = std::chrono::steady_clock::now();
 
         // Periodic health check and stats logging
-        frame_count_.fetch_add(1);
+        health_check_count_.fetch_add(1);
 
         // Log performance stats every 30 seconds
         uint64_t now = GetTickCount64();
@@ -871,87 +872,128 @@ void ReplayManager::render_thread_loop()
     LOG_INFO("[REPLAY] Render thread loop exited");
 }
 
+ReplayManager::PerformanceSnapshot ReplayManager::capture_performance_snapshot() const
+{
+    PerformanceSnapshot snapshot;
+    snapshot.tick_ms = GetTickCount64();
+
+    FILETIME creation_time{};
+    FILETIME exit_time{};
+    FILETIME kernel_time{};
+    FILETIME user_time{};
+    if (GetProcessTimes(
+            GetCurrentProcess(),
+            &creation_time,
+            &exit_time,
+            &kernel_time,
+            &user_time)) {
+        ULARGE_INTEGER kernel{};
+        kernel.LowPart = kernel_time.dwLowDateTime;
+        kernel.HighPart = kernel_time.dwHighDateTime;
+        ULARGE_INTEGER user{};
+        user.LowPart = user_time.dwLowDateTime;
+        user.HighPart = user_time.dwHighDateTime;
+        snapshot.process_cpu_100ns = kernel.QuadPart + user.QuadPart;
+    }
+
+    video_t* video = obs_api::get_video();
+    snapshot.rendered_frames = obs_api::get_total_frames();
+    snapshot.lagged_frames = obs_api::get_lagged_frames();
+    snapshot.video_frames = obs_api::video_output_get_total_frames(video);
+    snapshot.skipped_frames = obs_api::video_output_get_skipped_frames(video);
+    snapshot.encoded_frames = obs_api::encoder_get_encoded_frames(
+        EncoderManager::instance().get_video_encoder());
+    snapshot.output_frames = obs_api::output_get_total_frames(replay_output_);
+    return snapshot;
+}
+
 void ReplayManager::log_performance_stats()
 {
     if (!is_active() || !replay_output_) {
         return;
     }
 
-    LOG_INFO("[PERF] ==========================================");
-    LOG_INFO("[PERF] PERFORMANCE STATS");
-    LOG_INFO("[PERF] ==========================================");
+    const PerformanceSnapshot current = capture_performance_snapshot();
+    const PerformanceSnapshot previous = previous_performance_snapshot_;
+    previous_performance_snapshot_ = current;
 
-    // Get process memory info
-    PROCESS_MEMORY_COUNTERS_EX pmc;
-    if (GetProcessMemoryInfo(GetCurrentProcess(), (PROCESS_MEMORY_COUNTERS*)&pmc, sizeof(pmc))) {
-        uint64_t working_set_mb = pmc.WorkingSetSize / (1024 * 1024);
-        uint64_t private_mb = pmc.PrivateUsage / (1024 * 1024);
-        uint64_t peak_mb = pmc.PeakWorkingSetSize / (1024 * 1024);
-
-        LOG_INFO("[PERF] --- MEMORY USAGE ---");
-        LOG_INFO("[PERF] Working Set: " + std::to_string(working_set_mb) + " MB (physical RAM in use)");
-        LOG_INFO("[PERF] Private Bytes: " + std::to_string(private_mb) + " MB (committed memory)");
-        LOG_INFO("[PERF] Peak Working Set: " + std::to_string(peak_mb) + " MB (max RAM used)");
+    const double interval_seconds = current.tick_ms > previous.tick_ms
+        ? static_cast<double>(current.tick_ms - previous.tick_ms) / 1000.0
+        : 0.0;
+    if (interval_seconds <= 0.0) {
+        return;
     }
 
-    // Get system memory info
-    MEMORYSTATUSEX memInfo;
-    memInfo.dwLength = sizeof(MEMORYSTATUSEX);
-    if (GlobalMemoryStatusEx(&memInfo)) {
-        uint64_t total_mb = memInfo.ullTotalPhys / (1024 * 1024);
-        uint64_t avail_mb = memInfo.ullAvailPhys / (1024 * 1024);
-        uint64_t used_mb = total_mb - avail_mb;
-        DWORD percent = memInfo.dwMemoryLoad;
+    const auto delta_u32 = [](uint32_t value, uint32_t baseline) {
+        return value >= baseline ? value - baseline : 0U;
+    };
+    const auto delta_u64 = [](uint64_t value, uint64_t baseline) {
+        return value >= baseline ? value - baseline : 0ULL;
+    };
 
-        LOG_INFO("[PERF] --- SYSTEM MEMORY ---");
-        LOG_INFO("[PERF] System RAM: " + std::to_string(used_mb) + " / " + std::to_string(total_mb) + " MB (" + std::to_string(percent) + "% used)");
+    const uint32_t rendered_delta = delta_u32(current.rendered_frames, previous.rendered_frames);
+    const uint32_t lagged_delta = delta_u32(current.lagged_frames, previous.lagged_frames);
+    const uint32_t video_delta = delta_u32(current.video_frames, previous.video_frames);
+    const uint32_t skipped_delta = delta_u32(current.skipped_frames, previous.skipped_frames);
+    const uint32_t encoded_delta = delta_u32(current.encoded_frames, previous.encoded_frames);
+    const int output_delta = current.output_frames >= previous.output_frames
+        ? current.output_frames - previous.output_frames
+        : 0;
+    const uint64_t cpu_delta = delta_u64(current.process_cpu_100ns, previous.process_cpu_100ns);
+
+    const double render_lag_percent = rendered_delta
+        ? static_cast<double>(lagged_delta) * 100.0 / static_cast<double>(rendered_delta)
+        : 0.0;
+    const double encode_skip_percent = video_delta
+        ? static_cast<double>(skipped_delta) * 100.0 / static_cast<double>(video_delta)
+        : 0.0;
+    const double encoder_fps = static_cast<double>(encoded_delta) / interval_seconds;
+    const double output_fps = static_cast<double>(output_delta) / interval_seconds;
+    SYSTEM_INFO system_info{};
+    GetSystemInfo(&system_info);
+    const DWORD processor_count = system_info.dwNumberOfProcessors > 0
+        ? system_info.dwNumberOfProcessors
+        : 1;
+    const double cpu_percent = static_cast<double>(cpu_delta) / 10000000.0 /
+        interval_seconds / static_cast<double>(processor_count) * 100.0;
+
+    uint64_t working_set_mb = 0;
+    uint64_t private_mb = 0;
+    PROCESS_MEMORY_COUNTERS_EX memory{};
+    if (GetProcessMemoryInfo(
+            GetCurrentProcess(),
+            reinterpret_cast<PROCESS_MEMORY_COUNTERS*>(&memory),
+            sizeof(memory))) {
+        working_set_mb = memory.WorkingSetSize / (1024 * 1024);
+        private_mb = memory.PrivateUsage / (1024 * 1024);
     }
 
-    // Get encoder stats
-    auto& encoder = EncoderManager::instance();
-    obs_encoder_t* video_enc = encoder.get_video_encoder();
+    auto& capture = CaptureManager::instance();
+    obs_source_t* source = capture.get_video_source();
+    const uint32_t source_width = obs_api::source_get_width(source);
+    const uint32_t source_height = obs_api::source_get_height(source);
 
-    LOG_INFO("[PERF] --- ENCODER STATUS ---");
-    if (video_enc) {
-        const char* enc_id = obs_api::encoder_get_id(video_enc);
-        bool enc_active = obs_api::encoder_active(video_enc);
-        LOG_INFO("[PERF] Video Encoder: " + std::string(enc_id ? enc_id : "NULL"));
-        LOG_INFO("[PERF] Encoder Active: " + std::string(enc_active ? "YES" : "NO"));
-
-        // Check if using hardware (NVENC) or software (x264)
-        std::string enc_str = enc_id ? enc_id : "";
-        if (enc_str.find("nvenc") != std::string::npos) {
-            LOG_INFO("[PERF] Encoding Mode: HARDWARE (NVENC) - Low CPU expected");
-        } else if (enc_str.find("x264") != std::string::npos) {
-            LOG_INFO("[PERF] Encoding Mode: SOFTWARE (x264) - Higher CPU expected");
-        }
-    }
-
-    // Check video output
-    video_t* video = obs_api::get_video();
-    if (video) {
-        LOG_INFO("[PERF] Video Output: ACTIVE");
-    }
-
-    // Check replay buffer status
-    if (obs_api::output_active(replay_output_)) {
-        LOG_INFO("[PERF] Replay Buffer: RECORDING");
-
-        // Estimate buffer memory usage based on config
-        const auto& config = ConfigManager::instance();
-        int buffer_seconds = config.buffer_seconds();
-        const auto& video_cfg = config.video();
-
-        // Rough estimate: 1080p60 NVENC ~15-25 Mbps = ~2-3 MB/sec
-        // For 120 seconds = 240-360 MB in buffer
-        int estimated_buffer_mb = buffer_seconds * 3; // ~3 MB/sec estimate
-        LOG_INFO("[PERF] Estimated Buffer Size: ~" + std::to_string(estimated_buffer_mb) + " MB (for " + std::to_string(buffer_seconds) + "s buffer)");
-    }
-
-    // Log health check count
-    LOG_INFO("[PERF] Health Checks: " + std::to_string(frame_count_.load()));
-
-    LOG_INFO("[PERF] ==========================================");
+    std::ostringstream sample;
+    sample << std::fixed << std::setprecision(3)
+           << "[PERF_SAMPLE] interval_s=" << interval_seconds
+           << " active_fps=" << obs_api::get_active_fps()
+           << " render_ms=" << static_cast<double>(obs_api::get_average_frame_time_ns()) / 1000000.0
+           << " rendered=" << rendered_delta
+           << " lagged=" << lagged_delta
+           << " render_lag_pct=" << render_lag_percent
+           << " video_frames=" << video_delta
+           << " skipped=" << skipped_delta
+           << " encode_skip_pct=" << encode_skip_percent
+           << " encoded=" << encoded_delta
+           << " encoder_fps=" << encoder_fps
+           << " output_frames=" << output_delta
+           << " output_fps=" << output_fps
+           << " cpu_pct=" << cpu_percent
+           << " working_set_mb=" << working_set_mb
+           << " private_mb=" << private_mb
+           << " source=" << source_width << "x" << source_height
+           << " health_checks=" << health_check_count_.load();
+    LOG_INFO(sample.str());
 }
 
 } // namespace clipvault

@@ -10,35 +10,49 @@ namespace clipvault {
 // NVENC encoder IDs to try in order
 // Multiple IDs for compatibility with different NVIDIA driver/GPU combinations
 static const char* nvenc_ids[] = {
-    "jim_nvenc",        // Modern NVENC via obs-nvenc.dll (OBS 28+, RTX 2000+)
-    "ffmpeg_nvenc",     // FFmpeg-based NVENC (fallback)
-    "h264_nvenc"        // Generic H.264 NVENC (legacy)
+    "obs_nvenc_h264_tex",   // Native OBS 31 D3D11 texture encoder (zero-copy path)
+    "jim_nvenc",            // Deprecated OBS compatibility ID; reroutes to native texture encoder
+    "obs_nvenc_h264_soft",  // Native CUDA-upload fallback
+    "ffmpeg_nvenc"          // FFmpeg-based NVENC fallback
 };
 
 static const char* nvenc_names[] = {
-    "NVENC H.264 (jim_nvenc)",
-    "NVENC H.264 (ffmpeg)",
-    "NVENC H.264 (legacy)"
+    "NVENC H.264 (OBS native texture)",
+    "NVENC H.264 (jim_nvenc compatibility)",
+    "NVENC H.264 (OBS native software input)",
+    "NVENC H.264 (FFmpeg fallback)"
 };
 
 static const size_t nvenc_count = sizeof(nvenc_ids) / sizeof(nvenc_ids[0]);
 
-// Map quality value (15-30) to encoder-specific settings
+// Map the visual quality value to encoder-specific quantizer settings.
+// Encoder speed is configured independently through VideoConfig::nvenc_preset.
 QualityMapping get_quality_mapping(int quality) {
     // quality comes from settings (15=ultra, 18=high, 23=medium, 30=low)
     if (quality <= 15) {
         // Ultra quality
-        return {15, 18, "p7", "slow"};
+        return {15, 18, "slow"};
     } else if (quality <= 18) {
         // High quality
-        return {18, 21, "p5", "medium"};
+        return {18, 21, "medium"};
     } else if (quality <= 23) {
         // Medium quality
-        return {23, 23, "p3", "fast"};
+        return {23, 23, "fast"};
     } else {
         // Low quality (30 and above)
-        return {30, 28, "p1", "veryfast"};
+        return {30, 28, "veryfast"};
     }
+}
+
+static std::string validate_nvenc_preset(const std::string& preset)
+{
+    if (preset.size() == 2 && (preset[0] == 'p' || preset[0] == 'P') &&
+        preset[1] >= '1' && preset[1] <= '7') {
+        return std::string("p") + preset[1];
+    }
+
+    LOG_WARNING("    Invalid NVENC preset '" + preset + "'; using p3");
+    return "p3";
 }
 
 EncoderManager& EncoderManager::instance()
@@ -115,8 +129,9 @@ bool EncoderManager::create_video_encoder()
 
     // Get quality mapping for encoder-specific settings
     QualityMapping quality = get_quality_mapping(video_cfg.quality);
+    const std::string nvenc_preset = validate_nvenc_preset(video_cfg.nvenc_preset);
     LOG_INFO("    Quality mapping - CQP/CRF: " + std::to_string(quality.cqp) + "/" + std::to_string(quality.crf));
-    LOG_INFO("    NVENC preset: " + std::string(quality.nvenc_preset) + ", x264 preset: " + std::string(quality.x264_preset));
+    LOG_INFO("    NVENC preset: " + nvenc_preset + ", x264 preset: " + std::string(quality.x264_preset));
 
     bool encoder_created = false;
 
@@ -154,7 +169,7 @@ bool EncoderManager::create_video_encoder()
         for (size_t i = 0; i < nvenc_count; ++i) {
             LOG_INFO("    Trying " + std::string(nvenc_ids[i]) + "...");
             
-            obs_data_t* settings = create_nvenc_settings(nvenc_ids[i], quality);
+            obs_data_t* settings = create_nvenc_settings(nvenc_ids[i], quality, nvenc_preset);
             if (!settings) {
                 LOG_WARNING("    Failed to create NVENC settings for " + std::string(nvenc_ids[i]));
                 continue;
@@ -185,7 +200,7 @@ bool EncoderManager::create_video_encoder()
         for (size_t i = 0; i < nvenc_count; ++i) {
             LOG_INFO("    Trying " + std::string(nvenc_ids[i]) + "...");
             
-            obs_data_t* settings = create_nvenc_settings(nvenc_ids[i], quality);
+            obs_data_t* settings = create_nvenc_settings(nvenc_ids[i], quality, nvenc_preset);
             if (!settings) {
                 LOG_WARNING("    Failed to create NVENC settings for " + std::string(nvenc_ids[i]));
                 continue;
@@ -237,7 +252,10 @@ bool EncoderManager::create_video_encoder()
     return true;
 }
 
-obs_data_t* EncoderManager::create_nvenc_settings(const char* encoder_id, const QualityMapping& quality)
+obs_data_t* EncoderManager::create_nvenc_settings(
+    const char* encoder_id,
+    const QualityMapping& quality,
+    const std::string& nvenc_preset)
 {
     obs_data_t* settings = obs_api::data_create();
     
@@ -246,32 +264,29 @@ obs_data_t* EncoderManager::create_nvenc_settings(const char* encoder_id, const 
         return nullptr;
     }
     
+    obs_api::data_set_string(settings, "rate_control", "CQP");
+    obs_api::data_set_int(settings, "cqp", quality.cqp);
+    obs_api::data_set_string(settings, "tune", "hq");
+    obs_api::data_set_string(settings, "multipass", "disabled");
+    obs_api::data_set_int(settings, "bf", 2);
+    obs_api::data_set_string(settings, "profile", "high");
+
     if (strcmp(encoder_id, "jim_nvenc") == 0) {
-        // jim_nvenc (obs-nvenc.dll) - modern NVENC with new API
-        // CRITICAL: jim_nvenc uses p1-p7 presets (not old "quality"/"performance" strings)
-        // CRITICAL: multipass must be "disabled" for CQP mode (incompatible!)
-        obs_api::data_set_string(settings, "rate_control", "CQP");
-        obs_api::data_set_int(settings, "cqp", quality.cqp);
-        obs_api::data_set_string(settings, "preset", quality.nvenc_preset);  // p1-p7
-        obs_api::data_set_string(settings, "tune", "hq");    // high quality
-        obs_api::data_set_string(settings, "multipass", "disabled");  // REQUIRED for CQP!
-        obs_api::data_set_int(settings, "bf", 2);            // B-frames for better compression
-        obs_api::data_set_string(settings, "profile", "high");
+        // OBS 31's deprecated jim_nvenc compatibility object reads preset2,
+        // then migrates it to the native encoder's preset key.
+        obs_api::data_set_string(settings, "preset2", nvenc_preset.c_str());
+        obs_api::data_set_bool(settings, "psycho_aq", true);
+        obs_api::data_set_bool(settings, "lookahead", false);
     } else if (strcmp(encoder_id, "ffmpeg_nvenc") == 0) {
-        // ffmpeg_nvenc (obs-ffmpeg.dll) - FFmpeg-based NVENC
-        // Uses standard FFmpeg NVENC settings
-        obs_api::data_set_string(settings, "rate_control", "CQ");  // FFmpeg uses CQ not CQP
-        obs_api::data_set_int(settings, "cq", quality.cqp);
-        obs_api::data_set_string(settings, "preset", "hq");  // hq for all qualities
-        obs_api::data_set_string(settings, "profile", "high");
-        obs_api::data_set_int(settings, "bf", 2);
+        // OBS 31's FFmpeg NVENC implementation also uses CQP/cqp and preset2.
+        obs_api::data_set_string(settings, "preset2", nvenc_preset.c_str());
+        obs_api::data_set_bool(settings, "psycho_aq", true);
     } else {
-        // h264_nvenc and other legacy encoders
-        // Use basic settings that should work with most NVENC implementations
-        obs_api::data_set_string(settings, "rate_control", "CQP");
-        obs_api::data_set_int(settings, "cqp", quality.cqp);
-        obs_api::data_set_string(settings, "preset", "hq");
-        obs_api::data_set_string(settings, "profile", "high");
+        // Native OBS 31 texture and software-input encoders use preset and
+        // adaptive_quantization. Keep the existing quality features explicit.
+        obs_api::data_set_string(settings, "preset", nvenc_preset.c_str());
+        obs_api::data_set_bool(settings, "adaptive_quantization", true);
+        obs_api::data_set_bool(settings, "lookahead", false);
     }
     
     return settings;
@@ -322,7 +337,7 @@ bool EncoderManager::create_audio_encoders()
 
 bool EncoderManager::fallback_to_x264()
 {
-    if (!initialized_ || !video_encoder_) {
+    if (!initialized_) {
         return false;
     }
 
@@ -335,14 +350,21 @@ bool EncoderManager::fallback_to_x264()
     LOG_INFO("  Switching video encoder from NVENC/ffmpeg_nvenc to x264...");
 
     // Release the current video encoder
-    obs_api::encoder_release(video_encoder_);
-    video_encoder_ = nullptr;
+    if (video_encoder_) {
+        obs_api::encoder_release(video_encoder_);
+        video_encoder_ = nullptr;
+    }
 
     // Create x264 encoder with quality mapping
     const auto& video_cfg = ConfigManager::instance().video();
     QualityMapping quality = get_quality_mapping(video_cfg.quality);
     
     obs_data_t* settings = obs_api::data_create();
+    if (!settings) {
+        last_error_ = "Failed to allocate x264 fallback settings";
+        LOG_ERROR(last_error_);
+        return false;
+    }
     obs_api::data_set_string(settings, "rate_control", "CRF");
     obs_api::data_set_int(settings, "crf", quality.crf);
     obs_api::data_set_string(settings, "preset", quality.x264_preset);
@@ -385,12 +407,13 @@ bool EncoderManager::try_next_nvenc_encoder()
 
     const auto& video_cfg = ConfigManager::instance().video();
     QualityMapping quality = get_quality_mapping(video_cfg.quality);
+    const std::string nvenc_preset = validate_nvenc_preset(video_cfg.nvenc_preset);
 
     // Try each remaining NVENC encoder
     for (size_t i = next_index; i < nvenc_count; ++i) {
         LOG_INFO("    Trying " + std::string(nvenc_ids[i]) + "...");
 
-        obs_data_t* settings = create_nvenc_settings(nvenc_ids[i], quality);
+        obs_data_t* settings = create_nvenc_settings(nvenc_ids[i], quality, nvenc_preset);
         if (!settings) {
             LOG_WARNING("    Failed to create NVENC settings for " + std::string(nvenc_ids[i]));
             continue;

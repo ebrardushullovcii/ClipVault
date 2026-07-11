@@ -10,6 +10,9 @@ const DEFAULT_VIDEO: AppSettings['video'] = {
   fps: 60,
   encoder: 'auto',
   quality: 20,
+  nvenc_preset: 'p3',
+  capture_method: 'dxgi',
+  capture_cursor: true,
   monitor: 0,
 }
 const DEFAULT_AUDIO: AppSettings['audio'] = {
@@ -75,7 +78,10 @@ const isOpenFolderResult = (value: unknown): value is OpenFolderResult => {
     return candidate.canceled
   }
 
-  return Array.isArray(candidate.filePaths) && candidate.filePaths.every(path => typeof path === 'string')
+  return (
+    Array.isArray(candidate.filePaths) &&
+    candidate.filePaths.every(path => typeof path === 'string')
+  )
 }
 
 const formatHotkey = (hotkey: string): string => {

@@ -4,9 +4,7 @@
 
 // Forward declarations for OBS types
 struct obs_source;
-struct obs_scene;
 typedef struct obs_source obs_source_t;
-typedef struct obs_scene obs_scene_t;
 
 namespace clipvault {
 
@@ -28,8 +26,8 @@ public:
     obs_source_t* get_desktop_audio() const { return desktop_audio_; }
     obs_source_t* get_microphone() const { return microphone_; }
     
-    // Get the scene source (this is what actually renders video)
-    obs_source_t* get_scene_source() const;
+    // Get the source connected to the OBS video mix and replay output.
+    obs_source_t* get_output_source() const;
     
     // Check if capture is producing frames (for debugging)
     bool is_producing_frames() const;
@@ -50,7 +48,6 @@ private:
     obs_source_t* video_source_ = nullptr;
     obs_source_t* desktop_audio_ = nullptr;
     obs_source_t* microphone_ = nullptr;
-    obs_scene_t* scene_ = nullptr;  // Scene that contains video source
 
     bool initialized_ = false;
     std::string last_error_;

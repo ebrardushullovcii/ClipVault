@@ -20,9 +20,11 @@ Why: many failures only appear after Electron resource paths, bundled OBS files,
 
 ### Prefer Monitor Capture For Anti-Cheat Safety
 
-Decision: video capture prefers OBS `monitor_capture` using DXGI, then WGC, then `window_capture`; `game_capture` is only a last resort.
+Decision: video capture prefers OBS `monitor_capture` using selectable DXGI, WGC, or Auto, with DXGI as the default. Process/window capture remains a last-resort fallback.
 
 Why: ClipVault should avoid game hooks and injection. This is safer for anti-cheat-sensitive games, even if direct game capture can be more targeted.
+
+OBS 31 monitor capture requires the Windows display-interface string in `monitor_id`; the old numeric `monitor` source setting is not valid for the D3D11 monitor source. Resolve and log that ID before source creation. Keep DXGI, WGC, and Auto selectable so capture overhead can be compared without changing resolution or frame rate; DXGI remains the default because it performed at least as well as WGC in local full-monitor tests.
 
 ### Load OBS Modules Before Video And Audio Reset
 
@@ -36,11 +38,13 @@ Decision: the backend loads `obs.dll` from its executable directory and resolves
 
 Why: ClipVault ships a bundled OBS runtime. Dynamic loading gives clear diagnostics when a bundled DLL or required symbol is missing and keeps the backend tied to the packaged runtime layout.
 
-### Render Through An OBS Scene
+### Feed A Single Monitor Source Directly
 
-Decision: the selected video source is added to an OBS scene; the scene source is connected as output channel 0 and as the replay output video source.
+Decision: connect the selected full-monitor source directly to OBS output channel 0. Introduce a scene only when capture composition needs more than one video source.
 
-Why: raw capture sources alone can fail to produce frames for the replay output. The scene is the rendering object that should feed the buffer.
+Why: the replay encoder consumes the OBS video mix, so a single active monitor source does not need a one-item scene. Removing that composition layer reduces render work while preserving verified 1080p60 replay output and both audio tracks.
+
+Keep the OBS D3D11 device at the driver-default GPU thread priority. Lowering it can reduce competition with the foreground compositor, but local telemetry showed that it also starves OBS rendering and produces duplicated frames. `CLIPVAULT_GPU_PRIORITY` exists only as an opt-in diagnostic override for controlled A/B tests.
 
 ### Keep Desktop And Microphone On Separate Tracks
 
@@ -56,9 +60,10 @@ Why: NVENC keeps CPU load low during gameplay, but OBS/driver/GPU combinations e
 
 Important constraints:
 
-- `jim_nvenc` uses `p1`-`p7` presets.
-- CQP mode for `jim_nvenc` requires multipass disabled.
-- `ffmpeg_nvenc` uses FFmpeg-style CQ settings.
+- On OBS 31, prefer the native `obs_nvenc_h264_tex` encoder. `jim_nvenc` is a deprecated compatibility ID whose settings migration can replace an incorrectly supplied preset.
+- Keep visual quality (CQP/CRF) independent from NVENC performance (`p1`-`p7`). The default is P3; P1/P2 are user-selectable when more encode-engine headroom is valuable.
+- Keep CQP, high-quality tuning, adaptive quantization, two B-frames, high profile, lookahead disabled, and single-pass encoding unless measurements justify changing them.
+- Log local OBS render/encode frame deltas so preset and capture changes can be compared without adding remote telemetry.
 
 ### Use A Low-Level Keyboard Hook For The Save Hotkey
 

@@ -90,7 +90,7 @@ TypeScript/React UI:
 - Keep `graphics_module = "libobs-d3d11"` on Windows video init.
 - Capture should prefer monitor capture for anti-cheat safety; see [docs/DECISIONS.md](docs/DECISIONS.md) before changing capture order.
 - Audio sources must be activated, connected to OBS output channels, and routed to separate mixer tracks.
-- The replay output should use the scene source, not only the raw capture source.
+- A single full-monitor source should feed OBS output channel 0 directly; introduce a scene only when capture composition needs multiple video sources.
 - Save replay through the replay buffer procedure handler and handle the `saved` callback.
 - The hotkey uses a low-level keyboard hook so fullscreen games cannot easily swallow F9.
 - Check OBS and Win32 return values and log actionable failure details.

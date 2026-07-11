@@ -3,8 +3,102 @@
 #include "config.h"
 #include "obs_core.h"
 #include <windows.h>
+#include <algorithm>
+#include <utility>
+#include <vector>
 
 namespace clipvault {
+
+namespace {
+
+struct MonitorDescriptor {
+    std::string device_id;
+    std::string device_name;
+    RECT bounds{};
+    bool primary = false;
+};
+
+BOOL CALLBACK collect_monitor(HMONITOR handle, HDC, LPRECT rect, LPARAM param)
+{
+    auto* monitors = reinterpret_cast<std::vector<MonitorDescriptor>*>(param);
+
+    MONITORINFOEXA monitor_info{};
+    monitor_info.cbSize = sizeof(monitor_info);
+    if (!GetMonitorInfoA(handle, &monitor_info)) {
+        return TRUE;
+    }
+
+    MonitorDescriptor monitor;
+    monitor.bounds = *rect;
+    monitor.primary = (monitor_info.dwFlags & MONITORINFOF_PRIMARY) != 0;
+    monitor.device_id = monitor_info.szDevice;
+    monitor.device_name = monitor_info.szDevice;
+
+    DISPLAY_DEVICEA display_device{};
+    display_device.cb = sizeof(display_device);
+    if (EnumDisplayDevicesA(
+            monitor_info.szDevice,
+            0,
+            &display_device,
+            EDD_GET_DEVICE_INTERFACE_NAME)) {
+        if (display_device.DeviceID[0] != '\0') {
+            monitor.device_id = display_device.DeviceID;
+        }
+        if (display_device.DeviceString[0] != '\0') {
+            monitor.device_name = display_device.DeviceString;
+        }
+    }
+
+    monitors->push_back(std::move(monitor));
+    return TRUE;
+}
+
+bool resolve_monitor(int configured_index, MonitorDescriptor& selected)
+{
+    std::vector<MonitorDescriptor> monitors;
+    if (!EnumDisplayMonitors(nullptr, nullptr, collect_monitor, reinterpret_cast<LPARAM>(&monitors)) || monitors.empty()) {
+        return false;
+    }
+
+    int selected_index = configured_index;
+    if (selected_index < 0 || selected_index >= static_cast<int>(monitors.size())) {
+        auto primary = std::find_if(monitors.begin(), monitors.end(), [](const MonitorDescriptor& monitor) {
+            return monitor.primary;
+        });
+        selected_index = primary == monitors.end() ? 0 : static_cast<int>(primary - monitors.begin());
+        LOG_WARNING(
+            "  Configured monitor index " + std::to_string(configured_index) +
+            " is unavailable; using monitor " + std::to_string(selected_index));
+    }
+
+    selected = monitors[static_cast<size_t>(selected_index)];
+    return true;
+}
+
+int capture_method_value(const std::string& method)
+{
+    if (method == "auto") {
+        return 0;
+    }
+    if (method == "wgc") {
+        return 2;
+    }
+    return 1;
+}
+
+const char* capture_method_name(int method)
+{
+    switch (method) {
+    case 0:
+        return "Auto";
+    case 2:
+        return "WGC";
+    default:
+        return "DXGI";
+    }
+}
+
+} // namespace
 
 CaptureManager& CaptureManager::instance()
 {
@@ -62,12 +156,6 @@ void CaptureManager::shutdown()
         desktop_audio_ = nullptr;
     }
 
-    // Release scene first (it holds a ref to video_source_)
-    if (scene_) {
-        obs_api::scene_release(scene_);
-        scene_ = nullptr;
-    }
-
     if (video_source_) {
         obs_api::source_release(video_source_);
         video_source_ = nullptr;
@@ -80,40 +168,75 @@ void CaptureManager::shutdown()
 bool CaptureManager::create_video_source()
 {
     const char* capture_method_used = "none";
-    
-    // Get monitor index from config
-    int monitor_index = ConfigManager::instance().video().monitor;
+
+    const auto& video_config = ConfigManager::instance().video();
+    int monitor_index = video_config.monitor;
     LOG_INFO("  Using monitor index: " + std::to_string(monitor_index));
-    
-    // Try monitor_capture with DXGI method first (most reliable for background capture)
+
+    MonitorDescriptor monitor;
+    if (!resolve_monitor(monitor_index, monitor)) {
+        last_error_ = "Failed to resolve a Windows monitor for capture";
+        LOG_ERROR(last_error_);
+        return false;
+    }
+
+    const int requested_method = capture_method_value(video_config.capture_method);
+    const bool capture_cursor = video_config.capture_cursor;
+    const int monitor_width = monitor.bounds.right - monitor.bounds.left;
+    const int monitor_height = monitor.bounds.bottom - monitor.bounds.top;
+    LOG_INFO("  Resolved monitor: " + monitor.device_name + " (" +
+             std::to_string(monitor_width) + "x" + std::to_string(monitor_height) +
+             " at " + std::to_string(monitor.bounds.left) + "," +
+             std::to_string(monitor.bounds.top) + ")");
+    LOG_INFO("  OBS monitor_id: " + monitor.device_id);
+    LOG_INFO("  Capture method: " + std::string(capture_method_name(requested_method)) +
+             " (" + std::to_string(requested_method) + ")");
+    LOG_INFO("  Capture cursor: " + std::string(capture_cursor ? "yes" : "no"));
+
     obs_data_t* settings = obs_api::data_create();
-    obs_api::data_set_int(settings, "monitor", monitor_index);
-    obs_api::data_set_bool(settings, "capture_cursor", true);
-    obs_api::data_set_int(settings, "method", 1);  // 1 = DXGI (more reliable than WGC for background)
-    
+    if (!settings) {
+        last_error_ = "Failed to allocate monitor capture settings";
+        LOG_ERROR(last_error_);
+        return false;
+    }
+    obs_api::data_set_string(settings, "monitor_id", monitor.device_id.c_str());
+    obs_api::data_set_bool(settings, "capture_cursor", capture_cursor);
+    obs_api::data_set_bool(settings, "force_sdr", false);
+    obs_api::data_set_int(settings, "method", requested_method);
+
     video_source_ = obs_api::source_create("monitor_capture", "monitor_capture", settings, nullptr);
     obs_api::data_release(settings);
-    
+    settings = nullptr;
+
     if (video_source_) {
         capture_method_used = "monitor_capture";
-        LOG_INFO("  Using monitor_capture (DXGI method - most reliable)");
+        LOG_INFO("  Using monitor_capture (" + std::string(capture_method_name(requested_method)) + ")");
     } else {
-        // Try monitor_capture with WGC method as fallback
+        // Let OBS choose a compatible monitor-capture method before falling back
+        // to a less safe process/window-specific source.
         settings = obs_api::data_create();
-        obs_api::data_set_int(settings, "monitor", monitor_index);
-        obs_api::data_set_bool(settings, "capture_cursor", true);
-        obs_api::data_set_int(settings, "method", 0);  // 0 = WGC
-        
-        video_source_ = obs_api::source_create("monitor_capture", "monitor_capture", settings, nullptr);
-        obs_api::data_release(settings);
-        
+        if (settings) {
+            obs_api::data_set_string(settings, "monitor_id", monitor.device_id.c_str());
+            obs_api::data_set_bool(settings, "capture_cursor", capture_cursor);
+            obs_api::data_set_bool(settings, "force_sdr", false);
+            obs_api::data_set_int(settings, "method", 0);
+            video_source_ = obs_api::source_create("monitor_capture", "monitor_capture_auto", settings, nullptr);
+            obs_api::data_release(settings);
+            settings = nullptr;
+        }
+
         if (video_source_) {
             capture_method_used = "monitor_capture";
-            LOG_INFO("  Using monitor_capture (WGC method)");
+            LOG_INFO("  Using monitor_capture (Auto fallback)");
         } else {
             // Fallback to window_capture
             settings = obs_api::data_create();
-            
+            if (!settings) {
+                last_error_ = "Failed to allocate window capture settings";
+                LOG_ERROR(last_error_);
+                return false;
+            }
+
             HWND foreground = GetForegroundWindow();
             if (foreground) {
                 char window_title[256];
@@ -125,13 +248,13 @@ bool CaptureManager::create_video_source()
             }
             
             video_source_ = obs_api::source_create("window_capture", "window_capture", settings, nullptr);
-            
+            obs_api::data_release(settings);
+            settings = nullptr;
+
             if (video_source_) {
                 capture_method_used = "window_capture";
             }
         }
-        
-        obs_api::data_release(settings);
     }
 
     if (!video_source_) {
@@ -140,8 +263,13 @@ bool CaptureManager::create_video_source()
         
         // Last resort - try game_capture
         settings = obs_api::data_create();
+        if (!settings) {
+            last_error_ = "Failed to allocate game capture settings";
+            LOG_ERROR(last_error_);
+            return false;
+        }
         obs_api::data_set_string(settings, "capture_mode", "any_fullscreen");
-        obs_api::data_set_bool(settings, "capture_cursor", true);
+        obs_api::data_set_bool(settings, "capture_cursor", capture_cursor);
         LOG_INFO("  Using game_capture (any_fullscreen mode - last resort)");
         
         video_source_ = obs_api::source_create("game_capture", "game_capture", settings, nullptr);
@@ -158,40 +286,10 @@ bool CaptureManager::create_video_source()
         return false;
     }
 
-    // CRITICAL: Create a scene and add the video source to it
-    // In OBS, sources must be in a scene to produce output frames
-    LOG_INFO("  Creating scene for video rendering...");
-    scene_ = obs_api::scene_create("capture_scene");
-    if (!scene_) {
-        last_error_ = "Failed to create scene";
-        LOG_ERROR(last_error_);
-        obs_api::source_release(video_source_);
-        video_source_ = nullptr;
-        return false;
-    }
-    
-    // Add the video source to the scene
-    obs_sceneitem_t* item = obs_api::scene_add(scene_, video_source_);
-    if (!item) {
-        LOG_WARNING("  Failed to add video source to scene (source may still work)");
-    } else {
-        LOG_INFO("  Video source added to scene");
-    }
-    
-    // Set the scene's source as the main output (this is what produces frames)
-    obs_source_t* scene_source = obs_api::scene_get_source(scene_);
-    if (!scene_source) {
-        last_error_ = "Failed to get scene source";
-        LOG_ERROR(last_error_);
-        obs_api::scene_release(scene_);
-        scene_ = nullptr;
-        obs_api::source_release(video_source_);
-        video_source_ = nullptr;
-        return false;
-    }
-    
-    obs_api::set_output_source(0, scene_source);
-    LOG_INFO("  Scene set as output source (this enables video rendering)");
+    // A single full-frame monitor source can feed the video mix directly.
+    // Avoiding a one-item scene removes an unnecessary composition layer.
+    obs_api::set_output_source(0, video_source_);
+    LOG_INFO("  Capture source connected directly to the video mix");
 
     LOG_INFO("  Video capture source created: " + std::string(capture_method_used));
     return true;
@@ -270,29 +368,27 @@ bool CaptureManager::create_audio_sources()
     return true;
 }
 
-obs_source_t* CaptureManager::get_scene_source() const
+obs_source_t* CaptureManager::get_output_source() const
 {
-    if (scene_) {
-        return obs_api::scene_get_source(scene_);
-    }
-    return nullptr;
+    return video_source_;
 }
 
 bool CaptureManager::is_producing_frames() const
 {
-    if (!video_source_ || !scene_) {
+    obs_source_t* output_source = get_output_source();
+    if (!video_source_ || !output_source) {
         return false;
     }
-    
+
     // Check if source is active
     bool source_active = obs_api::source_active(video_source_);
-    bool scene_active = obs_api::source_active(obs_api::scene_get_source(scene_));
-    
+    bool output_active = obs_api::source_active(output_source);
+
     LOG_INFO("[CAPTURE] Frame production check:");
     LOG_INFO("  Video source active: " + std::string(source_active ? "YES" : "NO"));
-    LOG_INFO("  Scene source active: " + std::string(scene_active ? "YES" : "NO"));
-    
-    return source_active && scene_active;
+    LOG_INFO("  Output source active: " + std::string(output_active ? "YES" : "NO"));
+
+    return source_active && output_active;
 }
 
 } // namespace clipvault

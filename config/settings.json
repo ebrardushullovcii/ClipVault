@@ -7,6 +7,9 @@
         "fps": 60,
         "encoder": "auto",
         "quality": 20,
+        "nvenc_preset": "p3",
+        "capture_method": "dxgi",
+        "capture_cursor": true,
         "monitor": 0
     },
     "audio": {

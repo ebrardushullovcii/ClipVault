@@ -87,10 +87,23 @@ private:
     std::atomic<bool> render_thread_running_{false};
 
     // Performance metrics
-    std::atomic<uint64_t> frame_count_{0};
+    std::atomic<uint64_t> health_check_count_{0};
     std::atomic<uint64_t> last_stats_time_{0};
     std::atomic<uint64_t> save_start_time_{0};
     std::atomic<uint64_t> save_start_tick_{0};
+
+    struct PerformanceSnapshot {
+        uint64_t tick_ms = 0;
+        uint64_t process_cpu_100ns = 0;
+        uint32_t rendered_frames = 0;
+        uint32_t lagged_frames = 0;
+        uint32_t video_frames = 0;
+        uint32_t skipped_frames = 0;
+        uint32_t encoded_frames = 0;
+        int output_frames = 0;
+    };
+
+    PerformanceSnapshot previous_performance_snapshot_{};
 
     // Start/stop render thread
     void start_render_thread();
@@ -98,6 +111,7 @@ private:
     void render_thread_loop();
 
     // Performance logging
+    PerformanceSnapshot capture_performance_snapshot() const;
     void log_performance_stats();
 
     // Lifecycle helpers

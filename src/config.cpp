@@ -203,6 +203,11 @@ bool ConfigManager::load(const std::string& filepath) {
         config_.video.monitor = extract_int(video_json, "monitor", config_.video.monitor);
         std::string encoder = extract_string(video_json, "encoder");
         if (!encoder.empty()) config_.video.encoder = encoder;
+        std::string nvenc_preset = extract_string(video_json, "nvenc_preset");
+        if (!nvenc_preset.empty()) config_.video.nvenc_preset = nvenc_preset;
+        std::string capture_method = extract_string(video_json, "capture_method");
+        if (!capture_method.empty()) config_.video.capture_method = capture_method;
+        config_.video.capture_cursor = extract_bool(video_json, "capture_cursor", config_.video.capture_cursor);
     }
 
     // Parse audio section
@@ -239,6 +244,9 @@ bool ConfigManager::load(const std::string& filepath) {
     LOG_INFO("  buffer_seconds: " + std::to_string(config_.buffer_seconds));
     LOG_INFO("  video: " + std::to_string(config_.video.width) + "x" + std::to_string(config_.video.height) + "@" + std::to_string(config_.video.fps) + "fps");
     LOG_INFO("  encoder: " + config_.video.encoder);
+    LOG_INFO("  NVENC preset: " + config_.video.nvenc_preset);
+    LOG_INFO("  capture method: " + config_.video.capture_method);
+    LOG_INFO("  capture cursor: " + std::string(config_.video.capture_cursor ? "yes" : "no"));
 
     return true;
 }
@@ -261,6 +269,9 @@ bool ConfigManager::save(const std::string& filepath) {
     file << "        \"fps\": " << config_.video.fps << ",\n";
     file << "        \"encoder\": \"" << escape_json_string(config_.video.encoder) << "\",\n";
     file << "        \"quality\": " << config_.video.quality << ",\n";
+    file << "        \"nvenc_preset\": \"" << escape_json_string(config_.video.nvenc_preset) << "\",\n";
+    file << "        \"capture_method\": \"" << escape_json_string(config_.video.capture_method) << "\",\n";
+    file << "        \"capture_cursor\": " << (config_.video.capture_cursor ? "true" : "false") << ",\n";
     file << "        \"monitor\": " << config_.video.monitor << "\n";
     file << "    },\n";
     file << "    \"audio\": {\n";

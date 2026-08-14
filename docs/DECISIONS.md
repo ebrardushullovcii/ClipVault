@@ -97,6 +97,26 @@ Decision: saved MP4 clips live under the configured output path. Per-clip metada
 
 Why: clip files and editor metadata should stay with the user's chosen clip folder, while generated thumbnails/audio can be rebuilt and cleaned as cache.
 
+### Treat Recording Size As A Range
+
+Decision: settings show a calibrated typical size and range for CQP/CRF recording instead of presenting one low fixed-bitrate number as an expected result.
+
+Why: constant-quality encoding intentionally spends more bits on detailed or fast-moving gameplay. The replay buffer keeps that encoded data in memory, so the same range also gives users an honest indication of buffer RAM use.
+
+Use five user-facing levels: Compact, Efficient, Balanced, Detailed, and Maximum. Keep the names tied to visible image quality and explain RAM and storage effects directly. Encoder compression effort remains a separate choice because it primarily changes NVENC use, not the selected image-quality level.
+
+### Default Sharing Exports To A Size Limit
+
+Decision: editor and bulk exports default to an upper 10 MB target and AV1 for better quality per megabyte on NVIDIA RTX 40-series or newer GPUs. H.264 remains selectable for maximum playback compatibility. Export codec, size target, frame rate, and resolution defaults are persistent settings, while each editor export can still override them. Re-encoding prefers bundled FFmpeg NVENC, then H.264 falls back to x264 limited to four threads. Original-quality stream copy remains selectable.
+
+Why: a short stream-copy export preserves the recording bitrate and can still be tens of megabytes. A visible size target matches sharing expectations, while hardware encoding and a bounded software fallback avoid unnecessary CPU pressure. Discord accepts H.264 and AV1 in MP4 files, but H.264 recording remains the compatibility baseline for ClipVault's own library and editor. AV1 improves image quality at the same size limit; it does not reduce a fixed 10 MB target below that selected limit.
+
+### Use One Clip Folder Watcher
+
+Decision: one main-process watcher handles clip add/remove notifications and thumbnail generation. The library performs a visibility-aware 30-second safety scan instead of reparsing every clip every three seconds.
+
+Why: duplicate watchers and frequent full-library scans add filesystem work without improving the normal event-driven path.
+
 ### Use The `clipvault://` Protocol For Renderer Media
 
 Decision: the renderer loads clips, thumbnails, audio, and exports through a custom `clipvault://` protocol.

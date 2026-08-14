@@ -12,6 +12,12 @@ import {
   Power,
 } from 'lucide-react'
 import type { AppSettings, AudioDeviceInfo, MonitorInfo } from '../../types/electron'
+import {
+  getQualityPresetId,
+  qualityPresetIds,
+  qualityPresets,
+  type QualityPresetId,
+} from '../../constants/videoQuality'
 
 interface SettingsProps {
   onClose: () => void
@@ -21,35 +27,6 @@ interface SettingsProps {
 type OpenDialogResult = {
   canceled: boolean
   filePaths: string[]
-}
-
-// Quality presets with realistic bitrates for file size calculation
-// Based on real-world x264 CQP encoding (measured from actual clips)
-const qualityPresets = {
-  low: {
-    quality: 30,
-    label: 'Low',
-    description: 'Smaller files, good for sharing',
-    videoBitrateMbps: 1.5, // ~1.5 Mbps (heavily compressed)
-  },
-  medium: {
-    quality: 23,
-    label: 'Medium',
-    description: 'Best balance of quality and size',
-    videoBitrateMbps: 2.5, // ~2.5 Mbps (typical for CQP 20-23)
-  },
-  high: {
-    quality: 18,
-    label: 'High',
-    description: 'High quality, larger files',
-    videoBitrateMbps: 5, // ~5 Mbps
-  },
-  ultra: {
-    quality: 15,
-    label: 'Ultra',
-    description: 'Maximum quality, very large files',
-    videoBitrateMbps: 12, // ~12 Mbps (visually lossless)
-  },
 }
 
 // All resolution presets (will be filtered by monitor resolution)
@@ -69,9 +46,10 @@ const calculateEstimatedSize = (
   width: number,
   height: number,
   fps: number,
-  qualityPreset: keyof typeof qualityPresets,
-  audioBitrateKbps: number
-): string => {
+  qualityPreset: QualityPresetId,
+  audioBitrateKbps: number,
+  audioTrackCount: number
+): { typical: string; range: string } => {
   const preset = qualityPresets[qualityPreset]
 
   // Base bitrate for 1080p60
@@ -86,22 +64,24 @@ const calculateEstimatedSize = (
   const fpsRatio = fps / 60
   videoBitrateMbps *= fpsRatio
 
-  // Audio bitrate in Mbps
-  const audioBitrateMbps = audioBitrateKbps / 1000
+  // Each enabled source is stored as its own AAC track.
+  const audioBitrateMbps = (audioBitrateKbps * audioTrackCount) / 1000
 
   // Total bitrate
   const totalBitrateMbps = videoBitrateMbps + audioBitrateMbps
 
-  // Calculate size in MB
-  const sizeMB = (totalBitrateMbps * durationSeconds) / 8
+  // The library reports binary MB (MiB), so use the same unit here.
+  const sizeMB = (totalBitrateMbps * 1_000_000 * durationSeconds) / 8 / (1024 * 1024)
 
-  // Format nicely
-  if (sizeMB >= 1024) {
-    return `${(sizeMB / 1024).toFixed(2)} GB`
-  } else if (sizeMB >= 1) {
-    return `${sizeMB.toFixed(1)} MB`
-  } else {
-    return `${(sizeMB * 1024).toFixed(0)} KB`
+  const formatSize = (valueMB: number): string => {
+    if (valueMB >= 1024) return `${(valueMB / 1024).toFixed(2)} GB`
+    if (valueMB >= 1) return `${Math.round(valueMB)} MB`
+    return `${Math.round(valueMB * 1024)} KB`
+  }
+
+  return {
+    typical: formatSize(sizeMB),
+    range: `${formatSize(sizeMB * 0.7)}–${formatSize(sizeMB * 1.35)}`,
   }
 }
 
@@ -396,7 +376,26 @@ export const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsSaved }) 
     })
   }, [])
 
-  const applyQualityPreset = (preset: keyof typeof qualityPresets) => {
+  const updateExportSetting = useCallback(
+    (key: keyof NonNullable<AppSettings['export']>, value: unknown) => {
+      setSettings(prev => {
+        if (!prev) return null
+        return {
+          ...prev,
+          export: {
+            codec: prev.export?.codec ?? 'av1',
+            target_size_mb: prev.export?.target_size_mb ?? 10,
+            fps: prev.export?.fps ?? 'original',
+            resolution: prev.export?.resolution ?? 'original',
+            [key]: value,
+          },
+        }
+      })
+    },
+    []
+  )
+
+  const applyQualityPreset = (preset: QualityPresetId) => {
     const { quality } = qualityPresets[preset]
     updateVideoSetting('quality', quality)
   }
@@ -421,25 +420,24 @@ export const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsSaved }) 
   }
 
   // Get current quality preset name
-  const getCurrentQualityPreset = (): keyof typeof qualityPresets => {
-    if (!settings) return 'medium'
-    const currentQuality = settings.video.quality
-    const preset = (Object.keys(qualityPresets) as Array<keyof typeof qualityPresets>).find(
-      key => qualityPresets[key].quality === currentQuality
-    )
-    return preset || 'medium'
+  const getCurrentQualityPreset = (): QualityPresetId => {
+    if (!settings) return 'balanced'
+    return getQualityPresetId(settings.video.quality)
   }
 
   // Calculate estimated file size
   const estimatedSize = useMemo(() => {
-    if (!settings) return '0 MB'
+    if (!settings) return { typical: '0 MB', range: '0 MB' }
+    const audioTrackCount =
+      Number(settings.audio.system_audio_enabled) + Number(settings.audio.microphone_enabled)
     return calculateEstimatedSize(
       settings.buffer_seconds,
       settings.video.width,
       settings.video.height,
       settings.video.fps,
       getCurrentQualityPreset(),
-      settings.audio.bitrate
+      settings.audio.bitrate,
+      audioTrackCount
     )
   }, [settings])
 
@@ -640,6 +638,9 @@ export const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsSaved }) 
                       )
                     })}
                   </div>
+                  <p className="mt-2 text-xs text-text-muted">
+                    Higher resolutions use more GPU, RAM, and storage.
+                  </p>
                   {monitors.length > 0 && availablePresets.length < allResolutionPresets.length && (
                     <p className="text-text-warning mt-2 text-xs">
                       Some options hidden - exceed monitor resolution
@@ -667,6 +668,9 @@ export const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsSaved }) 
                       </button>
                     ))}
                   </div>
+                  <p className="mt-2 text-xs text-text-muted">
+                    Higher frame rates use more GPU, RAM, and storage.
+                  </p>
                 </div>
               </div>
 
@@ -675,33 +679,38 @@ export const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsSaved }) 
                 <label className="mb-3 block text-sm font-medium text-text-secondary">
                   Quality Preset
                 </label>
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                  {(Object.keys(qualityPresets) as Array<keyof typeof qualityPresets>).map(
-                    preset => {
-                      const isActive = settings.video.quality === qualityPresets[preset].quality
-                      return (
-                        <button
-                          key={preset}
-                          onClick={() => applyQualityPreset(preset)}
-                          className={`rounded-lg border p-3 text-left transition-all ${
-                            isActive
-                              ? 'border-accent-primary bg-accent-primary/10'
-                              : 'border-border bg-background-tertiary hover:border-accent-primary/50'
-                          }`}
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+                  {qualityPresetIds.map(preset => {
+                    const isActive = currentPreset === preset
+                    return (
+                      <button
+                        key={preset}
+                        onClick={() => applyQualityPreset(preset)}
+                        className={`rounded-lg border p-3 text-left transition-all ${
+                          isActive
+                            ? 'border-accent-primary bg-accent-primary/10'
+                            : 'border-border bg-background-tertiary hover:border-accent-primary/50'
+                        }`}
+                      >
+                        <div
+                          className={`text-sm font-medium ${isActive ? 'text-accent-primary' : 'text-text-primary'}`}
                         >
-                          <div
-                            className={`text-sm font-medium ${isActive ? 'text-accent-primary' : 'text-text-primary'}`}
-                          >
-                            {qualityPresets[preset].label}
-                          </div>
-                          <div className="mt-1 text-xs leading-tight text-text-muted">
-                            {qualityPresets[preset].description}
-                          </div>
-                        </button>
-                      )
-                    }
-                  )}
+                          {qualityPresets[preset].label}
+                          <span className="ml-1 font-normal text-text-muted">
+                            · CQP {qualityPresets[preset].quality}
+                          </span>
+                        </div>
+                        <div className="mt-1 text-xs leading-tight text-text-muted">
+                          {qualityPresets[preset].description}
+                        </div>
+                      </button>
+                    )
+                  })}
                 </div>
+                <p className="mt-2 text-xs text-text-muted">
+                  Quality mainly changes rolling-buffer RAM and saved file size. It has much less
+                  effect on CPU or GPU use than resolution and frame rate.
+                </p>
               </div>
 
               {/* Buffer Duration - Moved to Video section */}
@@ -712,7 +721,8 @@ export const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsSaved }) 
                       Buffer Duration
                     </label>
                     <p className="mt-1 text-xs text-text-muted">
-                      How much gameplay is kept in memory
+                      Longer buffers use more RAM and allow longer saved clips. They do not increase
+                      per-frame CPU or GPU work.
                     </p>
                   </div>
                   <div className="flex items-center gap-3">
@@ -743,8 +753,18 @@ export const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsSaved }) 
                 <label className="mb-2 block text-sm font-medium text-text-secondary">
                   Encoder
                 </label>
-                <div className="flex gap-3">
-                  {(['auto', 'nvenc', 'x264'] as const).map(encoder => (
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  {(
+                    [
+                      [
+                        'auto',
+                        'Auto (Recommended)',
+                        'Uses NVENC when available, then CPU fallback.',
+                      ],
+                      ['nvenc', 'NVENC (GPU)', 'Lowest CPU use. Requires a compatible NVIDIA GPU.'],
+                      ['x264', 'x264 (CPU)', 'Uses more CPU and avoids the NVIDIA video encoder.'],
+                    ] as const
+                  ).map(([encoder, label, description]) => (
                     <button
                       key={encoder}
                       onClick={() => updateVideoSetting('encoder', encoder)}
@@ -754,28 +774,38 @@ export const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsSaved }) 
                           : 'border-border bg-background-tertiary text-text-secondary hover:border-accent-primary/50'
                       }`}
                     >
-                      {encoder === 'auto' && 'Auto (NVENC if available)'}
-                      {encoder === 'nvenc' && 'NVENC (GPU)'}
-                      {encoder === 'x264' && 'x264 (CPU)'}
+                      <span className="block">{label}</span>
+                      <span className="mt-1 block text-left text-xs font-normal text-text-muted">
+                        {description}
+                      </span>
                     </button>
                   ))}
                 </div>
-                <p className="mt-2 text-xs text-text-muted">
-                  NVENC uses your NVIDIA GPU for minimal performance impact
-                </p>
               </div>
 
               {settings.video.encoder !== 'x264' && (
                 <div>
                   <label className="mb-2 block text-sm font-medium text-text-secondary">
-                    NVENC Performance
+                    NVENC Compression Effort
                   </label>
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                     {(
                       [
-                        ['p1', 'P1', 'Lowest encoder load'],
-                        ['p2', 'P2', 'Faster'],
-                        ['p3', 'P3', 'Balanced (Recommended)'],
+                        [
+                          'p1',
+                          'P1 · Lightest',
+                          'Least GPU encoder work; compression is less efficient.',
+                        ],
+                        [
+                          'p2',
+                          'P2 · Low',
+                          'Low GPU encoder work and a middle ground for compression.',
+                        ],
+                        [
+                          'p3',
+                          'P3 · Balanced',
+                          'More GPU encoder work for better compression. Recommended.',
+                        ],
                       ] as const
                     ).map(([preset, label, description]) => (
                       <button
@@ -793,9 +823,10 @@ export const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsSaved }) 
                     ))}
                   </div>
                   <p className="mt-2 text-xs text-text-muted">
-                    This controls encoder speed independently from the quality preset. Faster
-                    presets leave more NVENC capacity for Discord but can produce larger files at
-                    the same CQP quality.
+                    This changes how hard the GPU video encoder works, not the selected image
+                    quality. P1 leaves the most encoder capacity for another recorder or stream. P3
+                    compresses more efficiently. CPU use stays low with NVENC; RAM and file size may
+                    change slightly.
                   </p>
                 </div>
               )}
@@ -806,17 +837,24 @@ export const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsSaved }) 
                   <HardDrive className="h-5 w-5 text-accent-primary" />
                   <div className="flex-1">
                     <div className="text-sm font-medium text-text-primary">
-                      Estimated File Size per Clip
+                      Typical File Size per Clip
                     </div>
                     <div className="mt-1 text-xs text-text-muted">
                       Based on {formatDuration(settings.buffer_seconds)} @ {settings.video.width}x
                       {settings.video.height} with {qualityPresets[currentPreset].label} quality
                     </div>
                     <div className="mt-0.5 text-xs italic text-text-muted/60">
-                      *Actual size varies with content complexity (CQP/CRF uses variable bitrate)
+                      Typical range: {estimatedSize.range}. Fast motion and fine detail use more
+                      space.
+                    </div>
+                    <div className="mt-0.5 text-xs text-text-muted/60">
+                      The rolling video buffer uses roughly this much RAM, plus normal app and OBS
+                      overhead.
                     </div>
                   </div>
-                  <div className="text-lg font-semibold text-accent-primary">{estimatedSize}</div>
+                  <div className="text-lg font-semibold text-accent-primary">
+                    ≈{estimatedSize.typical}
+                  </div>
                 </div>
               </div>
             </div>
@@ -1016,6 +1054,136 @@ export const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsSaved }) 
             </div>
           </section>
 
+          {/* Export Defaults */}
+          <section className="rounded-xl border border-border bg-background-secondary p-6">
+            <div className="mb-4 flex items-center gap-2">
+              <HardDrive className="h-5 w-5 text-accent-primary" />
+              <h2 className="text-lg font-semibold text-text-primary">Export Defaults</h2>
+            </div>
+
+            <p className="mb-5 text-sm text-text-muted">
+              These choices are preselected whenever you open the editor or export several clips.
+              You can still change them for an individual export.
+            </p>
+
+            <div className="space-y-5">
+              <div>
+                <label className="mb-2 block text-sm font-medium text-text-secondary">
+                  Compression
+                </label>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {(
+                    [
+                      [
+                        'av1',
+                        'AV1 · Better quality per MB',
+                        'Recommended for Discord. Uses the RTX 40-series GPU encoder.',
+                      ],
+                      [
+                        'h264',
+                        'H.264 · Most compatible',
+                        'Works on more devices, but usually looks softer at the same file size.',
+                      ],
+                    ] as const
+                  ).map(([codec, label, description]) => {
+                    const isActive = (settings.export?.codec ?? 'av1') === codec
+                    return (
+                      <button
+                        key={codec}
+                        type="button"
+                        onClick={() => updateExportSetting('codec', codec)}
+                        className={`rounded-lg border p-4 text-left transition-all ${
+                          isActive
+                            ? 'border-accent-primary bg-accent-primary/10'
+                            : 'border-border bg-background-tertiary hover:border-accent-primary/50'
+                        }`}
+                      >
+                        <div
+                          className={`text-sm font-medium ${isActive ? 'text-accent-primary' : 'text-text-primary'}`}
+                        >
+                          {label}
+                        </div>
+                        <div className="mt-1 text-xs text-text-muted">{description}</div>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-3">
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-text-secondary">
+                    File size target
+                  </label>
+                  <select
+                    value={String(settings.export?.target_size_mb ?? 10)}
+                    onChange={e =>
+                      updateExportSetting(
+                        'target_size_mb',
+                        e.target.value === 'original' ? 'original' : Number(e.target.value)
+                      )
+                    }
+                    className="w-full rounded-lg border border-border bg-background-tertiary px-3 py-2 text-sm text-text-primary focus:border-accent-primary focus:outline-none"
+                  >
+                    <option value="10">Up to 10 MB</option>
+                    <option value="50">Up to 50 MB</option>
+                    <option value="100">Up to 100 MB</option>
+                    <option value="original">Keep original</option>
+                  </select>
+                  <p className="mt-1 text-xs text-text-muted">
+                    Smaller limits use more compression. Keep original is fastest but can be large.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-text-secondary">
+                    Frame rate
+                  </label>
+                  <select
+                    value={String(settings.export?.fps ?? 'original')}
+                    onChange={e =>
+                      updateExportSetting(
+                        'fps',
+                        e.target.value === 'original' ? 'original' : Number(e.target.value)
+                      )
+                    }
+                    className="w-full rounded-lg border border-border bg-background-tertiary px-3 py-2 text-sm text-text-primary focus:border-accent-primary focus:outline-none"
+                  >
+                    <option value="original">Keep original</option>
+                    {[30, 60, 120, 144].map(fps => (
+                      <option key={fps} value={fps}>
+                        {fps} FPS
+                      </option>
+                    ))}
+                  </select>
+                  <p className="mt-1 text-xs text-text-muted">
+                    Lower FPS reduces encoder work and leaves more bits for each frame.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-text-secondary">
+                    Resolution
+                  </label>
+                  <select
+                    value={settings.export?.resolution ?? 'original'}
+                    onChange={e => updateExportSetting('resolution', e.target.value)}
+                    className="w-full rounded-lg border border-border bg-background-tertiary px-3 py-2 text-sm text-text-primary focus:border-accent-primary focus:outline-none"
+                  >
+                    <option value="original">Keep original</option>
+                    <option value="1280x720">720p</option>
+                    <option value="1920x1080">1080p</option>
+                    <option value="2560x1440">1440p</option>
+                    <option value="3840x2160">4K</option>
+                  </select>
+                  <p className="mt-1 text-xs text-text-muted">
+                    Lower resolution reduces GPU work and improves quality at a tight size limit.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </section>
+
           {/* Hotkey Settings */}
           <section className="rounded-xl border border-border bg-background-secondary p-6">
             <div className="mb-4 flex items-center gap-2">
@@ -1038,7 +1206,8 @@ export const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsSaved }) 
               />
               <p className="mt-1 text-xs text-text-muted">
                 Press this key combination to save the last{' '}
-                {formatDuration(settings.buffer_seconds)} as a clip (~{estimatedSize})
+                {formatDuration(settings.buffer_seconds)} as a clip (typically ≈
+                {estimatedSize.typical})
               </p>
             </div>
           </section>

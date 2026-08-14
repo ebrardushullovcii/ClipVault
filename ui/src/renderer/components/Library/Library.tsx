@@ -22,7 +22,12 @@ import { GameTagEditor } from '../GameTagEditor'
 import { useThumbnails } from '../../hooks/useThumbnails'
 import { useVideoMetadata, type VideoMetadata } from '../../hooks/useVideoMetadata'
 import { useLibraryState } from '../../hooks/useLibraryState'
-import type { ClipInfo, ClipMetadata, AudioTrackSetting } from '../../types/electron'
+import type {
+  ClipInfo,
+  ClipMetadata,
+  AudioTrackSetting,
+  ExportDefaults,
+} from '../../types/electron'
 
 export interface LibraryProps {
   onOpenEditor: (clip: ClipInfo, metadata: VideoMetadata) => void
@@ -36,6 +41,7 @@ export interface LibraryProps {
     ) => { clip: ClipInfo; metadata: VideoMetadata } | null
   ) => void
   hoverPreviewEnabled?: boolean
+  exportDefaults?: ExportDefaults
 }
 
 // Constants for virtualization
@@ -88,7 +94,12 @@ export const Library: React.FC<LibraryProps> = ({
   onRegisterUpdate,
   onRegisterNavigation,
   hoverPreviewEnabled = true,
+  exportDefaults,
 }) => {
+  const defaultExportCodec = exportDefaults?.codec ?? 'av1'
+  const defaultExportTargetSizeMB = exportDefaults?.targetSizeMB ?? 10
+  const defaultExportFps = exportDefaults?.fps ?? 'original'
+  const defaultExportResolution = exportDefaults?.resolution ?? 'original'
   const [clips, setClips] = useState<ClipInfo[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -111,7 +122,12 @@ export const Library: React.FC<LibraryProps> = ({
   const [bulkExportTotal, setBulkExportTotal] = useState(0)
   const [bulkExportCurrent, setBulkExportCurrent] = useState<string | null>(null)
   const [bulkExportErrors, setBulkExportErrors] = useState<string[]>([])
-  const [bulkTargetSizeMB, setBulkTargetSizeMB] = useState<number | 'original'>('original')
+  const [bulkTargetSizeMB, setBulkTargetSizeMB] = useState<number | 'original'>(
+    defaultExportTargetSizeMB
+  )
+  const [bulkExportCodec, setBulkExportCodec] = useState<'h264' | 'av1'>(defaultExportCodec)
+  const [bulkExportFps, setBulkExportFps] = useState<number | 'original'>(defaultExportFps)
+  const [bulkExportResolution, setBulkExportResolution] = useState(defaultExportResolution)
   const [showExportSizeDropdown, setShowExportSizeDropdown] = useState(false)
   const [hoverPreviewClipId, setHoverPreviewClipId] = useState<string | null>(null)
   const bulkExportAbortRef = useRef(false)
@@ -128,6 +144,13 @@ export const Library: React.FC<LibraryProps> = ({
   const [gamesList, setGamesList] = useState<string[]>([])
   const [gamesLoading, setGamesLoading] = useState(false)
   const [gameSearchQuery, setGameSearchQuery] = useState('')
+
+  useEffect(() => {
+    setBulkTargetSizeMB(defaultExportTargetSizeMB)
+    setBulkExportCodec(defaultExportCodec)
+    setBulkExportFps(defaultExportFps)
+    setBulkExportResolution(defaultExportResolution)
+  }, [defaultExportCodec, defaultExportFps, defaultExportResolution, defaultExportTargetSizeMB])
 
   // Use persistent state
   const {
@@ -337,11 +360,13 @@ export const Library: React.FC<LibraryProps> = ({
     }
   }, [isRestored])
 
-  // Poll for new/removed clips as a fallback for unreliable file watcher events on Windows
+  // Poll infrequently as a safety net. The main-process watcher handles normal updates.
   useEffect(() => {
     if (!isRestored) return
 
     const interval = setInterval(async () => {
+      if (document.visibilityState !== 'visible') return
+
       try {
         const freshList = await window.electronAPI.getClipsList()
         setClips(prev => {
@@ -353,7 +378,7 @@ export const Library: React.FC<LibraryProps> = ({
       } catch {
         // Silently ignore - this is just a fallback
       }
-    }, 3000)
+    }, 30000)
 
     return () => clearInterval(interval)
   }, [isRestored])
@@ -1082,7 +1107,15 @@ export const Library: React.FC<LibraryProps> = ({
       const audioTrack2 = resolveAudioEnabled(clip.metadata?.audio?.track2)
 
       const baseFilename = clip.filename.replace('.mp4', '')
-      const timestamp = new Date().toISOString().replace(/[-:.]/g, '').slice(0, 15)
+      // Avoid punctuation-group regexes that Tailwind can mistake for class syntax.
+      const timestamp = new Date()
+        .toISOString()
+        .split('-')
+        .join('')
+        .split(':')
+        .join('')
+        .replace('.', '')
+        .slice(0, 15)
       const exportFilename = `${baseFilename}_export_${timestamp}.mp4`
 
       try {
@@ -1096,6 +1129,9 @@ export const Library: React.FC<LibraryProps> = ({
           audioTrack1Volume: 1.0,
           audioTrack2Volume: 1.0,
           targetSizeMB: bulkTargetSizeMB,
+          exportCodec: bulkExportCodec,
+          exportFps: bulkExportFps !== 'original' ? bulkExportFps : undefined,
+          exportResolution: bulkExportResolution !== 'original' ? bulkExportResolution : undefined,
         })
 
         if (!result.success) {
@@ -1123,7 +1159,17 @@ export const Library: React.FC<LibraryProps> = ({
     }
     bulkExportAbortRef.current = false
     clearSelection()
-  }, [bulkTargetSizeMB, clearSelection, fetchMetadata, metadata, selectedClips, showBulkMessage])
+  }, [
+    bulkExportCodec,
+    bulkExportFps,
+    bulkExportResolution,
+    bulkTargetSizeMB,
+    clearSelection,
+    fetchMetadata,
+    metadata,
+    selectedClips,
+    showBulkMessage,
+  ])
 
   const handleCancelExport = useCallback(() => {
     if (isBulkExporting) {
@@ -1572,10 +1618,10 @@ export const Library: React.FC<LibraryProps> = ({
                 {showExportSizeDropdown && (
                   <div className="absolute right-0 top-9 z-20 w-36 overflow-hidden rounded-lg border border-border bg-background-secondary shadow-lg">
                     {[
-                      { label: 'Original', value: 'original' as const },
-                      { label: '10 MB', value: 10 },
-                      { label: '50 MB', value: 50 },
-                      { label: '100 MB', value: 100 },
+                      { label: 'Keep original', value: 'original' as const },
+                      { label: 'Up to 10 MB', value: 10 },
+                      { label: 'Up to 50 MB', value: 50 },
+                      { label: 'Up to 100 MB', value: 100 },
                     ].map(option => (
                       <button
                         key={option.label}
@@ -1596,6 +1642,21 @@ export const Library: React.FC<LibraryProps> = ({
                   </div>
                 )}
               </div>
+              <label className="flex items-center gap-1 rounded-md border border-border bg-background-secondary px-2 py-1.5 text-xs text-text-muted">
+                Compression:
+                <select
+                  value={bulkExportCodec}
+                  onChange={event =>
+                    setBulkExportCodec(event.target.value === 'av1' ? 'av1' : 'h264')
+                  }
+                  disabled={bulkTargetSizeMB === 'original' || isBulkExporting}
+                  title="AV1 gives better quality per MB but requires an NVIDIA RTX 40-series or newer GPU"
+                  className="bg-transparent text-text-primary outline-none disabled:opacity-50"
+                >
+                  <option value="h264">H.264</option>
+                  <option value="av1">AV1</option>
+                </select>
+              </label>
               <button
                 type="button"
                 onClick={handleBulkExport}

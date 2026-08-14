@@ -1033,7 +1033,7 @@ const defaultSettings = {
     height: 1080,
     fps: 60,
     encoder: 'auto',
-    quality: 20,
+    quality: 23,
     nvenc_preset: 'p3',
     capture_method: 'dxgi',
     capture_cursor: true,
@@ -1049,6 +1049,15 @@ const defaultSettings = {
   },
   hotkey: {
     save_clip: 'F9',
+  },
+  editor: {
+    skip_seconds: 5,
+  },
+  export: {
+    codec: 'av1' as 'h264' | 'av1',
+    target_size_mb: 10 as number | 'original',
+    fps: 'original' as number | 'original',
+    resolution: 'original',
   },
   ui: {
     show_notifications: true,
@@ -1104,6 +1113,14 @@ const normalizeSettings = (raw: unknown, fileExists: boolean) => {
       ...defaultSettings.hotkey,
       ...(base.hotkey && typeof base.hotkey === 'object' ? base.hotkey : {}),
     },
+    editor: {
+      ...defaultSettings.editor,
+      ...(base.editor && typeof base.editor === 'object' ? base.editor : {}),
+    },
+    export: {
+      ...defaultSettings.export,
+      ...(base.export && typeof base.export === 'object' ? base.export : {}),
+    },
     ui: {
       ...defaultSettings.ui,
       ...(base.ui && typeof base.ui === 'object' ? base.ui : {}),
@@ -1151,6 +1168,34 @@ const normalizeSettings = (raw: unknown, fileExists: boolean) => {
 
   if (typeof merged.audio.microphone_device_id !== 'string') {
     merged.audio.microphone_device_id = 'default'
+  }
+
+  if (!Number.isFinite(merged.editor.skip_seconds) || merged.editor.skip_seconds < 1) {
+    merged.editor.skip_seconds = defaultSettings.editor.skip_seconds
+  }
+
+  if (!['h264', 'av1'].includes(merged.export.codec)) {
+    merged.export.codec = defaultSettings.export.codec
+  }
+
+  if (
+    merged.export.target_size_mb !== 'original' &&
+    (!Number.isFinite(merged.export.target_size_mb) || merged.export.target_size_mb <= 0)
+  ) {
+    merged.export.target_size_mb = defaultSettings.export.target_size_mb
+  }
+
+  if (merged.export.fps !== 'original' && ![30, 60, 120, 144].includes(merged.export.fps)) {
+    merged.export.fps = defaultSettings.export.fps
+  }
+
+  if (
+    typeof merged.export.resolution !== 'string' ||
+    !['original', '1280x720', '1920x1080', '2560x1440', '3840x2160'].includes(
+      merged.export.resolution
+    )
+  ) {
+    merged.export.resolution = defaultSettings.export.resolution
   }
 
   if (typeof merged.ui.library_hover_preview !== 'boolean') {
@@ -2531,7 +2576,8 @@ async function preGenerateThumbnails() {
     let windowsGenerated = 0
     let ffmpegGenerated = 0
 
-    const batchSize = 3
+    // Avoid launching several FFmpeg decoders at once during background work.
+    const batchSize = 1
     const worker = getThumbnailWorker()
     const useWorker = worker.isAvailable()
 
@@ -2604,7 +2650,7 @@ async function preGenerateThumbnails() {
       )
 
       if (i + batchSize < videoFiles.length) {
-        await new Promise(r => setTimeout(r, 100))
+        await new Promise(r => setTimeout(r, 250))
       }
     }
 
@@ -2639,6 +2685,7 @@ function startClipsWatcher() {
   clipsWatcher = chokidar.watch(clipsDir, {
     ignored: /(^|[\/\\])\../, // Ignore hidden files
     persistent: true,
+    depth: 0,
     ignoreInitial: true, // Don't fire for existing files
     awaitWriteFinish: {
       stabilityThreshold: 1000, // Wait 1s for file size to stabilize (recording complete)
@@ -2651,6 +2698,13 @@ function startClipsWatcher() {
     if (!filePath.endsWith('.mp4')) return
 
     const filename = basename(filePath)
+
+    if (!suppressFileWatcher) {
+      BrowserWindow.getAllWindows().forEach(window => {
+        window.webContents.send('clips:new', { filename })
+      })
+    }
+
     const clipId = filename.replace('.mp4', '')
     const thumbnailFilename = `${clipId}.jpg`
     const thumbnailPath = join(thumbnailsPath, thumbnailFilename)
@@ -2695,6 +2749,15 @@ function startClipsWatcher() {
       logThumbnail(`[Watcher] Failed to generate thumbnail: ${thumbnailFilename} - ${error}`)
       console.error(`[ClipsWatcher] ✗ Failed: ${thumbnailFilename}`, error)
     }
+  })
+
+  clipsWatcher.on('unlink', (filePath: string) => {
+    if (!filePath.endsWith('.mp4') || suppressFileWatcher) return
+
+    const filename = basename(filePath)
+    BrowserWindow.getAllWindows().forEach(window => {
+      window.webContents.send('clips:removed', { filename })
+    })
   })
 
   clipsWatcher.on('error', error => {
@@ -4216,6 +4279,7 @@ ipcMain.handle(
       audioTrack1Volume?: number
       audioTrack2Volume?: number
       targetSizeMB?: number | 'original'
+      exportCodec?: 'h264' | 'av1'
       exportFps?: number
       exportResolution?: string
     }
@@ -4231,12 +4295,17 @@ ipcMain.handle(
         audioTrack1Volume,
         audioTrack2Volume,
         targetSizeMB = 'original',
+        exportCodec = 'av1',
         exportFps,
         exportResolution,
       } = params
       const duration = trimEnd - trimStart
       const vol1 = audioTrack1Volume ?? 1.0
       const vol2 = audioTrack2Volume ?? 1.0
+
+      if (!Number.isFinite(trimStart) || !Number.isFinite(trimEnd) || duration <= 0) {
+        throw new Error(`Invalid export range: ${trimStart} - ${trimEnd}`)
+      }
 
       // Create exported-clips directory if it doesn't exist
       const exportedClipsPath = join(getClipsPath(), 'exported-clips')
@@ -4247,121 +4316,249 @@ ipcMain.handle(
       // Build full output path
       const outputPath = join(exportedClipsPath, exportFilename)
 
-      // Calculate video bitrate if target size is specified
+      // Calculate a conservative bitrate budget when an upper size is requested.
       let videoBitrate: number | null = null
+      let audioBitrate = 128
       let useTargetSize = false
+      let targetSizeBytes: number | null = null
       if (typeof targetSizeMB === 'number' && targetSizeMB > 0 && duration > 0) {
-        // Formula: target_size_mb * 8192 kb / duration_sec - audio_overhead
-        // Leave ~15% overhead for container and audio
-        const targetSizeKB = targetSizeMB * 8192 * 0.85
-        const totalBitrate = Math.floor(targetSizeKB / duration)
-        const audioBitrate = 128 // AAC audio bitrate
-        videoBitrate = Math.max(totalBitrate - audioBitrate, 500) // Minimum 500kbps
+        targetSizeBytes = Math.floor(targetSizeMB * 1024 * 1024)
+        const totalBitrate = Math.floor((targetSizeBytes * 8 * 0.88) / duration / 1000)
+        const hasAudio = audioTrack1 || audioTrack2
+        audioBitrate = !hasAudio ? 0 : totalBitrate >= 900 ? 128 : totalBitrate >= 500 ? 96 : 64
+        videoBitrate = Math.max(totalBitrate - audioBitrate, 100)
         useTargetSize = true
         console.log(
-          `Target size: ${targetSizeMB}MB, Duration: ${duration}s, Video bitrate: ${videoBitrate}kbps`
+          `Target size: ${targetSizeMB}MB, Duration: ${duration}s, Video bitrate: ${videoBitrate}kbps, Audio bitrate: ${audioBitrate}kbps`
         )
       }
 
+      // AV1 is offered for compressed sharing exports. Original mode remains a
+      // stream copy so users never pay for an unexpected transcode.
+      const outputVideoCodec: 'h264' | 'av1' =
+        useTargetSize && exportCodec === 'av1' ? 'av1' : 'h264'
       const needsReencode = useTargetSize || !!exportFps || !!exportResolution
+      const settings = await readNormalizedSettings()
+      let selectedEncoder: 'nvenc' | 'x264' =
+        outputVideoCodec === 'av1'
+          ? 'nvenc'
+          : needsReencode && settings.video.encoder !== 'x264'
+            ? 'nvenc'
+            : 'x264'
 
-      return new Promise((resolve, reject) => {
-        const command = ffmpeg(clipPath).seekInput(trimStart).duration(duration)
-
-        // Build video filter chain for fps/resolution changes
-        const videoFilters: string[] = []
-        if (exportResolution) {
-          const [w, h] = exportResolution.split('x')
-          if (w && h && !isNaN(Number(w)) && !isNaN(Number(h))) {
-            videoFilters.push(
-              `scale=${w}:${h}:force_original_aspect_ratio=decrease,pad=${w}:${h}:(ow-iw)/2:(oh-ih)/2`
-            )
-          }
+      const removePartialOutput = async () => {
+        if (existsSync(outputPath)) {
+          await fsUnlinkAsync(outputPath)
         }
-        if (exportFps) {
-          videoFilters.push(`fps=${exportFps}`)
-        }
+      }
 
-        const hasVideoFilters = videoFilters.length > 0
-        const needsDualAudioMix = audioTrack1 && audioTrack2
+      const runExport = (encoder: 'nvenc' | 'x264', requestedVideoBitrate: number | null) =>
+        new Promise<void>((resolve, reject) => {
+          const command = ffmpeg(clipPath).seekInput(trimStart).duration(duration)
 
-        // Configure video encoding
-        if (useTargetSize && videoBitrate) {
-          command.videoCodec('libx264')
-          command.outputOptions([
-            '-b:v',
-            `${videoBitrate}k`,
-            '-maxrate',
-            `${Math.floor(videoBitrate * 1.5)}k`,
-            '-bufsize',
-            `${videoBitrate * 2}k`,
-            '-preset',
-            'fast',
-            '-pix_fmt',
-            'yuv420p',
-          ])
-        } else if (needsReencode) {
-          command.videoCodec('libx264')
-          command.outputOptions(['-crf', '18', '-preset', 'fast', '-pix_fmt', 'yuv420p'])
-        } else {
-          command.videoCodec('copy')
-        }
-
-        // Map audio tracks — use filter_complex when mixing both tracks,
-        // and merge video filters into it to avoid -vf + -filter_complex conflict
-        if (needsDualAudioMix) {
-          const videoChain = hasVideoFilters ? `[0:v:0]${videoFilters.join(',')}[vout];` : ''
-          const videoMap = hasVideoFilters ? '[vout]' : '0:v:0'
-          const audioChain = `[0:a:0]volume=${vol1}[a0];[0:a:1]volume=${vol2}[a1];[a0][a1]amix=inputs=2:duration=first:dropout_transition=3[aout]`
-          command.outputOptions([
-            '-filter_complex',
-            `${videoChain}${audioChain}`,
-            '-map',
-            videoMap,
-            '-map',
-            '[aout]',
-            '-c:a aac',
-            '-b:a 128k',
-            '-ac 2',
-          ])
-        } else {
-          // Apply video filters via -vf (no conflict with -filter_complex)
-          if (hasVideoFilters && needsReencode) {
-            command.outputOptions(['-vf', videoFilters.join(',')])
-          }
-
-          if (audioTrack1) {
-            if (vol1 < 1.0) {
-              command.outputOptions(['-map 0:v:0', '-map 0:a:0', '-filter:a:0', `volume=${vol1}`])
-            } else {
-              command.outputOptions(['-map 0:v:0', '-map 0:a:0'])
+          // Build video filter chain for fps/resolution changes
+          const videoFilters: string[] = []
+          if (exportResolution) {
+            const [w, h] = exportResolution.split('x')
+            if (w && h && !isNaN(Number(w)) && !isNaN(Number(h))) {
+              videoFilters.push(
+                `scale=${w}:${h}:force_original_aspect_ratio=decrease,pad=${w}:${h}:(ow-iw)/2:(oh-ih)/2`
+              )
             }
-          } else if (audioTrack2) {
-            if (vol2 < 1.0) {
-              command.outputOptions(['-map 0:v:0', '-map 0:a:1', '-filter:a:0', `volume=${vol2}`])
+          }
+          if (exportFps) {
+            videoFilters.push(`fps=${exportFps}`)
+          }
+
+          const hasVideoFilters = videoFilters.length > 0
+          const needsDualAudioMix = audioTrack1 && audioTrack2
+
+          // Configure video encoding
+          if (useTargetSize && requestedVideoBitrate) {
+            if (encoder === 'nvenc') {
+              command.videoCodec(outputVideoCodec === 'av1' ? 'av1_nvenc' : 'h264_nvenc')
+              command.outputOptions([
+                '-preset',
+                'p3',
+                '-tune',
+                'hq',
+                '-rc',
+                'vbr',
+                '-b:v',
+                `${requestedVideoBitrate}k`,
+                '-maxrate',
+                `${requestedVideoBitrate}k`,
+                '-bufsize',
+                `${requestedVideoBitrate * 2}k`,
+                '-pix_fmt',
+                'yuv420p',
+              ])
+              if (outputVideoCodec === 'av1') {
+                command.outputOptions(['-tag:v', 'av01'])
+              }
             } else {
-              command.outputOptions(['-map 0:v:0', '-map 0:a:1'])
+              command.videoCodec('libx264')
+              command.outputOptions([
+                '-b:v',
+                `${requestedVideoBitrate}k`,
+                '-maxrate',
+                `${Math.floor(requestedVideoBitrate * 1.15)}k`,
+                '-bufsize',
+                `${requestedVideoBitrate * 2}k`,
+                '-preset',
+                'veryfast',
+                '-threads',
+                '4',
+                '-pix_fmt',
+                'yuv420p',
+              ])
+            }
+          } else if (needsReencode) {
+            if (encoder === 'nvenc') {
+              command.videoCodec('h264_nvenc')
+              command.outputOptions([
+                '-preset',
+                'p3',
+                '-tune',
+                'hq',
+                '-rc',
+                'constqp',
+                '-qp',
+                '23',
+                '-pix_fmt',
+                'yuv420p',
+              ])
+            } else {
+              command.videoCodec('libx264')
+              command.outputOptions([
+                '-crf',
+                '18',
+                '-preset',
+                'veryfast',
+                '-threads',
+                '4',
+                '-pix_fmt',
+                'yuv420p',
+              ])
             }
           } else {
-            command.noAudio()
+            command.videoCodec('copy')
           }
+
+          // Map audio tracks — use filter_complex when mixing both tracks,
+          // and merge video filters into it to avoid -vf + -filter_complex conflict
+          if (needsDualAudioMix) {
+            const videoChain = hasVideoFilters ? `[0:v:0]${videoFilters.join(',')}[vout];` : ''
+            const videoMap = hasVideoFilters ? '[vout]' : '0:v:0'
+            const audioChain = `[0:a:0]volume=${vol1}[a0];[0:a:1]volume=${vol2}[a1];[a0][a1]amix=inputs=2:duration=first:dropout_transition=3[aout]`
+            command.outputOptions([
+              '-filter_complex',
+              `${videoChain}${audioChain}`,
+              '-map',
+              videoMap,
+              '-map',
+              '[aout]',
+              '-c:a',
+              'aac',
+              '-b:a',
+              `${audioBitrate || 128}k`,
+              '-ac',
+              '2',
+            ])
+          } else {
+            // Apply video filters via -vf (no conflict with -filter_complex)
+            if (hasVideoFilters && needsReencode) {
+              command.outputOptions(['-vf', videoFilters.join(',')])
+            }
+
+            if (audioTrack1) {
+              if (vol1 < 1.0) {
+                command.outputOptions(['-map 0:v:0', '-map 0:a:0', '-filter:a:0', `volume=${vol1}`])
+              } else {
+                command.outputOptions(['-map 0:v:0', '-map 0:a:0'])
+              }
+            } else if (audioTrack2) {
+              if (vol2 < 1.0) {
+                command.outputOptions(['-map 0:v:0', '-map 0:a:1', '-filter:a:0', `volume=${vol2}`])
+              } else {
+                command.outputOptions(['-map 0:v:0', '-map 0:a:1'])
+              }
+            } else {
+              command.noAudio()
+            }
+
+            if ((audioTrack1 || audioTrack2) && (useTargetSize || vol1 < 1.0 || vol2 < 1.0)) {
+              command.outputOptions(['-c:a', 'aac', '-b:a', `${audioBitrate || 128}k`, '-ac', '2'])
+            } else if (audioTrack1 || audioTrack2) {
+              command.outputOptions(['-c:a', 'copy'])
+            }
+          }
+
+          // Put MP4 metadata at the beginning so Discord and local previews can
+          // start playback before reading the whole file.
+          command.outputOptions(['-movflags', '+faststart'])
+
+          command
+            .on('progress', progress => {
+              if (mainWindow && progress.percent) {
+                mainWindow.webContents.send('export:progress', { percent: progress.percent })
+              }
+            })
+            .on('end', () => {
+              resolve()
+            })
+            .on('error', err => {
+              console.error('Export error:', err)
+              reject(err)
+            })
+            .save(outputPath)
+        })
+
+      try {
+        await runExport(selectedEncoder, videoBitrate)
+      } catch (error) {
+        if (outputVideoCodec === 'av1') {
+          await removePartialOutput()
+          throw new Error(
+            `AV1 export requires an NVIDIA RTX 40-series or newer GPU: ${String(error)}`
+          )
         }
 
-        command
-          .on('progress', progress => {
-            if (mainWindow && progress.percent) {
-              mainWindow.webContents.send('export:progress', { percent: progress.percent })
-            }
-          })
-          .on('end', () => {
-            resolve({ success: true, filePath: outputPath })
-          })
-          .on('error', err => {
-            console.error('Export error:', err)
-            reject(err)
-          })
-          .save(outputPath)
-      })
+        if (!needsReencode || selectedEncoder !== 'nvenc') {
+          throw error
+        }
+
+        console.warn('NVENC export failed; retrying with capped-CPU x264:', error)
+        await removePartialOutput()
+        selectedEncoder = 'x264'
+        await runExport(selectedEncoder, videoBitrate)
+      }
+
+      let outputStats = await stat(outputPath)
+      if (useTargetSize && targetSizeBytes && videoBitrate && outputStats.size > targetSizeBytes) {
+        const correctedBitrate = Math.max(
+          100,
+          Math.floor(videoBitrate * ((targetSizeBytes * 0.94) / outputStats.size))
+        )
+        console.warn(
+          `Export exceeded target (${outputStats.size} > ${targetSizeBytes}); retrying at ${correctedBitrate}kbps`
+        )
+        await removePartialOutput()
+        await runExport(selectedEncoder, correctedBitrate)
+        outputStats = await stat(outputPath)
+      }
+
+      if (targetSizeBytes && outputStats.size > targetSizeBytes) {
+        await removePartialOutput()
+        throw new Error(
+          `Unable to keep export under ${targetSizeMB}MB (encoded ${Math.ceil(outputStats.size / 1024 / 1024)}MB)`
+        )
+      }
+
+      console.log(
+        `Export complete: ${(outputStats.size / 1024 / 1024).toFixed(2)}MB using ${needsReencode ? `${outputVideoCodec}/${selectedEncoder}` : 'stream copy'}`
+      )
+      return { success: true, filePath: outputPath }
     } catch (error) {
       console.error('Failed to export clip:', error)
       throw error
@@ -4740,45 +4937,6 @@ app.whenReady().then(async () => {
       console.log('Could not verify backend status:', e)
     }
   }, 2000)
-
-  // Set up file watching for clips folder to auto-refresh UI
-  const clipsWatcher = chokidar.watch(getClipsPath(), {
-    ignored: /(^|[\/\\])\../, // ignore dotfiles
-    persistent: true,
-    depth: 0, // Only watch immediate directory, not subdirectories
-    ignoreInitial: true, // Don't fire events for existing files on startup
-    awaitWriteFinish: {
-      stabilityThreshold: 500, // Wait 500ms after file size stops changing
-      pollInterval: 100,
-    },
-  })
-
-  clipsWatcher.on('add', filePath => {
-    // Only notify for .mp4 files; skip during trim-in-place swap
-    if (filePath.endsWith('.mp4') && !suppressFileWatcher) {
-      console.log('[Watcher] New clip detected:', filePath)
-      // Notify all windows that a new clip is available
-      BrowserWindow.getAllWindows().forEach(window => {
-        window.webContents.send('clips:new', { filename: basename(filePath) })
-      })
-    }
-  })
-
-  clipsWatcher.on('unlink', filePath => {
-    // Notify when a clip is deleted; skip during trim-in-place swap
-    if (filePath.endsWith('.mp4') && !suppressFileWatcher) {
-      console.log('[Watcher] Clip deleted:', filePath)
-      BrowserWindow.getAllWindows().forEach(window => {
-        window.webContents.send('clips:removed', { filename: basename(filePath) })
-      })
-    }
-  })
-
-  clipsWatcher.on('error', error => {
-    console.error('[Watcher] Error watching clips folder:', error)
-  })
-
-  console.log('[Watcher] Started watching clips folder:', getClipsPath())
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {

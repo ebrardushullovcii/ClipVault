@@ -389,6 +389,12 @@ function App() {
           hoverPreviewEnabled={
             appSettings !== null && appSettings.ui?.library_hover_preview !== false
           }
+          exportDefaults={{
+            codec: appSettings?.export?.codec ?? 'av1',
+            targetSizeMB: appSettings?.export?.target_size_mb ?? 10,
+            fps: appSettings?.export?.fps ?? 'original',
+            resolution: appSettings?.export?.resolution ?? 'original',
+          }}
         />
       </div>
 
@@ -417,6 +423,12 @@ function App() {
             onSave={handleSaveMetadata}
             onOpenClip={handleOpenEditor}
             getAdjacentClip={getAdjacentClip}
+            exportDefaults={{
+              codec: appSettings?.export?.codec ?? 'av1',
+              targetSizeMB: appSettings?.export?.target_size_mb ?? 10,
+              fps: appSettings?.export?.fps ?? 'original',
+              resolution: appSettings?.export?.resolution ?? 'original',
+            }}
           />
         </div>
       )}

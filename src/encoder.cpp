@@ -28,18 +28,22 @@ static const size_t nvenc_count = sizeof(nvenc_ids) / sizeof(nvenc_ids[0]);
 // Map the visual quality value to encoder-specific quantizer settings.
 // Encoder speed is configured independently through VideoConfig::nvenc_preset.
 QualityMapping get_quality_mapping(int quality) {
-    // quality comes from settings (15=ultra, 18=high, 23=medium, 30=low)
+    // quality comes from settings (15=maximum, 18=detailed, 23=balanced,
+    // 27=efficient, 30=compact). Thresholds preserve older saved values.
     if (quality <= 15) {
-        // Ultra quality
+        // Maximum quality
         return {15, 18, "slow"};
     } else if (quality <= 18) {
-        // High quality
+        // Detailed quality
         return {18, 21, "medium"};
     } else if (quality <= 23) {
-        // Medium quality
+        // Balanced quality
         return {23, 23, "fast"};
+    } else if (quality <= 27) {
+        // Efficient quality
+        return {27, 26, "veryfast"};
     } else {
-        // Low quality (30 and above)
+        // Compact quality (30 and above)
         return {30, 28, "veryfast"};
     }
 }

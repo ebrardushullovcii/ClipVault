@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { FolderOpen, Monitor, Mic, Sparkles, Keyboard } from 'lucide-react'
 import type { AppSettings, AudioDeviceInfo, MonitorInfo } from '../../types/electron'
+import { getQualityPresetId, qualityPresetIds, qualityPresets } from '../../constants/videoQuality'
 
 // Fallback only — the actual default comes from main process via initialSettings.output_path
 const DEFAULT_CLIPS_PATH = 'C:\\Videos\\ClipVault'
@@ -9,7 +10,7 @@ const DEFAULT_VIDEO: AppSettings['video'] = {
   height: 1080,
   fps: 60,
   encoder: 'auto',
-  quality: 20,
+  quality: 23,
   nvenc_preset: 'p3',
   capture_method: 'dxgi',
   capture_cursor: true,
@@ -23,33 +24,6 @@ const DEFAULT_AUDIO: AppSettings['audio'] = {
   system_audio_device_id: 'default',
   microphone_device_id: 'default',
 }
-
-const qualityPresets = [
-  {
-    id: 'performance',
-    label: 'Performance',
-    description: 'Smaller files, lighter load',
-    quality: 28,
-  },
-  {
-    id: 'balanced',
-    label: 'Balanced',
-    description: 'Great quality and size',
-    quality: 22,
-  },
-  {
-    id: 'quality',
-    label: 'Quality',
-    description: 'Sharper image, larger files',
-    quality: 18,
-  },
-  {
-    id: 'ultra',
-    label: 'Ultra',
-    description: 'Max quality for showcases',
-    quality: 15,
-  },
-]
 
 const bufferOptions = [
   { value: 30, label: '30 sec' },
@@ -288,8 +262,7 @@ export const FirstRunWizard: React.FC<FirstRunWizardProps> = ({
   }, [monitors, settings.video.monitor])
 
   const currentQuality = useMemo(() => {
-    const match = qualityPresets.find(preset => preset.quality === settings.video.quality)
-    return match?.id ?? 'balanced'
+    return getQualityPresetId(settings.video.quality)
   }, [settings.video.quality])
 
   const steps = [
@@ -549,12 +522,13 @@ export const FirstRunWizard: React.FC<FirstRunWizardProps> = ({
                       Quality preset
                     </div>
                     <div role="radiogroup" aria-labelledby={qualityLabelId} className="grid gap-2">
-                      {qualityPresets.map(preset => {
-                        const isActive = currentQuality === preset.id
-                        const inputId = `first-run-quality-${preset.id}`
+                      {qualityPresetIds.map(presetId => {
+                        const preset = qualityPresets[presetId]
+                        const isActive = currentQuality === presetId
+                        const inputId = `first-run-quality-${presetId}`
                         return (
                           <label
-                            key={preset.id}
+                            key={presetId}
                             htmlFor={inputId}
                             className={`flex items-center justify-between rounded-lg border px-3 py-2 text-left text-sm transition-colors ${
                               isActive
@@ -566,7 +540,7 @@ export const FirstRunWizard: React.FC<FirstRunWizardProps> = ({
                               id={inputId}
                               type="radio"
                               name="first-run-quality"
-                              value={preset.id}
+                              value={presetId}
                               checked={isActive}
                               onChange={() =>
                                 setSettings(prev => ({
@@ -577,11 +551,16 @@ export const FirstRunWizard: React.FC<FirstRunWizardProps> = ({
                               className="sr-only"
                             />
                             <div>
-                              <div className="font-semibold text-text-primary">{preset.label}</div>
+                              <div className="font-semibold text-text-primary">
+                                {preset.label}
+                                <span className="ml-1 font-normal text-text-muted">
+                                  · CQP {preset.quality}
+                                </span>
+                              </div>
                               <div className="text-xs text-text-muted">{preset.description}</div>
                             </div>
                             <div className="text-xs font-semibold text-text-muted">
-                              CQP {preset.quality}
+                              RAM + storage
                             </div>
                           </label>
                         )
@@ -673,7 +652,8 @@ export const FirstRunWizard: React.FC<FirstRunWizardProps> = ({
                       })}
                     </div>
                     <p className="text-xs text-text-muted">
-                      NVENC uses your GPU for minimal performance impact.
+                      Auto uses the dedicated NVIDIA video encoder when available, keeping CPU use
+                      low. x264 records on the CPU instead.
                     </p>
                   </div>
                 </div>
@@ -686,8 +666,8 @@ export const FirstRunWizard: React.FC<FirstRunWizardProps> = ({
                     Buffer duration
                   </div>
                   <p className="text-xs text-text-muted">
-                    How much gameplay is kept in memory. When you press the save hotkey, this is the
-                    maximum clip length.
+                    Longer buffers use more RAM and allow longer saved clips. They do not increase
+                    per-frame CPU or GPU work.
                   </p>
                   <div
                     className="flex flex-wrap gap-2"

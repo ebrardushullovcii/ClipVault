@@ -31,6 +31,7 @@ import type {
   ClipMetadata,
   AudioTrackUrls,
   AudioTrackSetting,
+  ExportDefaults,
 } from '../../types/electron'
 
 interface EditorProps {
@@ -43,6 +44,7 @@ interface EditorProps {
     clipId: string,
     direction: 'previous' | 'next'
   ) => { clip: ClipInfo; metadata: VideoMetadata } | null
+  exportDefaults?: ExportDefaults
 }
 
 const MIN_TRIM_LENGTH = 1
@@ -88,6 +90,7 @@ export const Editor: FC<EditorProps> = ({
   onSave,
   onOpenClip,
   getAdjacentClip,
+  exportDefaults,
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null)
   const timelineRef = useRef<HTMLDivElement>(null)
@@ -157,10 +160,15 @@ export const Editor: FC<EditorProps> = ({
   const [isExporting, setIsExporting] = useState(false)
   const [exportProgress, setExportProgress] = useState(0)
   const [exportStatus, setExportStatus] = useState<'idle' | 'success' | 'error'>('idle')
-  const [targetSizeMB, setTargetSizeMB] = useState<number | 'original'>('original')
+  const [targetSizeMB, setTargetSizeMB] = useState<number | 'original'>(
+    exportDefaults?.targetSizeMB ?? 10
+  )
+  const [exportCodec, setExportCodec] = useState<'h264' | 'av1'>(exportDefaults?.codec ?? 'av1')
   const [showSizeDropdown, setShowSizeDropdown] = useState(false)
-  const [exportFps, setExportFps] = useState<number | 'original'>('original')
-  const [exportResolution, setExportResolution] = useState<string>('original')
+  const [exportFps, setExportFps] = useState<number | 'original'>(exportDefaults?.fps ?? 'original')
+  const [exportResolution, setExportResolution] = useState<string>(
+    exportDefaults?.resolution ?? 'original'
+  )
   const [videoSrc, setVideoSrc] = useState(`clipvault://clip/${encodeURIComponent(clip.filename)}`)
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const flushPendingEditorStateRef = useRef<(() => Promise<boolean>) | null>(null)
@@ -1243,7 +1251,7 @@ export const Editor: FC<EditorProps> = ({
     try {
       // Open save dialog
       // Generate unique filename with timestamp
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)
+      const timestamp = new Date().toISOString().split(':').join('-').replace('.', '-').slice(0, 19)
       const baseFilename = clip.filename.replace('.mp4', '')
       const exportFilename = `${baseFilename}_export_${timestamp}.mp4`
 
@@ -1258,6 +1266,7 @@ export const Editor: FC<EditorProps> = ({
         audioTrack1Volume,
         audioTrack2Volume,
         targetSizeMB,
+        exportCodec,
         exportFps: exportFps !== 'original' ? exportFps : undefined,
         exportResolution: exportResolution !== 'original' ? exportResolution : undefined,
       })
@@ -1304,6 +1313,7 @@ export const Editor: FC<EditorProps> = ({
     audioTrack1Volume,
     audioTrack2Volume,
     targetSizeMB,
+    exportCodec,
     exportFps,
     exportResolution,
   ])
@@ -1860,6 +1870,23 @@ export const Editor: FC<EditorProps> = ({
                 </span>
               </div>
               <div className="flex items-center justify-between">
+                <span>Compression</span>
+                <select
+                  value={exportCodec}
+                  onChange={e => setExportCodec(e.target.value === 'av1' ? 'av1' : 'h264')}
+                  disabled={isExporting || targetSizeMB === 'original'}
+                  className="rounded-md bg-background-tertiary px-2 py-1 text-sm text-text-secondary disabled:opacity-50"
+                >
+                  <option value="h264">H.264 · Most compatible</option>
+                  <option value="av1">AV1 · Better quality per MB</option>
+                </select>
+              </div>
+              <p className="text-xs text-text-muted/70">
+                {targetSizeMB === 'original'
+                  ? 'Keep original copies the recording without recompressing it.'
+                  : 'Discord accepts both. AV1 requires an NVIDIA RTX 40-series or newer GPU.'}
+              </p>
+              <div className="flex items-center justify-between">
                 <span>FPS</span>
                 <select
                   value={exportFps}
@@ -1966,7 +1993,7 @@ export const Editor: FC<EditorProps> = ({
                 {showSizeDropdown && (
                   <div
                     onClick={e => e.stopPropagation()}
-                    className="absolute bottom-full right-0 z-50 mb-1 w-40 rounded-lg border border-border bg-background-secondary py-1 shadow-lg"
+                    className="absolute bottom-full right-0 z-50 mb-1 w-52 rounded-lg border border-border bg-background-secondary py-1 shadow-lg"
                   >
                     <button
                       onClick={() => {
@@ -1977,7 +2004,7 @@ export const Editor: FC<EditorProps> = ({
                         targetSizeMB === 'original' ? 'text-accent-primary' : 'text-text-secondary'
                       }`}
                     >
-                      <span>Original</span>
+                      <span>Keep original (fast, large)</span>
                       {targetSizeMB === 'original' && <Check className="h-4 w-4" />}
                     </button>
                     <button
@@ -1989,7 +2016,7 @@ export const Editor: FC<EditorProps> = ({
                         targetSizeMB === 10 ? 'text-accent-primary' : 'text-text-secondary'
                       }`}
                     >
-                      <span>10 MB</span>
+                      <span>Up to 10 MB</span>
                       {targetSizeMB === 10 && <Check className="h-4 w-4" />}
                     </button>
                     <button
@@ -2001,7 +2028,7 @@ export const Editor: FC<EditorProps> = ({
                         targetSizeMB === 50 ? 'text-accent-primary' : 'text-text-secondary'
                       }`}
                     >
-                      <span>50 MB</span>
+                      <span>Up to 50 MB</span>
                       {targetSizeMB === 50 && <Check className="h-4 w-4" />}
                     </button>
                     <button
@@ -2013,7 +2040,7 @@ export const Editor: FC<EditorProps> = ({
                         targetSizeMB === 100 ? 'text-accent-primary' : 'text-text-secondary'
                       }`}
                     >
-                      <span>100 MB</span>
+                      <span>Up to 100 MB</span>
                       {targetSizeMB === 100 && <Check className="h-4 w-4" />}
                     </button>
                   </div>

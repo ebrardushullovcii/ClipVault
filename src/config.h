@@ -12,7 +12,7 @@ struct VideoConfig {
     int height = 1080;
     int fps = 60;
     std::string encoder = "auto";
-    int quality = 20;
+    int quality = 23;
     std::string nvenc_preset = "p3";
     std::string capture_method = "dxgi";
     bool capture_cursor = true;

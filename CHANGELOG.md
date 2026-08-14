@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.0] - 2026-08-14
+
+### Changed
+
+- Made AV1 the default compressed export and added persistent export defaults for codec, size limit, frame rate, and resolution.
+- Showed the exact CQP value beside each plain-language recording quality preset.
+- Calibrated recording-size guidance to gameplay CQP/CRF output and show a typical range that includes both enabled audio tracks.
+- Replaced vague Low/Medium/High/Ultra recording labels with five clearer levels and plain-language RAM, storage, CPU, and GPU descriptions.
+- Made up-to-10-MB sharing the default export mode, preferring NVENC with a four-thread x264 fallback while retaining original-quality stream copy as an option.
+- Added RTX 40-series AV1 compression for better-looking size-limited Discord exports while keeping H.264 as the maximum-compatibility option.
+- Consolidated clip monitoring to one watcher, reduced full-library safety scans, and serialized background thumbnail generation.
+
+### Fixed
+
+- Prevented size-limited exports from silently exceeding the selected limit by verifying the result and retrying once with a corrected bitrate when needed.
+
 ## [1.6.0] - 2026-07-11
 
 ### Added

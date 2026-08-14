@@ -81,6 +81,12 @@ export interface AppSettings {
   editor?: {
     skip_seconds?: number
   }
+  export?: {
+    codec?: ExportCodec
+    target_size_mb?: number | 'original'
+    fps?: number | 'original'
+    resolution?: string
+  }
   ui?: {
     show_notifications?: boolean
     play_sound?: boolean
@@ -113,6 +119,15 @@ export interface AppSettings {
   }
 }
 
+export type ExportCodec = 'h264' | 'av1'
+
+export interface ExportDefaults {
+  codec: ExportCodec
+  targetSizeMB: number | 'original'
+  fps: number | 'original'
+  resolution: string
+}
+
 export interface ExportParams {
   clipPath: string
   exportFilename: string
@@ -123,6 +138,7 @@ export interface ExportParams {
   audioTrack1Volume?: number
   audioTrack2Volume?: number
   targetSizeMB?: number | 'original'
+  exportCodec?: ExportCodec
   exportFps?: number
   exportResolution?: string
 }

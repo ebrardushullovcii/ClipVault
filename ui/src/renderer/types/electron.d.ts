@@ -66,6 +66,8 @@ export interface AppSettings {
     quality: number
     nvenc_preset: 'p1' | 'p2' | 'p3' | 'p4' | 'p5' | 'p6' | 'p7'
     capture_method: 'auto' | 'dxgi' | 'wgc'
+    capture_target: 'monitor' | 'game' | 'hybrid' | 'window'
+    capture_window: string
     capture_cursor: boolean
     monitor: number
   }
@@ -188,6 +190,13 @@ export interface MonitorInfo {
   primary: boolean
 }
 
+export interface CaptureWindowInfo {
+  id: string
+  title: string
+  executable: string
+  minimized: boolean
+}
+
 export interface ElectronAPI {
   getSettings: () => Promise<AppSettings>
   saveSettings: (
@@ -195,6 +204,7 @@ export interface ElectronAPI {
   ) => Promise<{ success: boolean; restarted?: boolean; restartRequired?: boolean; error?: string }>
   restartBackend: () => Promise<{ success: boolean; restarted?: boolean }>
   getMonitors: () => Promise<MonitorInfo[]>
+  getCaptureWindows: () => Promise<CaptureWindowInfo[]>
   getAudioDevices: (type: 'output' | 'input') => Promise<AudioDeviceInfo[]>
   setStartup: (enabled: boolean) => Promise<{ success: boolean; error?: string }>
   getClipsList: () => Promise<ClipInfo[]>

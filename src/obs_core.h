@@ -80,6 +80,7 @@ namespace obs_api {
     bool output_start(obs_output_t* output);
     void output_stop(obs_output_t* output);
     bool output_active(obs_output_t* output);
+    bool output_pause(obs_output_t* output, bool pause);
     int output_get_total_frames(obs_output_t* output);
     int output_get_frames_dropped(obs_output_t* output);
     signal_handler_t* output_get_signal_handler(obs_output_t* output);
@@ -117,6 +118,7 @@ namespace obs_api {
     void scene_release(obs_scene_t* scene);
     obs_source_t* scene_get_source(const obs_scene_t* scene);
     obs_sceneitem_t* scene_add(obs_scene_t* scene, obs_source_t* source);
+    void scene_fit_item(obs_sceneitem_t* item, uint32_t width, uint32_t height);
 }
 
 class OBSCore {

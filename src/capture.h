@@ -1,10 +1,13 @@
 #pragma once
 
 #include <string>
+#include "capture_windows.h"
 
 // Forward declarations for OBS types
 struct obs_source;
 typedef struct obs_source obs_source_t;
+struct obs_scene;
+typedef struct obs_scene obs_scene_t;
 
 namespace clipvault {
 
@@ -31,6 +34,10 @@ public:
     
     // Check if capture is producing frames (for debugging)
     bool is_producing_frames() const;
+    bool has_video() const;
+    bool set_game_window(const CaptureWindow& window);
+    bool wait_for_video(unsigned int timeout_ms) const;
+    const CaptureWindow& game_window() const { return game_window_; }
 
     // Get last error
     const std::string& last_error() const { return last_error_; }
@@ -43,9 +50,15 @@ private:
     CaptureManager& operator=(const CaptureManager&) = delete;
 
     bool create_video_source();
+    bool create_window_source(const std::string& selector);
+    bool create_monitor_source();
+    void release_video_source();
     bool create_audio_sources();
 
     obs_source_t* video_source_ = nullptr;
+    obs_scene_t* scene_ = nullptr;
+    CaptureWindow game_window_;
+    int working_monitor_method_ = -1;
     obs_source_t* desktop_audio_ = nullptr;
     obs_source_t* microphone_ = nullptr;
 

@@ -28,6 +28,8 @@ public:
 
     // Save the current buffer to file
     bool save_clip();
+    bool set_capture_paused(bool paused);
+    bool switch_hybrid_capture(const struct CaptureWindow& window);
 
     // Set the current game for the next save operation (thread-safe)
     void set_current_game(const std::string& game_name) {
@@ -43,6 +45,7 @@ public:
     // Check status
     bool is_initialized() const { return initialized_; }
     bool is_active() const;
+    bool is_stopped() const { return lifecycle_state() == LifecycleState::Inactive; }
     bool is_save_pending() const { return save_pending_.load(); }
     const std::string& last_error() const { return last_error_; }
     const std::string& last_saved_file() const { return last_saved_file_; }
@@ -77,6 +80,7 @@ private:
     bool shutting_down_ = false;
     std::atomic<bool> save_pending_{false};
     std::string last_error_;
+    bool capture_paused_ = false;
     std::string last_saved_file_;
     std::string current_game_;  // Game name for next save operation (protected by mutex)
     mutable std::mutex current_game_mutex_;
@@ -85,6 +89,8 @@ private:
     // Render thread (for periodic health checks - OBS handles frame production)
     std::thread render_thread_;
     std::atomic<bool> render_thread_running_{false};
+    std::mutex health_check_mutex_;
+    std::condition_variable health_check_cv_;
 
     // Performance metrics
     std::atomic<uint64_t> health_check_count_{0};

@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.5] - 2026-09-26
+
+### Fixed
+
+- Preserved Windows startup registration across upgrades and restored missing startup entries from the enabled preference when the installed app opens.
+
+## [1.7.4] - 2026-09-26
+
+### Added
+- Optional Monitor + automatic games capture: records the selected monitor, switches to supported games automatically, and returns to the monitor when the game closes or is minimized. Keeps recent history and both audio tracks across switches, with a brief pause during source warm-up.
+
+## [1.7.3] - 2026-09-26
+
+### Added
+
+- Automatically select supported game windows, follow game launches and changes, retain the game across alt-tab, and wait when no game is available. Manual app-window capture remains available.
+
+## [1.7.2] - 2026-09-26
+
+### Added
+
+- Added experimental recording of a selected game or app window while keeping all PC audio and microphone audio on separate tracks.
+- Added optional AV1 recording and an adaptive quantization setting, preserving H.264 and existing recording preferences by default.
+
+### Changed
+
+- Streamed editor audio instead of decoding entire clips into memory, preserving independent volume and mute controls.
+- Paused recording while a selected window is unavailable and resumed when it returns, with a clear message if a clip cannot be saved.
+
+### Fixed
+
+- Initialized OBS graphics before loading capture modules so Windows Graphics Capture is available, and corrected window identifiers and module resource paths.
+- Fell back to Windows Graphics Capture when monitor capture cannot produce frames.
+- Improved audio timestamp preservation, export volume handling, and file cleanup after editing.
+- Balanced OBS audio activation and shutdown cleanup.
+- Stopped startup on invalid settings instead of overwriting them or recording an unintended target.
+
 ## [1.7.1] - 2026-09-26
 
 ### Fixed

@@ -18,6 +18,7 @@ const electronAPI: ElectronAPI = {
 
   // System
   getMonitors: () => ipcRenderer.invoke('system:getMonitors'),
+  getCaptureWindows: () => ipcRenderer.invoke('system:getCaptureWindows'),
   getAudioDevices: (type: 'output' | 'input') => ipcRenderer.invoke('audio:getDevices', type),
 
   // Clips

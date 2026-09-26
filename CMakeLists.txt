@@ -23,6 +23,7 @@ set(SOURCES
     src/hotkey.cpp
     src/obs_core.cpp
     src/capture.cpp
+    src/capture_windows.cpp
     src/encoder.cpp
     src/replay.cpp
     src/audio_devices.cpp
@@ -51,6 +52,7 @@ target_link_libraries(ClipVault PRIVATE
     shlwapi
     shell32
     user32
+    dwmapi
     gdiplus
     psapi
     winmm

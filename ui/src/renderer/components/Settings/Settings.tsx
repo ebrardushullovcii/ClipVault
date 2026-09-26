@@ -11,7 +11,12 @@ import {
   HardDrive,
   Power,
 } from 'lucide-react'
-import type { AppSettings, AudioDeviceInfo, MonitorInfo } from '../../types/electron'
+import type {
+  AppSettings,
+  AudioDeviceInfo,
+  MonitorInfo,
+  CaptureWindowInfo,
+} from '../../types/electron'
 import {
   getQualityPresetId,
   qualityPresetIds,
@@ -245,6 +250,9 @@ export const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsSaved }) 
   const [isSettingStartup, setIsSettingStartup] = useState(false)
   const [saveSuccess, setSaveSuccess] = useState(false)
   const [monitors, setMonitors] = useState<MonitorInfo[]>([])
+  const [captureWindows, setCaptureWindows] = useState<CaptureWindowInfo[]>([])
+  const [windowsLoading, setWindowsLoading] = useState(false)
+  const [windowsError, setWindowsError] = useState<string | null>(null)
   const [audioOutputDevices, setAudioOutputDevices] = useState<AudioDeviceInfo[]>([])
   const [audioInputDevices, setAudioInputDevices] = useState<AudioDeviceInfo[]>([])
 
@@ -253,6 +261,7 @@ export const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsSaved }) 
     loadSettings()
     loadMonitors()
     loadAudioDevices()
+    void loadCaptureWindows()
   }, [])
 
   const cloneSettings = (value: AppSettings): AppSettings =>
@@ -302,8 +311,24 @@ export const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsSaved }) 
     }
   }
 
+  const loadCaptureWindows = async () => {
+    setWindowsLoading(true)
+    setWindowsError(null)
+    try {
+      setCaptureWindows(await window.electronAPI.getCaptureWindows())
+    } catch {
+      setWindowsError('Could not list windows. Try Refresh after opening your game or app.')
+    } finally {
+      setWindowsLoading(false)
+    }
+  }
+
   const handleSave = async () => {
     if (!settings) return
+    if (settings.video.capture_target === 'window' && !settings.video.capture_window) {
+      setError('Choose a game or app window before saving.')
+      return
+    }
 
     try {
       setSaving(true)
@@ -408,7 +433,8 @@ export const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsSaved }) 
 
   // Get available resolution presets based on selected monitor
   const getAvailableResolutionPresets = () => {
-    if (!settings || monitors.length === 0) return allResolutionPresets
+    if (!settings || settings.video.capture_target !== 'monitor' || monitors.length === 0)
+      return allResolutionPresets
 
     const selectedMonitor = monitors.find(m => m.id === settings.video.monitor) || monitors[0]
     if (!selectedMonitor) return allResolutionPresets
@@ -516,72 +542,173 @@ export const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsSaved }) 
             </div>
 
             <div className="space-y-6">
-              {/* Monitor Selection */}
-              {monitors.length > 0 && (
+              <div>
+                <label
+                  htmlFor="capture-target"
+                  className="mb-2 block text-sm font-medium text-text-secondary"
+                >
+                  Record
+                </label>
+                <select
+                  id="capture-target"
+                  value={settings.video.capture_target}
+                  onChange={event => updateVideoSetting('capture_target', event.target.value)}
+                  className="w-full rounded-lg border border-border bg-background-tertiary p-3 text-text-primary"
+                >
+                  <option value="monitor">Monitor</option>
+                  <option value="game">Games automatically (Experimental)</option>
+                  <option value="hybrid">Monitor + automatic games (Experimental)</option>
+                  <option value="window">Choose an app window (Manual)</option>
+                </select>
+              </div>
+              {settings.video.capture_target === 'game' && (
+                <p className="text-xs text-text-muted">
+                  Automatically records supported games, including League of Legends and VALORANT.
+                  Keeps the game selected when you alt-tab. Waits while the game is minimized or no
+                  game is open; desktop and browser windows are never selected automatically.
+                  Changing or closing games starts a fresh buffer. All PC sound and your microphone
+                  stay on separate tracks. Use windowed or borderless mode. For an unrecognized game
+                  or another app, choose a window manually.
+                </p>
+              )}
+              {settings.video.capture_target === 'hybrid' && (
+                <p className="text-xs text-text-muted">
+                  Records the selected monitor until a supported game opens, then follows the game
+                  even when you alt-tab. Returns to the monitor when the game closes, is minimized,
+                  or cannot be captured. Your recent buffer is kept across switches, with a brief
+                  pause while the new source starts. Clips can include your desktop. All PC sound
+                  and your microphone stay on separate tracks. Use windowed or borderless games.
+                </p>
+              )}
+              {settings.video.capture_target === 'window' && (
                 <div>
-                  <label className="mb-3 block text-sm font-medium text-text-secondary">
-                    Capture Monitor
-                  </label>
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    {monitors.map(monitor => (
-                      <button
-                        key={monitor.id}
-                        onClick={() => updateVideoSetting('monitor', monitor.id)}
-                        className={`flex items-center gap-3 rounded-lg border p-4 text-left transition-all ${
-                          settings.video.monitor === monitor.id
-                            ? 'border-accent-primary bg-accent-primary/10'
-                            : 'border-border bg-background-tertiary hover:border-accent-primary/50'
-                        }`}
-                      >
-                        <Monitor
-                          className={`h-5 w-5 ${settings.video.monitor === monitor.id ? 'text-accent-primary' : 'text-text-muted'}`}
-                        />
-                        <div>
-                          <div
-                            className={`text-sm font-medium ${settings.video.monitor === monitor.id ? 'text-accent-primary' : 'text-text-primary'}`}
-                          >
-                            {monitor.name} {monitor.primary && '(Primary)'}
-                          </div>
-                          <div className="text-xs text-text-muted">
-                            {monitor.width}x{monitor.height}
-                          </div>
-                        </div>
-                      </button>
-                    ))}
+                  <div className="mb-2 flex items-center justify-between">
+                    <label
+                      htmlFor="capture-window"
+                      className="text-sm font-medium text-text-secondary"
+                    >
+                      Window to record
+                    </label>
+                    <button
+                      type="button"
+                      onClick={loadCaptureWindows}
+                      disabled={windowsLoading}
+                      className="text-sm text-accent-primary disabled:opacity-50"
+                    >
+                      {windowsLoading ? 'Refreshing...' : 'Refresh windows'}
+                    </button>
                   </div>
+                  <select
+                    id="capture-window"
+                    value={settings.video.capture_window}
+                    onChange={event => updateVideoSetting('capture_window', event.target.value)}
+                    aria-describedby="capture-window-help"
+                    className="w-full rounded-lg border border-border bg-background-tertiary p-3 text-text-primary"
+                  >
+                    <option value="">Choose an open game or app...</option>
+                    {settings.video.capture_window &&
+                      !captureWindows.some(item => item.id === settings.video.capture_window) && (
+                        <option value={settings.video.capture_window}>
+                          {settings.video.capture_window
+                            .split(':')[0]
+                            .replace(/#3A/g, ':')
+                            .replace(/#22/g, '#')}{' '}
+                          (not open)
+                        </option>
+                      )}
+                    {captureWindows.map(item => (
+                      <option key={item.id} value={item.id}>
+                        {item.title} — {item.executable}
+                        {item.minimized ? ' (minimized)' : ''}
+                      </option>
+                    ))}
+                  </select>
+                  {windowsError && (
+                    <p role="alert" className="mt-2 text-sm text-red-400">
+                      {windowsError}
+                    </p>
+                  )}
+                  <p id="capture-window-help" className="mt-2 text-xs text-text-muted">
+                    Records only the selected window using Windows Graphics Capture. All PC sound
+                    and your microphone stay on separate tracks. Use windowed or borderless mode for
+                    games. Minimize or close the window to pause the buffer; restore it before
+                    saving a clip. After reopening an app with a different title, select it again.
+                    Protected content and some exclusive fullscreen games may not capture; use
+                    Monitor if needed.
+                  </p>
                 </div>
               )}
+              {/* Monitor Selection */}
+              {['monitor', 'hybrid'].includes(settings.video.capture_target) &&
+                monitors.length > 0 && (
+                  <div>
+                    <label className="mb-3 block text-sm font-medium text-text-secondary">
+                      Capture Monitor
+                    </label>
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      {monitors.map(monitor => (
+                        <button
+                          key={monitor.id}
+                          onClick={() => updateVideoSetting('monitor', monitor.id)}
+                          className={`flex items-center gap-3 rounded-lg border p-4 text-left transition-all ${
+                            settings.video.monitor === monitor.id
+                              ? 'border-accent-primary bg-accent-primary/10'
+                              : 'border-border bg-background-tertiary hover:border-accent-primary/50'
+                          }`}
+                        >
+                          <Monitor
+                            className={`h-5 w-5 ${settings.video.monitor === monitor.id ? 'text-accent-primary' : 'text-text-muted'}`}
+                          />
+                          <div>
+                            <div
+                              className={`text-sm font-medium ${settings.video.monitor === monitor.id ? 'text-accent-primary' : 'text-text-primary'}`}
+                            >
+                              {monitor.name} {monitor.primary && '(Primary)'}
+                            </div>
+                            <div className="text-xs text-text-muted">
+                              {monitor.width}x{monitor.height}
+                            </div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
               {/* Capture Method */}
               <div>
-                <label className="mb-2 block text-sm font-medium text-text-secondary">
-                  Capture Method
-                </label>
-                <div className="flex flex-wrap gap-3">
-                  {(
-                    [
-                      ['dxgi', 'DXGI (Recommended)'],
-                      ['wgc', 'Windows Graphics Capture'],
-                      ['auto', 'Auto'],
-                    ] as const
-                  ).map(([method, label]) => (
-                    <button
-                      key={method}
-                      onClick={() => updateVideoSetting('capture_method', method)}
-                      className={`rounded-lg border px-4 py-2 text-sm transition-colors ${
-                        settings.video.capture_method === method
-                          ? 'border-accent-primary bg-accent-primary/10 text-accent-primary'
-                          : 'hover:border-border-hover border-border bg-background-tertiary text-text-secondary'
-                      }`}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-                <p className="mt-2 text-xs text-text-muted">
-                  DXGI usually has the lowest full-monitor capture overhead. WGC is available for
-                  compatibility and performance comparisons.
-                </p>
+                {['monitor', 'hybrid'].includes(settings.video.capture_target) && (
+                  <>
+                    <label className="mb-2 block text-sm font-medium text-text-secondary">
+                      Capture Method
+                    </label>
+                    <div className="flex flex-wrap gap-3">
+                      {(
+                        [
+                          ['dxgi', 'DXGI (Recommended)'],
+                          ['wgc', 'Windows Graphics Capture'],
+                          ['auto', 'Auto'],
+                        ] as const
+                      ).map(([method, label]) => (
+                        <button
+                          key={method}
+                          onClick={() => updateVideoSetting('capture_method', method)}
+                          className={`rounded-lg border px-4 py-2 text-sm transition-colors ${
+                            settings.video.capture_method === method
+                              ? 'border-accent-primary bg-accent-primary/10 text-accent-primary'
+                              : 'hover:border-border-hover border-border bg-background-tertiary text-text-secondary'
+                          }`}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="mt-2 text-xs text-text-muted">
+                      Uses the selected method first. If it cannot produce video at startup,
+                      ClipVault tries the other monitor method automatically.
+                    </p>
+                  </>
+                )}
                 <button
                   type="button"
                   role="switch"

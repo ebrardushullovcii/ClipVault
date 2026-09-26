@@ -86,11 +86,11 @@ TypeScript/React UI:
 ## Backend Guardrails
 
 - Always release libobs objects on every success and failure path.
-- Preserve OBS initialization order: startup, data/module paths, load/post-load modules, then video/audio reset.
+- Preserve OBS initialization order: startup, data/module paths, video/audio reset, then load/post-load modules. Capture plugins inspect the graphics device when loaded.
 - Keep `graphics_module = "libobs-d3d11"` on Windows video init.
 - Capture should prefer monitor capture for anti-cheat safety; see [docs/DECISIONS.md](docs/DECISIONS.md) before changing capture order.
 - Audio sources must be activated, connected to OBS output channels, and routed to separate mixer tracks.
-- A single full-monitor source should feed OBS output channel 0 directly; introduce a scene only when capture composition needs multiple video sources.
+- A single full-monitor source should feed OBS output channel 0 directly; use a scene when composition or fitting a resizable window requires it.
 - Save replay through the replay buffer procedure handler and handle the `saved` callback.
 - The hotkey uses a low-level keyboard hook so fullscreen games cannot easily swallow F9.
 - Check OBS and Win32 return values and log actionable failure details.

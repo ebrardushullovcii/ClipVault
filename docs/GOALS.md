@@ -19,6 +19,8 @@ The core promise:
 - Packaged Windows behavior matters most. Dev mode is useful for iteration, but the shipped app is the installer or portable build.
 - Tray behavior must stay predictable. Users need a reliable way to see whether clipping is active and to control the app/service.
 - Capture should be anti-cheat friendly. Prefer monitor capture and avoid game-process hooks or injection unless the user explicitly reopens that decision.
+- Game-only recording should automatically find supported games and follow the active game across launches, without requiring a window selection for every match. WGC keeps other windows out of the video; all PC audio and microphone audio remain on separate tracks. Manual window selection remains available for other apps and unrecognized games.
+- An optional monitor + automatic games mode keeps recent history across desktop and gameplay, returning to the selected monitor when no game can be captured. Its desktop recording must be clear in Settings.
 - Settings should survive upgrades and be shared by the backend and UI.
 - Clips should remain local and user-owned. Do not add accounts, cloud storage, telemetry, or remote processing without an explicit product decision.
 

@@ -1,5 +1,6 @@
 #include "config.h"
 #include "logger.h"
+#include "json.hpp"
 
 #include <fstream>
 #include <sstream>
@@ -46,55 +47,13 @@ std::string escape_json_string(const std::string& input) {
 // Simple JSON value extraction helpers
 namespace {
 
-std::string trim(const std::string& s) {
-    size_t start = s.find_first_not_of(" \t\n\r");
-    if (start == std::string::npos) return "";
-    size_t end = s.find_last_not_of(" \t\n\r");
-    return s.substr(start, end - start + 1);
-}
-
-std::string unescape_json_string(const std::string& s) {
-    std::string result;
-    result.reserve(s.size());
-    for (size_t i = 0; i < s.size(); i++) {
-        if (s[i] == '\\' && i + 1 < s.size()) {
-            char next = s[i + 1];
-            switch (next) {
-                case '\\': result += '\\'; i++; break;
-                case '"': result += '"'; i++; break;
-                case 'n': result += '\n'; i++; break;
-                case 'r': result += '\r'; i++; break;
-                case 't': result += '\t'; i++; break;
-                case '/': result += '/'; i++; break;
-                default: result += s[i]; break;
-            }
-        } else {
-            result += s[i];
-        }
-    }
-    return result;
-}
-
 std::string extract_string(const std::string& json, const std::string& key) {
-    std::string search = "\"" + key + "\"";
-    size_t pos = json.find(search);
-    if (pos == std::string::npos) return "";
-
-    pos = json.find(':', pos);
-    if (pos == std::string::npos) return "";
-
-    pos = json.find('"', pos + 1);
-    if (pos == std::string::npos) return "";
-
-    // Find end quote, handling escaped quotes
-    size_t end = pos + 1;
-    while (end < json.size()) {
-        if (json[end] == '"' && json[end - 1] != '\\') break;
-        end++;
+    // Window titles can contain escaped quotes, backslashes and Unicode.
+    const auto parsed = nlohmann::json::parse(json, nullptr, false);
+    if (parsed.is_object() && parsed.contains(key) && parsed[key].is_string()) {
+        return parsed[key].get<std::string>();
     }
-    if (end >= json.size()) return "";
-
-    return unescape_json_string(json.substr(pos + 1, end - pos - 1));
+    return "";
 }
 
 int extract_int(const std::string& json, const std::string& key, int default_val = 0) {
@@ -138,24 +97,11 @@ bool extract_bool(const std::string& json, const std::string& key, bool default_
 }
 
 std::string extract_object(const std::string& json, const std::string& key) {
-    std::string search = "\"" + key + "\"";
-    size_t pos = json.find(search);
-    if (pos == std::string::npos) return "";
-
-    pos = json.find('{', pos);
-    if (pos == std::string::npos) return "";
-
-    int depth = 1;
-    size_t start = pos;
-    pos++;
-
-    while (pos < json.size() && depth > 0) {
-        if (json[pos] == '{') depth++;
-        else if (json[pos] == '}') depth--;
-        pos++;
+    const auto parsed = nlohmann::json::parse(json, nullptr, false);
+    if (parsed.is_object() && parsed.contains(key) && parsed[key].is_object()) {
+        return parsed[key].dump();
     }
-
-    return json.substr(start, pos - start);
+    return "";
 }
 
 } // anonymous namespace
@@ -181,6 +127,11 @@ bool ConfigManager::load(const std::string& filepath) {
     buffer << file.rdbuf();
     std::string json = buffer.str();
 
+    if (!nlohmann::json::parse(json, nullptr, false).is_object()) {
+        LOG_ERROR("Settings are not a valid UTF-8 JSON object; refusing to change the capture target");
+        return false;
+    }
+
     // Parse root level
     std::string output_path = extract_string(json, "output_path");
     if (!output_path.empty()) {
@@ -195,6 +146,9 @@ bool ConfigManager::load(const std::string& filepath) {
 
     // Parse video section
     std::string video_json = extract_object(json, "video");
+    const auto capture_target = extract_string(video_json, "capture_target");
+    config_.video.capture_target = capture_target == "game" || capture_target == "hybrid" || capture_target == "window" ? capture_target : "monitor";
+    config_.video.capture_window = extract_string(video_json, "capture_window");
     if (!video_json.empty()) {
         config_.video.width = extract_int(video_json, "width", config_.video.width);
         config_.video.height = extract_int(video_json, "height", config_.video.height);
@@ -277,6 +231,8 @@ bool ConfigManager::save(const std::string& filepath) {
     file << "        \"quality\": " << config_.video.quality << ",\n";
     file << "        \"nvenc_preset\": \"" << escape_json_string(config_.video.nvenc_preset) << "\",\n";
     file << "        \"capture_method\": \"" << escape_json_string(config_.video.capture_method) << "\",\n";
+    file << "        \"capture_target\": \"" << escape_json_string(config_.video.capture_target) << "\",\n";
+    file << "        \"capture_window\": \"" << escape_json_string(config_.video.capture_window) << "\",\n";
     file << "        \"capture_cursor\": " << (config_.video.capture_cursor ? "true" : "false") << ",\n";
     file << "        \"monitor\": " << config_.video.monitor << "\n";
     file << "    },\n";

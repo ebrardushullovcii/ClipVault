@@ -148,6 +148,7 @@ static obs_output_set_audio_encoder_t g_obs_output_set_audio_encoder = nullptr;
 static obs_output_start_t g_obs_output_start = nullptr;
 static obs_output_stop_t g_obs_output_stop = nullptr;
 static obs_output_active_t g_obs_output_active = nullptr;
+static decltype(&obs_output_pause) g_obs_output_pause = nullptr;
 static obs_output_get_total_frames_t g_obs_output_get_total_frames = nullptr;
 static obs_output_get_frames_dropped_t g_obs_output_get_frames_dropped = nullptr;
 static obs_output_get_signal_handler_t g_obs_output_get_signal_handler = nullptr;
@@ -180,6 +181,10 @@ static obs_scene_create_t g_obs_scene_create = nullptr;
 static obs_scene_release_t g_obs_scene_release = nullptr;
 static obs_scene_get_source_t g_obs_scene_get_source = nullptr;
 static obs_scene_add_t g_obs_scene_add = nullptr;
+static decltype(&obs_sceneitem_set_bounds_type) g_obs_sceneitem_set_bounds_type = nullptr;
+static decltype(&obs_sceneitem_set_bounds) g_obs_sceneitem_set_bounds = nullptr;
+static decltype(&obs_sceneitem_set_alignment) g_obs_sceneitem_set_alignment = nullptr;
+static decltype(&obs_sceneitem_set_pos) g_obs_sceneitem_set_pos = nullptr;
 
 OBSCore& OBSCore::instance()
 {
@@ -314,15 +319,21 @@ static bool load_obs_functions()
     g_obs_scene_release = (obs_scene_release_t)GetProcAddress(g_obs_module, "obs_scene_release");
     g_obs_scene_get_source = (obs_scene_get_source_t)GetProcAddress(g_obs_module, "obs_scene_get_source");
     g_obs_scene_add = (obs_scene_add_t)GetProcAddress(g_obs_module, "obs_scene_add");
+    g_obs_output_pause = reinterpret_cast<decltype(g_obs_output_pause)>(GetProcAddress(g_obs_module, "obs_output_pause"));
+    g_obs_sceneitem_set_bounds_type = reinterpret_cast<decltype(g_obs_sceneitem_set_bounds_type)>(GetProcAddress(g_obs_module, "obs_sceneitem_set_bounds_type"));
+    g_obs_sceneitem_set_bounds = reinterpret_cast<decltype(g_obs_sceneitem_set_bounds)>(GetProcAddress(g_obs_module, "obs_sceneitem_set_bounds"));
+    g_obs_sceneitem_set_alignment = reinterpret_cast<decltype(g_obs_sceneitem_set_alignment)>(GetProcAddress(g_obs_module, "obs_sceneitem_set_alignment"));
+    g_obs_sceneitem_set_pos = reinterpret_cast<decltype(g_obs_sceneitem_set_pos)>(GetProcAddress(g_obs_module, "obs_sceneitem_set_pos"));
 
     if (!g_obs_output_create || !g_obs_output_release || !g_obs_output_start ||
-        !g_obs_output_stop || !g_obs_output_active) {
+        !g_obs_output_stop || !g_obs_output_active || !g_obs_output_pause) {
         LOG_ERROR("Failed to load output OBS functions");
         return false;
     }
 
     // Scene functions are critical - fail if not found
-    if (!g_obs_scene_create || !g_obs_scene_release || !g_obs_scene_get_source || !g_obs_scene_add) {
+    if (!g_obs_scene_create || !g_obs_scene_release || !g_obs_scene_get_source || !g_obs_scene_add ||
+        !g_obs_sceneitem_set_bounds_type || !g_obs_sceneitem_set_bounds || !g_obs_sceneitem_set_alignment || !g_obs_sceneitem_set_pos) {
         LOG_ERROR("Failed to load scene OBS functions");
         return false;
     }
@@ -460,24 +471,14 @@ bool OBSCore::initialize(const std::string& exe_dir)
     // Step 3: Add module paths (plugins)
     LOG_INFO("  Step 3: Adding module paths");
     std::string plugin_bin = exe_dir_fwd + "/obs-plugins/64bit";
-    std::string plugin_data = exe_dir_fwd + "/data/obs-plugins";
+    std::string plugin_data = exe_dir_fwd + "/data/obs-plugins/%module%";
     LOG_INFO("    plugin bin: " + plugin_bin);
     LOG_INFO("    plugin data: " + plugin_data);
     g_obs_add_module_path(plugin_bin.c_str(), plugin_data.c_str());
 
-    // Also add bin directory as module path for graphics modules
-    g_obs_add_module_path(exe_dir_fwd.c_str(), exe_dir_fwd.c_str());
-
-    // Step 4: Load modules FIRST (CRITICAL: must load before video/audio reset)
-    // Otherwise monitor_capture will have black screen
-    // See: https://github.com/obsproject/obs-studio/discussions/12367
-    LOG_INFO("  Step 4: Loading modules (must be before video/audio init)");
-    g_obs_load_all_modules();
-    g_obs_post_load_modules();
-    LOG_INFO("    Modules loaded");
-
-    // Step 5: Reset video (AFTER modules are loaded!)
-    LOG_INFO("  Step 5: obs_reset_video()");
+    // win-capture probes the graphics device during module load. Initialize it
+    // first, as OBS Studio does, or WGC is disabled and legacy GDI is registered.
+    LOG_INFO("  Step 4: obs_reset_video()");
     const auto& video_cfg = ConfigManager::instance().video();
 
     obs_video_info ovi = {};
@@ -516,8 +517,7 @@ bool OBSCore::initialize(const std::string& exe_dir)
              std::to_string(video_cfg.height) + "@" + std::to_string(video_cfg.fps) + "fps");
     configure_background_gpu_priority();
 
-    // Step 6: Reset audio (AFTER modules are loaded!)
-    LOG_INFO("  Step 6: obs_reset_audio()");
+    LOG_INFO("  Step 5: obs_reset_audio()");
     const auto& audio_cfg = ConfigManager::instance().audio();
 
     obs_audio_info oai = {};
@@ -533,6 +533,10 @@ bool OBSCore::initialize(const std::string& exe_dir)
         return false;
     }
     LOG_INFO("    Audio initialized: " + std::to_string(audio_cfg.sample_rate) + "Hz stereo");
+
+    LOG_INFO("  Step 6: Loading modules with graphics and audio initialized");
+    g_obs_load_all_modules();
+    g_obs_post_load_modules();
 
     initialized_ = true;
     LOG_INFO("OBS initialized successfully!");
@@ -948,6 +952,21 @@ obs_source_t* scene_get_source(const obs_scene_t* scene)
 obs_sceneitem_t* scene_add(obs_scene_t* scene, obs_source_t* source)
 {
     return g_obs_scene_add && scene && source ? g_obs_scene_add(scene, source) : nullptr;
+}
+
+void scene_fit_item(obs_sceneitem_t* item, uint32_t width, uint32_t height)
+{
+    const vec2 bounds = {static_cast<float>(width), static_cast<float>(height)};
+    const vec2 center = {bounds.x / 2.0f, bounds.y / 2.0f};
+    g_obs_sceneitem_set_alignment(item, OBS_ALIGN_CENTER);
+    g_obs_sceneitem_set_bounds_type(item, OBS_BOUNDS_SCALE_INNER);
+    g_obs_sceneitem_set_bounds(item, &bounds);
+    g_obs_sceneitem_set_pos(item, &center);
+}
+
+bool output_pause(obs_output_t* output, bool pause)
+{
+    return output && g_obs_output_pause && g_obs_output_pause(output, pause);
 }
 
 } // namespace obs_api

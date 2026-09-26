@@ -15,6 +15,8 @@ const DEFAULT_VIDEO: AppSettings['video'] = {
   quality: 23,
   nvenc_preset: 'p3',
   capture_method: 'dxgi',
+  capture_target: 'monitor',
+  capture_window: '',
   capture_cursor: true,
   monitor: 0,
 }

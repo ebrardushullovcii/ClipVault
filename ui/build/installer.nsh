@@ -1,4 +1,7 @@
+Var ClipVaultStartupCommand
+
 !macro customInit
+  ReadRegStr $ClipVaultStartupCommand HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "ClipVault"
   ; Older uninstallers remove this folder even when invoked for an upgrade.
   ; Keep the backup outside that folder so a failed upgrade remains recoverable.
   ${If} ${FileExists} "$APPDATA\ClipVault\settings.json"
@@ -22,10 +25,19 @@
     ${EndIf}
     Delete "$APPDATA\ClipVault-settings-upgrade-backup.json"
   ${EndIf}
+  ; Preserve startup across old uninstallers and installation-path changes.
+  ${If} $ClipVaultStartupCommand != ""
+    ClearErrors
+    WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "ClipVault" '$\"$INSTDIR\${APP_EXECUTABLE_FILENAME}$\" --startup'
+    ${If} ${Errors}
+      MessageBox MB_OK|MB_ICONEXCLAMATION "ClipVault could not restore Windows startup. Open ClipVault once to restore it from your saved settings." /SD IDOK
+    ${EndIf}
+  ${EndIf}
 !macroend
 
 !macro customUnInstall
   ${IfNot} ${isUpdated}
+    DeleteRegValue HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "ClipVault"
     RMDir /r "$APPDATA\ClipVault"
   ${EndIf}
 !macroend

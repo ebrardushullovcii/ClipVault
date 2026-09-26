@@ -11,6 +11,7 @@ import {
   Rectangle,
   screen,
   safeStorage,
+  Notification,
 } from 'electron'
 import { dirname, join, basename, resolve, relative, isAbsolute } from 'path'
 import {
@@ -120,10 +121,15 @@ let trayHidden = false
 let suppressFileWatcher = false
 let backendProcess: ReturnType<typeof spawn> | null = null
 let backendStatus: 'stopped' | 'starting' | 'running' = 'stopped'
+let captureState: 'starting' | 'ready' | 'waiting' | 'waiting-game' = 'starting'
+let capturedGame = ''
 
 function getBackendStatusLabel(): string {
   if (backendStatus === 'running') {
-    return 'Service: Running'
+    if (captureState === 'waiting-game') return 'Capture: Waiting for a game'
+    if (captureState === 'waiting') return 'Capture: Waiting for the selected window or display'
+    if (captureState === 'starting') return 'Capture: Starting...'
+    return capturedGame ? `Capture: Recording ${capturedGame}` : 'Service: Running'
   }
 
   if (backendStatus === 'starting') {
@@ -446,6 +452,8 @@ function startBackend(): boolean {
 
   try {
     backendStatus = 'starting'
+    captureState = 'starting'
+    capturedGame = ''
     updateTrayVisibility()
     console.log('Spawning backend from:', backendPath)
     console.log('Backend log path:', backendLogPath)
@@ -458,7 +466,33 @@ function startBackend(): boolean {
       stdio: ['ignore', 'pipe', 'pipe'],
     })
 
+    let stdoutPending = ''
     backendProc.stdout.on('data', data => {
+      stdoutPending += data.toString()
+      const lines = stdoutPending.split(/\r?\n/)
+      stdoutPending = lines.pop() ?? ''
+      for (const line of lines) {
+        if (
+          line === '[CAPTURE_STATE]ready' ||
+          line === '[CAPTURE_STATE]waiting' ||
+          line === '[CAPTURE_STATE]waiting-game'
+        ) {
+          captureState = line.endsWith('ready')
+            ? 'ready'
+            : line.endsWith('waiting-game')
+              ? 'waiting-game'
+              : 'waiting'
+          updateTrayVisibility()
+        } else if (line.startsWith('[CAPTURE_GAME]')) {
+          capturedGame = line.slice('[CAPTURE_GAME]'.length)
+          updateTrayVisibility()
+        } else if (line.startsWith('[CAPTURE_SAVE_FAILED]')) {
+          new Notification({
+            title: 'Clip not saved',
+            body: line.slice('[CAPTURE_SAVE_FAILED]'.length),
+          }).show()
+        }
+      }
       const text = data.toString().trim()
       if (text) {
         logStream.write(`[STDOUT] ${text}\n`)
@@ -620,7 +654,9 @@ const ffprobePath = isDev
 
 async function readStartupRegistryValue(runKey: string, keyName: string): Promise<string | null> {
   try {
-    const { stdout } = await execFileAsync('reg', ['query', runKey, '/v', keyName])
+    const { stdout } = await execFileAsync('reg', ['query', runKey, '/v', keyName], {
+      windowsHide: true,
+    })
     const valueLine = stdout
       .split(/\r?\n/)
       .find(line => line.trim().startsWith(keyName) && line.includes('REG_'))
@@ -642,17 +678,19 @@ async function updateStartupRegistryValue(
   value: string | null
 ): Promise<void> {
   if (value != null) {
-    await execFileAsync('reg', ['add', runKey, '/v', keyName, '/t', 'REG_SZ', '/d', value, '/f'])
+    await execFileAsync('reg', ['add', runKey, '/v', keyName, '/t', 'REG_SZ', '/d', value, '/f'], {
+      windowsHide: true,
+    })
     console.log('[Startup] Added ClipVault to Windows startup (background mode)')
     return
   }
 
   try {
-    await execFileAsync('reg', ['delete', runKey, '/v', keyName, '/f'])
+    await execFileAsync('reg', ['delete', runKey, '/v', keyName, '/f'], { windowsHide: true })
     console.log('[Startup] Removed ClipVault from Windows startup')
   } catch (deleteError) {
     try {
-      await execFileAsync('reg', ['query', runKey, '/v', keyName])
+      await execFileAsync('reg', ['query', runKey, '/v', keyName], { windowsHide: true })
       throw deleteError
     } catch (queryError) {
       if (queryError === deleteError) {
@@ -963,6 +1001,8 @@ const defaultSettings = {
     quality: 23,
     nvenc_preset: 'p3',
     capture_method: 'dxgi',
+    capture_target: 'monitor',
+    capture_window: '',
     capture_cursor: true,
     monitor: 0,
   },
@@ -1095,6 +1135,10 @@ const normalizeSettings = (raw: unknown, fileExists: boolean) => {
   if (typeof merged.video.capture_cursor !== 'boolean') {
     merged.video.capture_cursor = true
   }
+  merged.video.capture_target = ['game', 'hybrid', 'window'].includes(merged.video.capture_target)
+    ? merged.video.capture_target
+    : 'monitor'
+  if (typeof merged.video.capture_window !== 'string') merged.video.capture_window = ''
 
   if (typeof merged.audio.system_audio_device_id !== 'string') {
     merged.audio.system_audio_device_id = 'default'
@@ -1884,6 +1928,9 @@ ipcMain.handle('settings:save', async (_, settings: unknown) => {
     const settingsPath = getSettingsPath()
     const configDir = getConfigDir()
     const normalized = normalizeSettings(settings, true)
+    if (normalized.video.capture_target === 'window' && !normalized.video.capture_window) {
+      return { success: false, error: 'Choose a game or app window before saving.' }
+    }
     const existingSettings = await readNormalizedSettings()
     const incomingWebhookUrl = normalized.social.discord.webhook_url.trim()
 
@@ -2046,6 +2093,16 @@ ipcMain.handle('system:getMonitors', async () => {
     console.error('Failed to get monitors:', error)
     throw error
   }
+})
+
+ipcMain.handle('system:getCaptureWindows', async () => {
+  const { backendPath } = getBackendPaths()
+  const { stdout } = await execFileAsync(backendPath, ['--list-windows'], {
+    encoding: 'utf8',
+    timeout: 5000,
+    windowsHide: true,
+  })
+  return JSON.parse(stdout)
 })
 
 ipcMain.handle('audio:getDevices', async (_, type: 'output' | 'input') => {
@@ -4679,6 +4736,24 @@ ipcMain.handle('cleanup:stats', async () => {
 // App lifecycle
 app.whenReady().then(async () => {
   console.log('App is ready, creating window...')
+
+  // Older upgrades could preserve the preference but lose its Windows entry.
+  // Never register a development build or a portable extraction directory.
+  if (app.isPackaged && !isWinUnpackedBuild && !process.env.PORTABLE_EXECUTABLE_FILE) {
+    try {
+      const settings = await readNormalizedSettings()
+      if (settings.ui.start_with_windows) {
+        const runKey = 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run'
+        const expected = `"${process.execPath}" --startup`
+        if ((await readStartupRegistryValue(runKey, 'ClipVault')) !== expected) {
+          await updateStartupRegistryValue(runKey, 'ClipVault', expected)
+          console.info('[Startup] Restored the installed app startup entry')
+        }
+      }
+    } catch (error) {
+      console.error('[Startup] Could not restore Windows startup:', error)
+    }
+  }
 
   // Register protocol handler FIRST, before creating window
   // This ensures clipvault:// URLs can be loaded immediately when the window opens

@@ -22,6 +22,7 @@ const electronAPI: ElectronAPI = {
 
   // Clips
   getClipsList: () => ipcRenderer.invoke('clips:getList'),
+  getClip: (clipId: string) => ipcRenderer.invoke('clips:get', clipId),
   saveClipMetadata: (clipId: string, metadata: ClipMetadata) =>
     ipcRenderer.invoke('clips:saveMetadata', clipId, metadata),
   getClipMetadata: (clipId: string) => ipcRenderer.invoke('clips:getMetadata', clipId),

@@ -195,6 +195,7 @@ export interface ElectronAPI {
   getAudioDevices: (type: 'output' | 'input') => Promise<AudioDeviceInfo[]>
   setStartup: (enabled: boolean) => Promise<{ success: boolean; error?: string }>
   getClipsList: () => Promise<ClipInfo[]>
+  getClip: (clipId: string) => Promise<ClipInfo | null>
   saveClipMetadata: (clipId: string, metadata: ClipMetadata) => Promise<boolean>
   getClipMetadata: (clipId: string) => Promise<ClipMetadata | null>
   deleteClip: (clipId: string) => Promise<{ success: boolean }>

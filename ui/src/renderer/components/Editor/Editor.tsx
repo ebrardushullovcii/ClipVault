@@ -25,6 +25,7 @@ import {
   Gamepad2,
 } from 'lucide-react'
 import { GameTagEditor } from '../GameTagEditor'
+import { releaseVideo, silenceVideo } from '../../utils/media'
 import type { VideoMetadata } from '../../hooks/useVideoMetadata'
 import type {
   ClipInfo,
@@ -144,6 +145,9 @@ export const Editor: FC<EditorProps> = ({
 
   // Delete state
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+  const deletingRef = useRef(false)
 
   // Trim in place state
   const [isTrimming, setIsTrimming] = useState(false)
@@ -447,7 +451,7 @@ export const Editor: FC<EditorProps> = ({
   ])
 
   const persistEditorState = useCallback(async () => {
-    if (!clip.id) {
+    if (!clip.id || deletingRef.current) {
       return
     }
 
@@ -574,6 +578,10 @@ export const Editor: FC<EditorProps> = ({
       if (gainNode2Ref.current) {
         gainNode2Ref.current.disconnect()
       }
+      sourceNode1Ref.current = null
+      sourceNode2Ref.current = null
+      gainNode1Ref.current = null
+      gainNode2Ref.current = null
       audioBuffer1Ref.current = null
       audioBuffer2Ref.current = null
       if (audioContextRef.current) {
@@ -629,7 +637,13 @@ export const Editor: FC<EditorProps> = ({
       audioBuffer2Ref.current = audioTrack2Src ? track2Buffer : null
 
       // If video is already playing, start audio playback to sync once after both buffers finish.
-      if (videoRef.current && !videoRef.current.paused && (track1Buffer || track2Buffer)) {
+      if (
+        videoRef.current &&
+        !videoRef.current.paused &&
+        !videoRef.current.seeking &&
+        !deletingRef.current &&
+        (track1Buffer || track2Buffer)
+      ) {
         startAudioPlaybackRef.current?.(videoRef.current.currentTime)
       }
     })()
@@ -740,7 +754,7 @@ export const Editor: FC<EditorProps> = ({
   // Start audio playback from a specific time
   const startAudioPlayback = useCallback(
     (fromTime: number) => {
-      if (!audioContextRef.current) return
+      if (!audioContextRef.current || deletingRef.current) return
 
       // Stop any existing playback
       if (sourceNode1Ref.current) {
@@ -749,6 +763,7 @@ export const Editor: FC<EditorProps> = ({
         } catch {
           // Ignore errors if already stopped
         }
+        sourceNode1Ref.current.disconnect()
         sourceNode1Ref.current = null
       }
       if (sourceNode2Ref.current) {
@@ -757,6 +772,7 @@ export const Editor: FC<EditorProps> = ({
         } catch {
           // Ignore errors if already stopped
         }
+        sourceNode2Ref.current.disconnect()
         sourceNode2Ref.current = null
       }
 
@@ -773,6 +789,9 @@ export const Editor: FC<EditorProps> = ({
         // Set gain to 0 if track is disabled or muted
         gainNode2Ref.current.gain.value = audioTrack2Muted || !audioTrack2 ? 0 : audioTrack2Volume
       }
+
+      gainNode1Ref.current.gain.value = audioTrack1Muted || !audioTrack1 ? 0 : audioTrack1Volume
+      gainNode2Ref.current.gain.value = audioTrack2Muted || !audioTrack2 ? 0 : audioTrack2Volume
 
       // Create and start source nodes for each track
       if (audioBuffer1Ref.current && audioTrack1) {
@@ -819,6 +838,7 @@ export const Editor: FC<EditorProps> = ({
       } catch {
         // Ignore errors if already stopped
       }
+      sourceNode1Ref.current.disconnect()
       sourceNode1Ref.current = null
     }
     if (sourceNode2Ref.current) {
@@ -827,6 +847,7 @@ export const Editor: FC<EditorProps> = ({
       } catch {
         // Ignore errors if already stopped
       }
+      sourceNode2Ref.current.disconnect()
       sourceNode2Ref.current = null
     }
     isAudioPlayingRef.current = false
@@ -933,7 +954,12 @@ export const Editor: FC<EditorProps> = ({
       isVideoDurationSetRef.current = true
     }
 
+    const enforceMutedVideo = () => silenceVideo(video)
+    enforceMutedVideo()
+
     const handlePlay = () => {
+      enforceMutedVideo()
+      if (video.paused || video.seeking || deletingRef.current) return
       setIsPlaying(true)
       if (audioContextRef.current?.state === 'suspended') {
         void audioContextRef.current.resume()
@@ -953,20 +979,42 @@ export const Editor: FC<EditorProps> = ({
       setCurrentTime(video.currentTime)
     }
 
+    const handleWaiting = () => {
+      stopAudioPlayback()
+      stopRafLoop()
+    }
+
+    const handleSeeked = () => {
+      setCurrentTime(video.currentTime)
+      if (!video.paused && !video.ended) handlePlay()
+    }
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'hidden') {
+        video.pause()
+        handlePause()
+      }
+    }
+
     const handleEnded = () => {
       // Video reached the real end — loop to 0 and keep playing
       video.currentTime = 0
       insideTrimRef.current = 0 >= trimStart && 0 < trimEnd
       loopWithinTrimRef.current = 0 >= trimStart && 0 < trimEnd
       setCurrentTime(0)
-      startAudioPlaybackRef.current?.(0)
       video.play().catch(() => {})
     }
 
     video.addEventListener('loadedmetadata', handleLoadedMetadata)
-    video.addEventListener('play', handlePlay)
+    video.addEventListener('playing', handlePlay)
     video.addEventListener('pause', handlePause)
+    video.addEventListener('waiting', handleWaiting)
+    video.addEventListener('seeking', handleWaiting)
+    video.addEventListener('seeked', handleSeeked)
+    video.addEventListener('volumechange', enforceMutedVideo)
     video.addEventListener('ended', handleEnded)
+    document.addEventListener('fullscreenchange', enforceMutedVideo)
+    document.addEventListener('visibilitychange', handleVisibility)
 
     // Restart rAF loop if video is currently playing (e.g. trim markers changed mid-playback)
     if (!video.paused && !video.ended) {
@@ -978,24 +1026,40 @@ export const Editor: FC<EditorProps> = ({
 
     return () => {
       video.removeEventListener('loadedmetadata', handleLoadedMetadata)
-      video.removeEventListener('play', handlePlay)
+      video.removeEventListener('playing', handlePlay)
       video.removeEventListener('pause', handlePause)
+      video.removeEventListener('waiting', handleWaiting)
+      video.removeEventListener('seeking', handleWaiting)
+      video.removeEventListener('seeked', handleSeeked)
+      video.removeEventListener('volumechange', enforceMutedVideo)
       video.removeEventListener('ended', handleEnded)
+      document.removeEventListener('fullscreenchange', enforceMutedVideo)
+      document.removeEventListener('visibilitychange', handleVisibility)
       stopRafLoop()
     }
   }, [trimStart, trimEnd, startRafLoop, stopRafLoop, stopAudioPlayback, syncTimelineBounds])
 
+  useEffect(() => {
+    const video = videoRef.current
+    // Restore the source when React repeats setup/cleanup during development.
+    if (video && !video.hasAttribute('src')) video.src = videoSrc
+    return () => {
+      stopAudioPlayback()
+      if (video) releaseVideo(video)
+    }
+  }, [stopAudioPlayback, videoSrc])
+
   // Handle video load errors - fallback to IPC file url
   const handleVideoError = useCallback(async () => {
     const video = videoRef.current
-    if (!video) return
+    if (!video || deletingRef.current) return
 
     console.error('Video failed to load with protocol, trying IPC fallback...')
 
     try {
       if (window.electronAPI?.getVideoFileUrl) {
         const result = await window.electronAPI.getVideoFileUrl(clip.filename)
-        if (result.success && result.url) {
+        if (result.success && result.url && !deletingRef.current) {
           console.log('Loading video via IPC file URL:', result.url)
           setVideoSrc(result.url)
         } else {
@@ -1012,12 +1076,12 @@ export const Editor: FC<EditorProps> = ({
     const video = videoRef.current
     if (!video) return
 
-    if (isPlaying) {
+    if (!video.paused) {
       video.pause()
     } else {
       void video.play()
     }
-  }, [isPlaying])
+  }, [])
 
   const handleVideoClick = useCallback(
     (e: React.MouseEvent<HTMLVideoElement>) => {
@@ -1229,13 +1293,42 @@ export const Editor: FC<EditorProps> = ({
 
   // Delete clip
   const handleDeleteClip = useCallback(async () => {
+    if (deletingRef.current) return
+    deletingRef.current = true
+    setDeleteError(null)
+    setIsDeleting(true)
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current)
+      saveTimeoutRef.current = null
+    }
+    stopAudioPlayback()
+    stopRafLoop()
+    const video = videoRef.current
+    const position = video?.currentTime ?? currentTime
+    if (video) releaseVideo(video)
     try {
-      await window.electronAPI.deleteClip(clip.id)
+      const result = await window.electronAPI.deleteClip(clip.id)
+      if (!result.success) throw new Error('The clip could not be deleted.')
       onClose()
     } catch (error) {
       console.error('Failed to delete clip:', error)
+      deletingRef.current = false
+      setDeleteError('Could not delete this clip. It may still be in use. Please try again.')
+      if (video) {
+        video.addEventListener(
+          'loadedmetadata',
+          () => {
+            video.currentTime = position
+          },
+          { once: true }
+        )
+        video.src = videoSrc
+        video.load()
+      }
+    } finally {
+      setIsDeleting(false)
     }
-  }, [clip.id, onClose])
+  }, [clip.id, onClose, stopAudioPlayback, stopRafLoop, currentTime, videoSrc])
 
   // Handle export
   const handleExport = useCallback(async () => {
@@ -2100,15 +2193,25 @@ export const Editor: FC<EditorProps> = ({
               Are you sure you want to delete &quot;{clip.filename}&quot;? This action cannot be
               undone.
             </p>
+            {deleteError && (
+              <p role="alert" className="mb-4 text-sm text-red-400">
+                {deleteError}
+              </p>
+            )}
             <div className="flex justify-end gap-2">
-              <button onClick={() => setShowDeleteConfirm(false)} className="btn-secondary">
+              <button
+                disabled={isDeleting}
+                onClick={() => setShowDeleteConfirm(false)}
+                className="btn-secondary"
+              >
                 Cancel
               </button>
               <button
                 onClick={handleDeleteClip}
+                disabled={isDeleting}
                 className="rounded-lg bg-red-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-600"
               >
-                Delete
+                {isDeleting ? 'Deleting...' : 'Delete'}
               </button>
             </div>
           </div>

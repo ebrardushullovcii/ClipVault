@@ -31,6 +31,7 @@ import { promisify } from 'util'
 import { cleanupOrphanedCache, getCacheStats, formatBytes } from './cleanup'
 import { exportPreviewTemplate } from './exportPreviewTemplate'
 import chokidar from 'chokidar'
+import { removeFileWithRetry } from './fileRemoval'
 
 const thumbnailLogPath = join(app.getPath('userData'), 'thumbnail.log')
 const execFileAsync = promisify(execFile)
@@ -49,82 +50,6 @@ function logThumbnail(message: string): void {
 }
 
 logThumbnail('ClipVault started - Thumbnail Worker Manager initialized')
-
-// Thumbnail Worker Manager - Optimized FFmpeg based
-// Uses input seeking (-ss before -i) for fast thumbnail extraction
-// Native Windows Thumbnail Cache API addon is disabled due to Electron compatibility issues
-class ThumbnailWorkerManager {
-  constructor() {
-    console.log('[ThumbnailWorker] Optimized FFmpeg-based thumbnail generation active')
-    logThumbnail('Thumbnail generation: Optimized FFmpeg with input seeking')
-  }
-
-  async extractThumbnail(
-    videoPath: string,
-    outputPath: string,
-    width = 480,
-    height = 270
-  ): Promise<{ success: boolean; error?: string; duration?: number }> {
-    const startTime = Date.now()
-    try {
-      // Skip if thumbnail already exists - this is the key optimization!
-      if (existsSync(outputPath)) {
-        return { success: true, duration: 0 }
-      }
-
-      const outputDir = dirname(outputPath)
-      if (!existsSync(outputDir)) {
-        await mkdir(outputDir, { recursive: true })
-      }
-
-      logThumbnail(`Extracting: ${basename(videoPath)}`)
-
-      // Use optimized FFmpeg with input seeking (-ss before -i is MUCH faster)
-      // This seeks directly in the file without decoding frames
-      await new Promise<void>((resolve, reject) => {
-        ffmpeg(videoPath)
-          .inputOptions(['-ss', '0.5']) // Input seeking - fast!
-          .outputOptions([
-            '-vframes',
-            '1', // Only 1 frame
-            '-q:v',
-            '5', // Good quality JPEG
-            '-vf',
-            `scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2`,
-          ])
-          .output(outputPath)
-          .on('end', () => resolve())
-          .on('error', err => {
-            console.error('[ThumbnailWorker] FFmpeg error:', err.message)
-            reject(err)
-          })
-          .run()
-      })
-
-      const duration = Date.now() - startTime
-      logThumbnail(`Success: ${basename(videoPath)} (${duration}ms)`)
-      return { success: true, duration }
-    } catch (error) {
-      const duration = Date.now() - startTime
-      console.error('[ThumbnailWorker] FFmpeg error:', error)
-      logThumbnail(`Error: ${basename(videoPath)} - ${error}`)
-      return { success: false, error: String(error), duration }
-    }
-  }
-
-  isAvailable(): boolean {
-    return true
-  }
-}
-
-let thumbnailWorker: ThumbnailWorkerManager | null = null
-
-function getThumbnailWorker(): ThumbnailWorkerManager {
-  if (!thumbnailWorker) {
-    thumbnailWorker = new ThumbnailWorkerManager()
-  }
-  return thumbnailWorker
-}
 
 // Get the directory containing the main script
 const appPath = process.argv[1] || process.cwd()
@@ -2217,8 +2142,37 @@ ipcMain.handle('clips:getList', async () => {
   }
 })
 
-// Save clip metadata
-ipcMain.handle('clips:saveMetadata', async (_, clipId: string, metadata: unknown) => {
+// A new or edited clip can be refreshed without rereading the whole library.
+ipcMain.handle('clips:get', async (_, clipId: string) => {
+  const path = ensureSafeClipVideoPath(clipId)
+  try {
+    const stats = await stat(path)
+    let metadata: Record<string, unknown> | null = null
+    try {
+      metadata = JSON.parse(await readFile(ensureSafeClipMetadataPath(clipId), 'utf-8'))
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT')
+        console.warn('Could not read clip metadata:', error)
+    }
+    return {
+      id: clipId,
+      filename: basename(path),
+      path,
+      size: stats.size,
+      createdAt: stats.birthtime.toISOString(),
+      modifiedAt: stats.mtime.toISOString(),
+      metadata,
+    }
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null
+    throw error
+  }
+})
+
+const deletingClips = new Set<string>()
+const pendingMetadataSaves = new Map<string, Promise<boolean>>()
+
+async function saveClipMetadata(clipId: string, metadata: unknown): Promise<boolean> {
   try {
     console.log('[METADATA] Saving metadata for clip:', clipId)
     const metadataDir = join(getClipsPath(), 'clips-metadata')
@@ -2237,6 +2191,7 @@ ipcMain.handle('clips:saveMetadata', async (_, clipId: string, metadata: unknown
       metadataToSave = normalized.metadata
     }
 
+    if (!existsSync(ensureSafeClipVideoPath(clipId))) return false
     await writeFile(metadataPath, JSON.stringify(metadataToSave, null, 2), 'utf-8')
     console.log('[METADATA] Saved to:', metadataPath)
     return true
@@ -2244,6 +2199,19 @@ ipcMain.handle('clips:saveMetadata', async (_, clipId: string, metadata: unknown
     console.error('[METADATA] Failed to save:', error)
     throw error
   }
+}
+
+// Serialize autosaves and let deletion wait for any writes already in progress.
+ipcMain.handle('clips:saveMetadata', (_, clipId: string, metadata: unknown) => {
+  if (deletingClips.has(clipId)) return false
+  const job = (pendingMetadataSaves.get(clipId) ?? Promise.resolve())
+    .catch(() => {})
+    .then(() => saveClipMetadata(clipId, metadata))
+    .finally(() => {
+      if (pendingMetadataSaves.get(clipId) === job) pendingMetadataSaves.delete(clipId)
+    })
+  pendingMetadataSaves.set(clipId, job)
+  return job
 })
 
 // Get clip metadata
@@ -2273,44 +2241,33 @@ ipcMain.handle('clips:getMetadata', async (_, clipId: string) => {
   }
 })
 
-// Delete clip
+// Delete clip after readers have released the file.
 ipcMain.handle('clips:delete', async (_, clipId: string) => {
+  const videoPath = ensureSafeClipVideoPath(clipId)
+  deletingClips.add(clipId)
   try {
-    // Delete video file
-    const videoPath = ensureSafeClipVideoPath(clipId)
-    if (existsSync(videoPath)) {
-      await fsUnlinkAsync(videoPath)
-      console.log('[Main] Deleted video file:', videoPath)
-    }
-
-    // Delete metadata file
-    const metadataPath = ensureSafeClipMetadataPath(clipId)
-    if (existsSync(metadataPath)) {
-      await fsUnlinkAsync(metadataPath)
-      console.log('[Main] Deleted metadata file:', metadataPath)
-    }
-
-    // Delete thumbnail if exists
-    const thumbnailPath = ensureSafeClipThumbnailPath(clipId)
-    if (existsSync(thumbnailPath)) {
-      await fsUnlinkAsync(thumbnailPath)
-      console.log('[Main] Deleted thumbnail:', thumbnailPath)
-    }
-
-    // Delete audio cache if exists
-    const track1Path = ensureSafeClipAudioCachePath(clipId, 1)
-    const track2Path = ensureSafeClipAudioCachePath(clipId, 2)
-    if (existsSync(track1Path)) {
-      await fsUnlinkAsync(track1Path)
-    }
-    if (existsSync(track2Path)) {
-      await fsUnlinkAsync(track2Path)
-    }
-
+    await Promise.allSettled([
+      activeThumbnailJobs.has(clipId) ? pendingThumbnailJobs.get(clipId) : undefined,
+      activeAudioExtractions.get(clipId),
+      pendingMetadataSaves.get(clipId),
+    ])
+    await removeFileWithRetry(videoPath)
+    // Cache cleanup must not turn a successful video deletion into a reported failure.
+    const cleanup = await Promise.allSettled(
+      [
+        ensureSafeClipMetadataPath(clipId),
+        ensureSafeClipThumbnailPath(clipId),
+        ensureSafeClipAudioCachePath(clipId, 1),
+        ensureSafeClipAudioCachePath(clipId, 2),
+      ].map(removeFileWithRetry)
+    )
+    cleanup.forEach(result => {
+      if (result.status === 'rejected')
+        console.warn('Deleted clip; cache cleanup failed:', result.reason)
+    })
     return { success: true }
-  } catch (error) {
-    console.error('Failed to delete clip:', error)
-    throw error
+  } finally {
+    deletingClips.delete(clipId)
   }
 })
 
@@ -2431,71 +2388,66 @@ ipcMain.handle('clips:getExistingThumbnails', async () => {
   }
 })
 
-// Generate thumbnail for a clip
-ipcMain.handle('clips:generateThumbnail', async (_, clipId: string, videoPath: string) => {
-  try {
-    if (!existsSync(thumbnailsPath)) {
-      await mkdir(thumbnailsPath, { recursive: true })
-    }
+// All thumbnail callers share one queue and one in-flight job per clip.
+let thumbnailQueue: Promise<unknown> = Promise.resolve()
+const pendingThumbnailJobs = new Map<string, Promise<string>>()
+const activeThumbnailJobs = new Set<string>()
 
-    const thumbnailFilename = `${clipId}.jpg`
-    const thumbnailPath = ensureSafeClipThumbnailPath(clipId)
-
-    if (existsSync(thumbnailPath)) {
-      return `clipvault://thumb/${encodeURIComponent(thumbnailFilename)}`
-    }
-
-    const worker = getThumbnailWorker()
-
-    if (worker.isAvailable()) {
-      logThumbnail(`Windows API: ${thumbnailFilename}`)
-
-      try {
-        const result = await worker.extractThumbnail(videoPath, thumbnailPath, 480, 270)
-
-        if (result.success && existsSync(thumbnailPath)) {
-          logThumbnail(`Windows API success: ${thumbnailFilename} in ${result.duration || 0}ms`)
-          return `clipvault://thumb/${encodeURIComponent(thumbnailFilename)}`
-        } else {
-          logThumbnail(`Windows API failed: ${thumbnailFilename} - ${result.error}`)
-        }
-      } catch (error) {
-        logThumbnail(`Windows API error: ${thumbnailFilename} - ${error}`)
-      }
-    } else {
-      logThumbnail(`Worker unavailable, using FFmpeg: ${thumbnailFilename}`)
-    }
-
-    logThumbnail(`FFmpeg fallback: ${thumbnailFilename}`)
-    const ffStartTime = Date.now()
-
-    return new Promise((resolve, reject) => {
-      ffmpeg(videoPath)
-        .inputOptions(['-ss', '0.5']) // Input seeking - fast!
-        .outputOptions([
-          '-vframes',
-          '1',
-          '-q:v',
-          '5',
-          '-vf',
-          'scale=480:270:force_original_aspect_ratio=decrease,pad=480:270:(ow-iw)/2:(oh-ih)/2',
-        ])
-        .output(thumbnailPath)
-        .on('end', () => {
-          logThumbnail(`FFmpeg success: ${thumbnailFilename} in ${Date.now() - ffStartTime}ms`)
-          resolve(`clipvault://thumb/${encodeURIComponent(thumbnailFilename)}`)
-        })
-        .on('error', err => {
-          logThumbnail(`FFmpeg error: ${thumbnailFilename} - ${err}`)
-          reject(err)
-        })
-        .run()
-    })
-  } catch (error) {
-    logThumbnail(`Failed: ${clipId} - ${error}`)
-    throw error
+function generateClipThumbnail(clipId: string, videoPath: string): Promise<string> {
+  const thumbnailPath = ensureSafeClipThumbnailPath(clipId)
+  const expectedVideoPath = ensureSafeClipVideoPath(clipId)
+  if (resolve(videoPath).toLowerCase() !== resolve(expectedVideoPath).toLowerCase()) {
+    return Promise.reject(new Error('Thumbnail path does not match the clip.'))
   }
-})
+  const existing = pendingThumbnailJobs.get(clipId)
+  if (existing) return existing
+  const job = thumbnailQueue
+    .then(async () => {
+      if (deletingClips.has(clipId)) throw new Error('Clip is being deleted.')
+      if (!existsSync(expectedVideoPath)) throw new Error('Clip no longer exists.')
+      activeThumbnailJobs.add(clipId)
+      const url = 'clipvault://thumb/' + encodeURIComponent(clipId + '.jpg')
+      if (existsSync(thumbnailPath)) return url
+      await mkdir(thumbnailsPath, { recursive: true })
+      try {
+        await new Promise<void>((resolve, reject) => {
+          ffmpeg(expectedVideoPath)
+            .inputOptions(['-ss', '0.5', '-threads', '1'])
+            .outputOptions([
+              '-vframes',
+              '1',
+              '-q:v',
+              '5',
+              '-threads',
+              '1',
+              '-filter_threads',
+              '1',
+              '-vf',
+              'scale=480:270:force_original_aspect_ratio=decrease,pad=480:270:(ow-iw)/2:(oh-ih)/2',
+            ])
+            .output(thumbnailPath)
+            .on('end', () => resolve())
+            .on('error', reject)
+            .run()
+        })
+        return url
+      } catch (error) {
+        await removeFileWithRetry(thumbnailPath).catch(() => {})
+        throw error
+      }
+    })
+    .finally(() => {
+      pendingThumbnailJobs.delete(clipId)
+      activeThumbnailJobs.delete(clipId)
+    })
+  pendingThumbnailJobs.set(clipId, job)
+  thumbnailQueue = job.catch(() => {})
+  return job
+}
+
+ipcMain.handle('clips:generateThumbnail', (_, clipId: string, videoPath: string) =>
+  generateClipThumbnail(clipId, videoPath)
+)
 
 // Get video file URL for loading in video element
 ipcMain.handle('video:getFileUrl', async (_, filename: string) => {
@@ -2553,112 +2505,21 @@ ipcMain.handle('clips:getVideoMetadata', async (_, videoPath: string) => {
   }
 })
 
-// Background thumbnail pre-generation on startup
+// Fill missing thumbnails without delaying already-cached clips.
 async function preGenerateThumbnails() {
   try {
     const clipsDir = getClipsPath()
-    if (!existsSync(clipsDir)) {
-      console.log('[Main] No clips directory, skipping thumbnail pre-generation')
-      return
-    }
-
     const files = await readdir(clipsDir)
-    const videoFiles = files.filter(f => f.endsWith('.mp4'))
-
-    if (videoFiles.length === 0) {
-      return
-    }
-
-    console.log(`[Main] Pre-generating ${videoFiles.length} thumbnails...`)
-
-    let generated = 0
-    let skipped = 0
-    let windowsGenerated = 0
-    let ffmpegGenerated = 0
-
-    // Avoid launching several FFmpeg decoders at once during background work.
-    const batchSize = 1
-    const worker = getThumbnailWorker()
-    const useWorker = worker.isAvailable()
-
-    if (useWorker) {
-      logThumbnail(`Pre-generation: using Windows Thumbnail Cache for ${videoFiles.length} clips`)
-    } else {
-      logThumbnail(
-        `Pre-generation: Worker not available, using FFmpeg for ${videoFiles.length} clips`
+    for (const filename of files.filter(file => file.endsWith('.mp4'))) {
+      const clipId = filename.slice(0, -4)
+      if (existsSync(ensureSafeClipThumbnailPath(clipId)) || deletingClips.has(clipId)) continue
+      await generateClipThumbnail(clipId, join(clipsDir, filename)).catch(error =>
+        logThumbnail('Pre-generation failed: ' + filename + ': ' + error)
       )
+      await new Promise(resolve => setTimeout(resolve, 250))
     }
-
-    for (let i = 0; i < videoFiles.length; i += batchSize) {
-      const batch = videoFiles.slice(i, i + batchSize)
-
-      await Promise.all(
-        batch.map(async filename => {
-          const clipId = filename.replace('.mp4', '')
-          const thumbnailFilename = `${clipId}.jpg`
-          const thumbnailPath = join(thumbnailsPath, thumbnailFilename)
-
-          if (existsSync(thumbnailPath)) {
-            skipped++
-            return
-          }
-
-          const videoPath = join(clipsDir, filename)
-
-          if (useWorker) {
-            try {
-              const result = await worker.extractThumbnail(videoPath, thumbnailPath, 480, 270)
-              if (result.success && existsSync(thumbnailPath)) {
-                windowsGenerated++
-                generated++
-                logThumbnail(`Pre-gen Windows: ${thumbnailFilename} in ${result.duration || 0}ms`)
-                return
-              } else {
-                logThumbnail(`Pre-gen Windows failed: ${thumbnailFilename}`)
-              }
-            } catch (error) {
-              logThumbnail(`Pre-gen Windows error: ${thumbnailFilename} - ${error}`)
-            }
-          }
-
-          await new Promise<void>(resolve => {
-            const ffStartTime = Date.now()
-            ffmpeg(videoPath)
-              .inputOptions(['-ss', '0.5']) // Input seeking - fast!
-              .outputOptions([
-                '-vframes',
-                '1',
-                '-q:v',
-                '5',
-                '-vf',
-                'scale=480:270:force_original_aspect_ratio=decrease,pad=480:270:(ow-iw)/2:(oh-ih)/2',
-              ])
-              .output(thumbnailPath)
-              .on('end', () => {
-                ffmpegGenerated++
-                generated++
-                logThumbnail(`Pre-gen: ${thumbnailFilename} in ${Date.now() - ffStartTime}ms`)
-                resolve()
-              })
-              .on('error', err => {
-                logThumbnail(`Pre-gen error: ${thumbnailFilename} - ${err}`)
-                resolve()
-              })
-              .run()
-          })
-        })
-      )
-
-      if (i + batchSize < videoFiles.length) {
-        await new Promise(r => setTimeout(r, 250))
-      }
-    }
-
-    logThumbnail(
-      `Pre-generation complete: ${generated} generated (${windowsGenerated} Windows, ${ffmpegGenerated} FFmpeg), ${skipped} skipped`
-    )
   } catch (error) {
-    logThumbnail(`Pre-generation error: ${error}`)
+    logThumbnail(`Pre-generation error: ${String(error)}`)
   }
 }
 
@@ -2701,53 +2562,15 @@ function startClipsWatcher() {
 
     if (!suppressFileWatcher) {
       BrowserWindow.getAllWindows().forEach(window => {
-        window.webContents.send('clips:new', { filename })
+        window.webContents.send('clips:new', { filename, path: filePath })
       })
     }
 
-    const clipId = filename.replace('.mp4', '')
-    const thumbnailFilename = `${clipId}.jpg`
-    const thumbnailPath = join(thumbnailsPath, thumbnailFilename)
-
-    // Skip if thumbnail already exists
-    if (existsSync(thumbnailPath)) {
-      logThumbnail(`[Watcher] Thumbnail already exists: ${thumbnailFilename}`)
-      return
-    }
-
-    logThumbnail(`[Watcher] New clip detected: ${filename} - generating thumbnail...`)
-    const startTime = Date.now()
-
+    const clipId = filename.slice(0, -4)
     try {
-      // Make sure thumbnails directory exists
-      if (!existsSync(thumbnailsPath)) {
-        await mkdir(thumbnailsPath, { recursive: true })
-      }
-
-      // Generate thumbnail using optimized FFmpeg
-      await new Promise<void>((resolve, reject) => {
-        ffmpeg(filePath)
-          .inputOptions(['-ss', '0.5']) // Input seeking - fast!
-          .outputOptions([
-            '-vframes',
-            '1',
-            '-q:v',
-            '5',
-            '-vf',
-            'scale=480:270:force_original_aspect_ratio=decrease,pad=480:270:(ow-iw)/2:(oh-ih)/2',
-          ])
-          .output(thumbnailPath)
-          .on('end', () => resolve())
-          .on('error', err => reject(err))
-          .run()
-      })
-
-      const duration = Date.now() - startTime
-      logThumbnail(`[Watcher] Thumbnail generated: ${thumbnailFilename} in ${duration}ms`)
-      console.log(`[ClipsWatcher] ✓ Thumbnail ready: ${thumbnailFilename} (${duration}ms)`)
+      await generateClipThumbnail(clipId, filePath)
     } catch (error) {
-      logThumbnail(`[Watcher] Failed to generate thumbnail: ${thumbnailFilename} - ${error}`)
-      console.error(`[ClipsWatcher] ✗ Failed: ${thumbnailFilename}`, error)
+      logThumbnail(`Thumbnail failed: ${filename}: ${String(error)}`)
     }
   })
 
@@ -4137,130 +3960,146 @@ const waitForStableFileSize = async (
   }
 }
 
-// Extract audio tracks from video file
+// Track extraction jobs so deletion waits for FFmpeg to close its input.
+type ExtractedAudio = { track1?: string; track2?: string; error?: string }
+const activeAudioExtractions = new Map<string, Promise<ExtractedAudio>>()
+async function extractAudioTracks(
+  clipId: string,
+  videoPath: string,
+  options?: ExtractAudioTracksOptions
+): Promise<ExtractedAudio> {
+  try {
+    const forceReextract = options?.forceReextract === true
+
+    if (typeof videoPath !== 'string' || !videoPath.trim()) {
+      throw new Error('Invalid video path provided for audio extraction.')
+    }
+
+    const clipsRoot = resolve(getClipsPath())
+    const resolvedVideoPath = resolve(videoPath)
+
+    let canonicalClipsRoot: string
+    let canonicalVideoPath: string
+
+    try {
+      canonicalClipsRoot = await fsRealpath(clipsRoot)
+      canonicalVideoPath = await fsRealpath(resolvedVideoPath)
+    } catch {
+      throw new Error('Audio extraction path could not be resolved.')
+    }
+
+    if (!isPathWithinRoot(canonicalClipsRoot, canonicalVideoPath)) {
+      throw new Error('Audio extraction rejected for unauthorized path.')
+    }
+
+    const videoStats = await stat(canonicalVideoPath)
+    if (!videoStats.isFile()) {
+      throw new Error('Audio extraction source must be a file.')
+    }
+
+    let canonicalExpectedVideoPath: string
+    try {
+      canonicalExpectedVideoPath = await fsRealpath(ensureSafeClipVideoPath(clipId))
+    } catch {
+      throw new Error(
+        'Audio extraction rejected because the clip ID does not match an existing clip.'
+      )
+    }
+
+    if (canonicalExpectedVideoPath.toLowerCase() !== canonicalVideoPath.toLowerCase()) {
+      throw new Error(
+        'Audio extraction rejected because the clip ID does not match the requested clip file.'
+      )
+    }
+
+    // Ensure audio cache directory exists
+    const audioCachePath = join(thumbnailsPath, 'audio')
+    if (!existsSync(audioCachePath)) {
+      await mkdir(audioCachePath, { recursive: true })
+    }
+
+    const track1Path = ensureSafeClipAudioCachePath(clipId, 1)
+    const track2Path = ensureSafeClipAudioCachePath(clipId, 2)
+
+    const results: { track1?: string; track2?: string; error?: string } = {}
+    const track1Url = `clipvault://audio/${encodeURIComponent(`${clipId}_track1.m4a`)}`
+    const track2Url = `clipvault://audio/${encodeURIComponent(`${clipId}_track2.m4a`)}`
+
+    const deleteIfExists = async (filePath: string): Promise<void> => {
+      if (existsSync(filePath)) {
+        await fsUnlinkAsync(filePath).catch(() => {})
+      }
+    }
+
+    if (forceReextract) {
+      await Promise.all([deleteIfExists(track1Path), deleteIfExists(track2Path)])
+    }
+
+    // Check if already cached
+    const track1Exists = !forceReextract && existsSync(track1Path)
+    const track2Exists = !forceReextract && existsSync(track2Path)
+
+    if (track1Exists) {
+      results.track1 = track1Url
+    }
+    if (track2Exists) {
+      results.track2 = track2Url
+    }
+
+    if (track1Exists && track2Exists) {
+      return results
+    }
+
+    // Get video metadata to check audio tracks
+    const metadata = await new Promise<ffmpeg.FfprobeData>((resolve, reject) => {
+      ffmpeg.ffprobe(canonicalVideoPath, (err, data) => {
+        if (err) reject(err)
+        else resolve(data)
+      })
+    })
+
+    const audioStreams = metadata.streams.filter(s => s.codec_type === 'audio')
+
+    const extractTrack = async (streamIndex: number, outputPath: string): Promise<void> => {
+      await waitForStableFileSize(canonicalVideoPath)
+      await deleteIfExists(outputPath)
+
+      await new Promise<void>((resolve, reject) => {
+        ffmpeg(canonicalVideoPath)
+          .outputOptions([`-map 0:a:${streamIndex}`, '-vn', '-c:a aac', '-b:a 128k'])
+          .save(outputPath)
+          .on('end', () => resolve())
+          .on('error', err => reject(err))
+      })
+    }
+
+    if (!track1Exists && audioStreams.length >= 1) {
+      await extractTrack(0, track1Path)
+      results.track1 = track1Url
+    }
+
+    if (!track2Exists && audioStreams.length >= 2) {
+      await extractTrack(1, track2Path)
+      results.track2 = track2Url
+    }
+
+    return results
+  } catch (error) {
+    console.error('Failed to extract audio tracks:', error)
+    return { error: String(error) }
+  }
+}
 ipcMain.handle(
   'audio:extractTracks',
-  async (_, clipId: string, videoPath: string, options?: ExtractAudioTracksOptions) => {
-    try {
-      const forceReextract = options?.forceReextract === true
-
-      if (typeof videoPath !== 'string' || !videoPath.trim()) {
-        throw new Error('Invalid video path provided for audio extraction.')
-      }
-
-      const clipsRoot = resolve(getClipsPath())
-      const resolvedVideoPath = resolve(videoPath)
-
-      let canonicalClipsRoot: string
-      let canonicalVideoPath: string
-
-      try {
-        canonicalClipsRoot = await fsRealpath(clipsRoot)
-        canonicalVideoPath = await fsRealpath(resolvedVideoPath)
-      } catch {
-        throw new Error('Audio extraction path could not be resolved.')
-      }
-
-      if (!isPathWithinRoot(canonicalClipsRoot, canonicalVideoPath)) {
-        throw new Error('Audio extraction rejected for unauthorized path.')
-      }
-
-      const videoStats = await stat(canonicalVideoPath)
-      if (!videoStats.isFile()) {
-        throw new Error('Audio extraction source must be a file.')
-      }
-
-      let canonicalExpectedVideoPath: string
-      try {
-        canonicalExpectedVideoPath = await fsRealpath(ensureSafeClipVideoPath(clipId))
-      } catch {
-        throw new Error(
-          'Audio extraction rejected because the clip ID does not match an existing clip.'
-        )
-      }
-
-      if (canonicalExpectedVideoPath.toLowerCase() !== canonicalVideoPath.toLowerCase()) {
-        throw new Error(
-          'Audio extraction rejected because the clip ID does not match the requested clip file.'
-        )
-      }
-
-      // Ensure audio cache directory exists
-      const audioCachePath = join(thumbnailsPath, 'audio')
-      if (!existsSync(audioCachePath)) {
-        await mkdir(audioCachePath, { recursive: true })
-      }
-
-      const track1Path = ensureSafeClipAudioCachePath(clipId, 1)
-      const track2Path = ensureSafeClipAudioCachePath(clipId, 2)
-
-      const results: { track1?: string; track2?: string; error?: string } = {}
-      const track1Url = `clipvault://audio/${encodeURIComponent(`${clipId}_track1.m4a`)}`
-      const track2Url = `clipvault://audio/${encodeURIComponent(`${clipId}_track2.m4a`)}`
-
-      const deleteIfExists = async (filePath: string): Promise<void> => {
-        if (existsSync(filePath)) {
-          await fsUnlinkAsync(filePath).catch(() => {})
-        }
-      }
-
-      if (forceReextract) {
-        await Promise.all([deleteIfExists(track1Path), deleteIfExists(track2Path)])
-      }
-
-      // Check if already cached
-      const track1Exists = !forceReextract && existsSync(track1Path)
-      const track2Exists = !forceReextract && existsSync(track2Path)
-
-      if (track1Exists) {
-        results.track1 = track1Url
-      }
-      if (track2Exists) {
-        results.track2 = track2Url
-      }
-
-      if (track1Exists && track2Exists) {
-        return results
-      }
-
-      // Get video metadata to check audio tracks
-      const metadata = await new Promise<ffmpeg.FfprobeData>((resolve, reject) => {
-        ffmpeg.ffprobe(canonicalVideoPath, (err, data) => {
-          if (err) reject(err)
-          else resolve(data)
-        })
-      })
-
-      const audioStreams = metadata.streams.filter(s => s.codec_type === 'audio')
-
-      const extractTrack = async (streamIndex: number, outputPath: string): Promise<void> => {
-        await waitForStableFileSize(canonicalVideoPath)
-        await deleteIfExists(outputPath)
-
-        await new Promise<void>((resolve, reject) => {
-          ffmpeg(canonicalVideoPath)
-            .outputOptions([`-map 0:a:${streamIndex}`, '-vn', '-c:a aac', '-b:a 128k'])
-            .save(outputPath)
-            .on('end', () => resolve())
-            .on('error', err => reject(err))
-        })
-      }
-
-      if (!track1Exists && audioStreams.length >= 1) {
-        await extractTrack(0, track1Path)
-        results.track1 = track1Url
-      }
-
-      if (!track2Exists && audioStreams.length >= 2) {
-        await extractTrack(1, track2Path)
-        results.track2 = track2Url
-      }
-
-      return results
-    } catch (error) {
-      console.error('Failed to extract audio tracks:', error)
-      return { error: String(error) }
-    }
+  (_, clipId: string, videoPath: string, options?: ExtractAudioTracksOptions) => {
+    if (deletingClips.has(clipId)) return { error: 'Clip is being deleted.' }
+    const existing = activeAudioExtractions.get(clipId)
+    if (existing) return existing
+    const job = extractAudioTracks(clipId, videoPath, options).finally(() =>
+      activeAudioExtractions.delete(clipId)
+    )
+    activeAudioExtractions.set(clipId, job)
+    return job
   }
 )
 

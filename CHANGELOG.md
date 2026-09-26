@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.1] - 2026-09-26
+
+### Fixed
+
+- Prevented native fullscreen playback controls from enabling duplicate MP4 audio alongside the editor's separate audio tracks.
+- Released video and audio resources before deleting an opened clip, waited for active file readers, and added retryable deletion errors.
+- Prevented pending editor autosaves from recreating metadata after a clip is deleted.
+- Included the full file path when a newly saved clip is opened immediately.
+- Preserved recording settings when upgrading from installers that remove the shared settings folder.
+
+### Changed
+
+- Packaged the production React runtime instead of the development runtime.
+- Paused editor playback and hover previews when the app is hidden, and stopped previews behind the editor or settings.
+- Serialized and deduplicated thumbnail generation across all callers, with one FFmpeg worker thread.
+- Refreshed individual new clips without repeatedly scanning the entire library.
+
 ## [1.7.0] - 2026-08-14
 
 ### Changed

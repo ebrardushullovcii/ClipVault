@@ -383,6 +383,7 @@ function App() {
         }}
       >
         <Library
+          isActive={!showEditor && currentView !== 'settings' && !showFirstRun}
           onOpenEditor={handleOpenEditor}
           onRegisterUpdate={handleRegisterLibraryUpdate}
           onRegisterNavigation={handleRegisterLibraryNavigation}

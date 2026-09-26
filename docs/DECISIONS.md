@@ -91,6 +91,8 @@ Decision: backend and UI share `%APPDATA%\ClipVault\settings.json`.
 
 Why: settings changed in the UI must affect backend capture and replay behavior. Be careful with migrations because persisted user settings span app versions.
 
+The Windows installer backs up shared settings outside that folder before upgrading and restores them afterward, because older uninstallers remove the folder during an upgrade. Keep the backup on disk if restoration fails. New uninstallers skip settings removal when invoked for an upgrade.
+
 ### Keep Clip Data Beside Clips, Cache In UserData
 
 Decision: saved MP4 clips live under the configured output path. Per-clip metadata lives in `clips-metadata` under that output path. Exported clips live in `exported-clips`. Thumbnails and extracted editor audio are cache data under Electron `userData`.

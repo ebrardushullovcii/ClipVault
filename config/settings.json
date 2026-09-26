@@ -6,6 +6,8 @@
         "height": 1080,
         "fps": 60,
         "encoder": "auto",
+        "codec": "h264",
+        "adaptive_quantization": true,
         "quality": 20,
         "nvenc_preset": "p3",
         "capture_method": "dxgi",

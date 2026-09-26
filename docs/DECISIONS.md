@@ -52,6 +52,8 @@ Decision: desktop audio uses `wasapi_output_capture`, microphone uses `wasapi_in
 
 Why: the editor depends on separate desktop and microphone tracks for muting, volume adjustment, and exports. Missing source activation or output-channel connection can make clips silent even when sources were created successfully.
 
+Use OBS's public active-reference API, balance each explicit activation, and detach output channels before releasing capture sources. Leaving channel references alive until OBS teardown caused intermittent shutdown crashes in packaged-runtime tests.
+
 ### Encoder Fallback Order Is Intentional
 
 Decision: automatic video encoding tries NVENC variants first, then x264. Explicit `nvenc` or `x264` settings are respected.
@@ -62,8 +64,12 @@ Important constraints:
 
 - On OBS 31, prefer the native `obs_nvenc_h264_tex` encoder. `jim_nvenc` is a deprecated compatibility ID whose settings migration can replace an incorrectly supplied preset.
 - Keep visual quality (CQP/CRF) independent from NVENC performance (`p1`-`p7`). The default is P3; P1/P2 are user-selectable when more encode-engine headroom is valuable.
-- Keep CQP, high-quality tuning, adaptive quantization, two B-frames, high profile, lookahead disabled, and single-pass encoding unless measurements justify changing them.
+- Keep CQP, high-quality tuning, two B-frames, lookahead disabled, and single-pass encoding. Adaptive quantization defaults on but can be disabled independently to compare GPU work against image quality; it does not change audio, resolution, or frame rate.
 - Log local OBS render/encode frame deltas so preset and capture changes can be compared without adding remote telemetry.
+
+Recording codec is a separate opt-in choice. H.264 remains the default for existing settings and uses high profile. AV1 uses the native OBS texture encoder with main profile and falls back to the H.264 NVENC chain if creation or replay startup fails. Only Auto may fall back to CPU encoding. Preserve both AAC tracks regardless of video codec. OBS 31 scales AV1 CQP by four internally; map the quality tiers separately instead of treating the native H.264 and AV1 quantizers as interchangeable.
+
+Why: AV1 can reduce file size and encoded replay-buffer memory on supported NVIDIA GPUs. It does not reduce monitor capture work, and software decoding can increase editor CPU use. Keep the codec and AQ controls independent and preserve export codec selection so users can still produce compatible H.264 sharing files.
 
 ### Use A Low-Level Keyboard Hook For The Save Hotkey
 
@@ -98,6 +104,12 @@ The Windows installer backs up shared settings outside that folder before upgrad
 Decision: saved MP4 clips live under the configured output path. Per-clip metadata lives in `clips-metadata` under that output path. Exported clips live in `exported-clips`. Thumbnails and extracted editor audio are cache data under Electron `userData`.
 
 Why: clip files and editor metadata should stay with the user's chosen clip folder, while generated thumbnails/audio can be rebuilt and cleaned as cache.
+
+### Stream Editor Audio And Preserve Track Controls
+
+Decision: prepare separate editor audio files by copying AAC packets with their timestamps intact; use a bounded AAC conversion only for other codecs. Serialize preparation and cancel work when the editor leaves a clip. Stream those files through native audio players with independent mute and volume controls instead of decoding the entire recording into PCM buffers.
+
+Why: normal editing starts with two- to three-minute recordings. Full audio decoding consumes substantial memory, and re-encoding existing AAC wastes CPU. The muted video remains the playback clock. Avoid repeated fractional playback-rate corrections: local pulse tests found growing audible delay in Chromium's time stretcher despite aligned media time counters. Verify actual audio pulses against presented video frames after playback changes. Exports must honor the same mute and volume settings; trimming the original preserves both source tracks.
 
 ### Treat Recording Size As A Range
 

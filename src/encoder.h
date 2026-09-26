@@ -49,11 +49,11 @@ private:
 
     bool create_video_encoder();
     bool create_audio_encoders();
-    bool create_specific_encoder(const char* encoder_id, const char* encoder_name);
     static obs_data_t* create_nvenc_settings(
         const char* encoder_id,
         const QualityMapping& quality,
-        const std::string& nvenc_preset);
+        const std::string& nvenc_preset,
+        bool adaptive_quantization);
 
     obs_encoder_t* video_encoder_ = nullptr;
     obs_encoder_t* audio_encoder_1_ = nullptr;  // Track 1: Desktop audio

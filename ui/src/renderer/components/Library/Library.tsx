@@ -90,6 +90,11 @@ const resolveAudioEnabled = (track?: AudioTrackSetting): boolean => {
   return track?.enabled ?? true
 }
 
+const resolveAudioVolume = (track?: AudioTrackSetting): number => {
+  if (typeof track === 'boolean') return 0.7
+  return track?.muted ? 0 : (track?.volume ?? 0.7)
+}
+
 export const Library: React.FC<LibraryProps> = ({
   onOpenEditor,
   onRegisterUpdate,
@@ -317,7 +322,7 @@ export const Library: React.FC<LibraryProps> = ({
       // The watcher waits for a stable file. Retry only when that clip is not ready.
       const refresh = async (attempt = 0) => {
         if (!processingFilesRef.current.has(filename)) return
-        const ready = await refreshClipData(filename)
+        const ready = await refreshClipData(filename, true)
         if (!processingFilesRef.current.has(filename)) return
         if (ready || attempt >= 2) {
           processingFilesRef.current.delete(filename)
@@ -346,7 +351,7 @@ export const Library: React.FC<LibraryProps> = ({
       const { filename } = data as { filename: string }
       console.log(`[Library] Clip trimmed, refreshing: ${filename}`)
       // Use refreshClipData to reload clip info and regenerate thumbnail/metadata
-      refreshClipData(filename).catch(error =>
+      refreshClipData(filename, true).catch(error =>
         console.error('[Library] Failed to refresh trimmed clip:', error)
       )
     })
@@ -386,7 +391,7 @@ export const Library: React.FC<LibraryProps> = ({
 
   // Refresh data for a specific clip
   const refreshClipData = useCallback(
-    async (filename: string) => {
+    async (filename: string, force = false) => {
       try {
         const updatedClip = await window.electronAPI.getClip(filename.replace(/\.mp4$/, ''))
 
@@ -397,7 +402,7 @@ export const Library: React.FC<LibraryProps> = ({
           // Trigger thumbnail generation
           if (updatedClip.path && updatedClip.size > 0) {
             console.log(`[Library] Generating thumbnail for ${filename}...`)
-            generateThumbnail(updatedClip.id, updatedClip.path)
+            generateThumbnail(updatedClip.id, updatedClip.path, force)
               .then(() => console.log(`[Library] Thumbnail generated for ${filename}`))
               .catch(err =>
                 console.error(`[Library] Failed to generate thumbnail for ${filename}:`, err)
@@ -405,7 +410,7 @@ export const Library: React.FC<LibraryProps> = ({
 
             // Fetch video metadata (duration, resolution, etc.)
             console.log(`[Library] Fetching metadata for ${filename}...`)
-            fetchMetadata(updatedClip.id, updatedClip.path)
+            fetchMetadata(updatedClip.id, updatedClip.path, force)
               .then(() => console.log(`[Library] Metadata fetched for ${filename}`))
               .catch(err =>
                 console.error(`[Library] Failed to fetch metadata for ${filename}:`, err)
@@ -1124,8 +1129,8 @@ export const Library: React.FC<LibraryProps> = ({
           trimEnd,
           audioTrack1,
           audioTrack2,
-          audioTrack1Volume: 1.0,
-          audioTrack2Volume: 1.0,
+          audioTrack1Volume: resolveAudioVolume(clip.metadata?.audio?.track1),
+          audioTrack2Volume: resolveAudioVolume(clip.metadata?.audio?.track2),
           targetSizeMB: bulkTargetSizeMB,
           exportCodec: bulkExportCodec,
           exportFps: bulkExportFps !== 'original' ? bulkExportFps : undefined,

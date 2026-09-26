@@ -50,7 +50,7 @@ namespace obs_api {
     uint32_t source_get_width(obs_source_t* source);
     uint32_t source_get_height(obs_source_t* source);
     void source_activate(obs_source_t* source);
-    void source_deactivate(obs_source_t* source, uint32_t hint = 0);
+    void source_deactivate(obs_source_t* source);
     
     // Video render function (CRITICAL: must be called regularly to produce frames)
     void render_main_texture();

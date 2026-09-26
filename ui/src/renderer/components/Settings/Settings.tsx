@@ -318,7 +318,7 @@ export const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsSaved }) 
 
       setOriginalSettings(cloneSettings(settings))
       onSettingsSaved?.(cloneSettings(settings))
-      const restartSucceeded = result.restarted !== false
+      const restartSucceeded = result.restartRequired === false || result.restarted !== false
       setSaveSuccess(restartSucceeded)
 
       if (!restartSucceeded) {
@@ -469,11 +469,11 @@ export const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsSaved }) 
         <div className="flex items-center gap-3">
           <h1 className="text-xl font-semibold text-text-primary">Settings</h1>
           <span className="text-sm text-text-muted">
-            Backend will automatically restart when you save
+            Recording changes restart the replay buffer when saved
           </span>
         </div>
         <div className="flex items-center gap-3">
-          {saveSuccess && <span className="text-success text-sm">Saved & restarted!</span>}
+          {saveSuccess && <span className="text-success text-sm">Settings saved</span>}
           {hasChanges && <span className="text-warning text-sm">Unsaved changes</span>}
           <button
             onClick={handleReset}
@@ -696,9 +696,6 @@ export const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsSaved }) 
                           className={`text-sm font-medium ${isActive ? 'text-accent-primary' : 'text-text-primary'}`}
                         >
                           {qualityPresets[preset].label}
-                          <span className="ml-1 font-normal text-text-muted">
-                            · CQP {qualityPresets[preset].quality}
-                          </span>
                         </div>
                         <div className="mt-1 text-xs leading-tight text-text-muted">
                           {qualityPresets[preset].description}
@@ -786,6 +783,76 @@ export const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsSaved }) 
               {settings.video.encoder !== 'x264' && (
                 <div>
                   <label className="mb-2 block text-sm font-medium text-text-secondary">
+                    Recording Codec
+                  </label>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    {(
+                      [
+                        [
+                          'h264',
+                          'H.264 · Most compatible',
+                          'Plays on the widest range of devices and editors.',
+                        ],
+                        [
+                          'av1',
+                          'AV1 · Smaller files',
+                          'Requires NVIDIA RTX 40-series or newer. Uses H.264 if AV1 cannot start.',
+                        ],
+                      ] as const
+                    ).map(([codec, label, description]) => (
+                      <button
+                        key={codec}
+                        aria-pressed={settings.video.codec === codec}
+                        onClick={() => updateVideoSetting('codec', codec)}
+                        className={`rounded-lg border p-3 text-left transition-colors ${
+                          settings.video.codec === codec
+                            ? 'border-accent-primary bg-accent-primary/10'
+                            : 'hover:border-border-hover border-border bg-background-tertiary'
+                        }`}
+                      >
+                        <div className="text-sm font-medium text-text-primary">{label}</div>
+                        <div className="mt-1 text-xs text-text-muted">{description}</div>
+                      </button>
+                    ))}
+                  </div>
+                  <p className="mt-2 text-xs text-text-muted">
+                    Applies to new recordings only. Both audio tracks stay separate. AV1 can use
+                    less disk space and replay-buffer RAM, but playback may use more CPU. Export as
+                    H.264 when sharing with a device or editor that does not support AV1.
+                  </p>
+                  <label className="mt-4 flex cursor-pointer items-start gap-3">
+                    <input
+                      type="checkbox"
+                      checked={settings.video.adaptive_quantization}
+                      onChange={event =>
+                        updateVideoSetting('adaptive_quantization', event.target.checked)
+                      }
+                      className="mt-1 accent-accent-primary"
+                    />
+                    <span>
+                      <span className="block text-sm font-medium text-text-secondary">
+                        Adaptive Quantization (AQ)
+                      </span>
+                      <span className="mt-1 block text-xs text-text-muted">
+                        Adjusts compression across the image to improve perceived quality. Turn off
+                        to try reducing GPU work; image quality and file size may change.
+                        Resolution, frame rate, and audio are unchanged.
+                      </span>
+                    </span>
+                  </label>
+                </div>
+              )}
+
+              {settings.video.encoder === 'x264' && (
+                <p className="text-xs text-text-muted">
+                  CPU recording uses H.264. AV1 and the NVENC AQ setting apply when using Auto or
+                  NVENC.
+                </p>
+              )}
+
+              {settings.video.encoder !== 'x264' && (
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-text-secondary">
                     NVENC Compression Effort
                   </label>
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -837,7 +904,9 @@ export const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsSaved }) 
                   <HardDrive className="h-5 w-5 text-accent-primary" />
                   <div className="flex-1">
                     <div className="text-sm font-medium text-text-primary">
-                      Typical File Size per Clip
+                      {settings.video.codec === 'av1' && settings.video.encoder !== 'x264'
+                        ? 'H.264 Reference Size per Clip'
+                        : 'Typical File Size per Clip'}
                     </div>
                     <div className="mt-1 text-xs text-text-muted">
                       Based on {formatDuration(settings.buffer_seconds)} @ {settings.video.width}x
@@ -846,6 +915,9 @@ export const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsSaved }) 
                     <div className="mt-0.5 text-xs italic text-text-muted/60">
                       Typical range: {estimatedSize.range}. Fast motion and fine detail use more
                       space.
+                      {settings.video.codec === 'av1' &&
+                        settings.video.encoder !== 'x264' &&
+                        ' AV1 usually uses less space; savings depend on the scene.'}
                     </div>
                     <div className="mt-0.5 text-xs text-text-muted/60">
                       The rolling video buffer uses roughly this much RAM, plus normal app and OBS
@@ -1206,7 +1278,10 @@ export const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsSaved }) 
               />
               <p className="mt-1 text-xs text-text-muted">
                 Press this key combination to save the last{' '}
-                {formatDuration(settings.buffer_seconds)} as a clip (typically ≈
+                {formatDuration(settings.buffer_seconds)} as a clip (
+                {settings.video.codec === 'av1' && settings.video.encoder !== 'x264'
+                  ? 'H.264 reference ≈'
+                  : 'typically ≈'}
                 {estimatedSize.typical})
               </p>
             </div>
@@ -1438,7 +1513,8 @@ export const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsSaved }) 
                 </code>
               </p>
               <p className="text-text-muted">
-                Changes require restarting the backend to take full effect.
+                Recording changes restart the replay buffer. Library and export preferences apply
+                immediately.
               </p>
             </div>
           </section>

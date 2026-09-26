@@ -5,7 +5,7 @@ export const releaseVideo = (video: HTMLVideoElement): void => {
   video.load()
 }
 
-// The editor mixes the separate audio tracks with Web Audio. Native fullscreen
+// The editor plays the separate audio tracks independently. Native fullscreen
 // controls must never enable the MP4's own audio alongside that mix.
 export const silenceVideo = (video: HTMLVideoElement): void => {
   video.defaultMuted = true

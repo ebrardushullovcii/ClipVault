@@ -403,6 +403,8 @@ export const ClipCard: React.FC<ClipCardProps> = memo(
     // Custom comparison for memo - only re-render if these change
     return (
       prevProps.clip.id === nextProps.clip.id &&
+      prevProps.clip.size === nextProps.clip.size &&
+      prevProps.clip.modifiedAt === nextProps.clip.modifiedAt &&
       prevProps.viewMode === nextProps.viewMode &&
       prevProps.thumbnailUrl === nextProps.thumbnailUrl &&
       prevProps.previewSrc === nextProps.previewSrc &&

@@ -958,6 +958,8 @@ const defaultSettings = {
     height: 1080,
     fps: 60,
     encoder: 'auto',
+    codec: 'h264',
+    adaptive_quantization: true,
     quality: 23,
     nvenc_preset: 'p3',
     capture_method: 'dxgi',
@@ -1077,6 +1079,13 @@ const normalizeSettings = (raw: unknown, fileExists: boolean) => {
 
   if (!/^p[1-7]$/.test(merged.video.nvenc_preset)) {
     merged.video.nvenc_preset = 'p3'
+  }
+
+  if (!['h264', 'av1'].includes(merged.video.codec)) {
+    merged.video.codec = 'h264'
+  }
+  if (typeof merged.video.adaptive_quantization !== 'boolean') {
+    merged.video.adaptive_quantization = true
   }
 
   if (!['auto', 'dxgi', 'wgc'].includes(merged.video.capture_method)) {
@@ -1954,11 +1963,24 @@ ipcMain.handle('settings:save', async (_, settings: unknown) => {
     await persistNormalizedSettings(normalized)
     console.log('Settings saved to:', settingsPath)
 
-    // Restart backend to apply new settings
-    console.log('Settings saved, restarting backend...')
-    const restarted = await restartBackend()
+    // Editor, export and library preferences do not affect the rolling recorder.
+    const backendSettings = (value: typeof normalized) => ({
+      output_path: value.output_path,
+      buffer_seconds: value.buffer_seconds,
+      video: value.video,
+      audio: value.audio,
+      hotkey: value.hotkey,
+      launcher: value.launcher,
+      first_run_completed: value.ui.first_run_completed,
+      show_notifications: value.ui.show_notifications,
+      play_sound: value.ui.play_sound,
+    })
+    const restartRequired =
+      JSON.stringify(backendSettings(existingSettings)) !==
+      JSON.stringify(backendSettings(normalized))
+    const restarted = restartRequired ? await restartBackend() : false
 
-    return { success: true, restarted }
+    return { success: true, restarted, restartRequired }
   } catch (error) {
     console.error('Failed to save settings:', error)
     return { success: false, error: String(error) }
@@ -2246,6 +2268,7 @@ ipcMain.handle('clips:delete', async (_, clipId: string) => {
   const videoPath = ensureSafeClipVideoPath(clipId)
   deletingClips.add(clipId)
   try {
+    audioExtractionControllers.get(clipId)?.abort()
     await Promise.allSettled([
       activeThumbnailJobs.has(clipId) ? pendingThumbnailJobs.get(clipId) : undefined,
       activeAudioExtractions.get(clipId),
@@ -3963,12 +3986,16 @@ const waitForStableFileSize = async (
 // Track extraction jobs so deletion waits for FFmpeg to close its input.
 type ExtractedAudio = { track1?: string; track2?: string; error?: string }
 const activeAudioExtractions = new Map<string, Promise<ExtractedAudio>>()
+const audioExtractionControllers = new Map<string, AbortController>()
+let audioExtractionQueue: Promise<unknown> = Promise.resolve()
 async function extractAudioTracks(
   clipId: string,
   videoPath: string,
-  options?: ExtractAudioTracksOptions
+  options: ExtractAudioTracksOptions | undefined,
+  signal: AbortSignal
 ): Promise<ExtractedAudio> {
   try {
+    signal.throwIfAborted()
     const forceReextract = options?.forceReextract === true
 
     if (typeof videoPath !== 'string' || !videoPath.trim()) {
@@ -4022,8 +4049,12 @@ async function extractAudioTracks(
     const track2Path = ensureSafeClipAudioCachePath(clipId, 2)
 
     const results: { track1?: string; track2?: string; error?: string } = {}
-    const track1Url = `clipvault://audio/${encodeURIComponent(`${clipId}_track1.m4a`)}`
-    const track2Url = `clipvault://audio/${encodeURIComponent(`${clipId}_track2.m4a`)}`
+    // Chromium can retain the old media response after a damaged cache is rebuilt
+    // or a clip is trimmed. Address the actual cache revision, including on reopen.
+    const trackUrl = async (track: number, filePath: string): Promise<string> => {
+      const revision = (await stat(filePath)).mtimeMs
+      return `clipvault://audio/${encodeURIComponent(`${clipId}_track${track}.m4a`)}?v=${revision}`
+    }
 
     const deleteIfExists = async (filePath: string): Promise<void> => {
       if (existsSync(filePath)) {
@@ -4040,16 +4071,18 @@ async function extractAudioTracks(
     const track2Exists = !forceReextract && existsSync(track2Path)
 
     if (track1Exists) {
-      results.track1 = track1Url
+      results.track1 = await trackUrl(1, track1Path)
     }
     if (track2Exists) {
-      results.track2 = track2Url
+      results.track2 = await trackUrl(2, track2Path)
     }
 
     if (track1Exists && track2Exists) {
       return results
     }
 
+    await waitForStableFileSize(canonicalVideoPath)
+    signal.throwIfAborted()
     // Get video metadata to check audio tracks
     const metadata = await new Promise<ffmpeg.FfprobeData>((resolve, reject) => {
       ffmpeg.ffprobe(canonicalVideoPath, (err, data) => {
@@ -4059,32 +4092,59 @@ async function extractAudioTracks(
     })
 
     const audioStreams = metadata.streams.filter(s => s.codec_type === 'audio')
+    signal.throwIfAborted()
 
     const extractTrack = async (streamIndex: number, outputPath: string): Promise<void> => {
-      await waitForStableFileSize(canonicalVideoPath)
-      await deleteIfExists(outputPath)
-
-      await new Promise<void>((resolve, reject) => {
-        ffmpeg(canonicalVideoPath)
-          .outputOptions([`-map 0:a:${streamIndex}`, '-vn', '-c:a aac', '-b:a 128k'])
-          .save(outputPath)
-          .on('end', () => resolve())
-          .on('error', err => reject(err))
-      })
+      signal.throwIfAborted()
+      const partialPath = outputPath.replace(/\.m4a$/, '.partial.m4a')
+      try {
+        await new Promise<void>((resolve, reject) => {
+          const copy = audioStreams[streamIndex].codec_name === 'aac'
+          const command = ffmpeg(canonicalVideoPath).outputOptions([
+            `-map 0:a:${streamIndex}`,
+            '-vn',
+            '-copyts',
+            '-start_at_zero',
+            ...(copy ? ['-c:a copy'] : ['-c:a aac', '-b:a 128k', '-threads 1']),
+            '-movflags +faststart',
+          ])
+          const abort = () => command.kill('SIGKILL')
+          command.on('start', () => {
+            if (signal.aborted) abort()
+          })
+          command
+            .on('end', () => {
+              signal.removeEventListener('abort', abort)
+              resolve()
+            })
+            .on('error', err => {
+              signal.removeEventListener('abort', abort)
+              reject(err)
+            })
+          signal.addEventListener('abort', abort, { once: true })
+          command.save(partialPath)
+        })
+        signal.throwIfAborted()
+        await deleteIfExists(outputPath)
+        await rename(partialPath, outputPath)
+      } finally {
+        await deleteIfExists(partialPath)
+      }
     }
 
     if (!track1Exists && audioStreams.length >= 1) {
       await extractTrack(0, track1Path)
-      results.track1 = track1Url
+      results.track1 = await trackUrl(1, track1Path)
     }
 
     if (!track2Exists && audioStreams.length >= 2) {
       await extractTrack(1, track2Path)
-      results.track2 = track2Url
+      results.track2 = await trackUrl(2, track2Path)
     }
 
     return results
   } catch (error) {
+    if (signal.aborted) return { error: 'Audio preparation cancelled.' }
     console.error('Failed to extract audio tracks:', error)
     return { error: String(error) }
   }
@@ -4094,14 +4154,26 @@ ipcMain.handle(
   (_, clipId: string, videoPath: string, options?: ExtractAudioTracksOptions) => {
     if (deletingClips.has(clipId)) return { error: 'Clip is being deleted.' }
     const existing = activeAudioExtractions.get(clipId)
-    if (existing) return existing
-    const job = extractAudioTracks(clipId, videoPath, options).finally(() =>
-      activeAudioExtractions.delete(clipId)
-    )
+    if (existing && !audioExtractionControllers.get(clipId)?.signal.aborted) return existing
+    const controller = new AbortController()
+    const job = audioExtractionQueue
+      .catch(() => {})
+      .then(() => extractAudioTracks(clipId, videoPath, options, controller.signal))
+      .finally(() => {
+        if (activeAudioExtractions.get(clipId) === job) {
+          activeAudioExtractions.delete(clipId)
+          audioExtractionControllers.delete(clipId)
+        }
+      })
+    audioExtractionQueue = job
+    audioExtractionControllers.set(clipId, controller)
     activeAudioExtractions.set(clipId, job)
     return job
   }
 )
+ipcMain.handle('audio:cancelExtraction', (_, clipId: string) => {
+  audioExtractionControllers.get(clipId)?.abort()
+})
 
 // Export clip with trim and audio track selection
 ipcMain.handle(
@@ -4289,7 +4361,7 @@ ipcMain.handle(
           if (needsDualAudioMix) {
             const videoChain = hasVideoFilters ? `[0:v:0]${videoFilters.join(',')}[vout];` : ''
             const videoMap = hasVideoFilters ? '[vout]' : '0:v:0'
-            const audioChain = `[0:a:0]volume=${vol1}[a0];[0:a:1]volume=${vol2}[a1];[a0][a1]amix=inputs=2:duration=first:dropout_transition=3[aout]`
+            const audioChain = `[0:a:0]volume=${vol1}[a0];[0:a:1]volume=${vol2}[a1];[a0][a1]amix=inputs=2:duration=longest:normalize=0[aout]`
             command.outputOptions([
               '-filter_complex',
               `${videoChain}${audioChain}`,
@@ -4428,6 +4500,9 @@ ipcMain.handle(
     }
 
     const tempPath = clipPath.replace(/\.mp4$/i, '.trimming.mp4')
+
+    audioExtractionControllers.get(clipId)?.abort()
+    await Promise.allSettled([activeAudioExtractions.get(clipId), pendingMetadataSaves.get(clipId)])
 
     // Remove stale temp file from a previous failed trim
     if (existsSync(tempPath)) {

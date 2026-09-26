@@ -35,6 +35,7 @@ const electronAPI: ElectronAPI = {
   // Audio tracks
   extractAudioTracks: (clipId: string, videoPath: string, options?: { forceReextract?: boolean }) =>
     ipcRenderer.invoke('audio:extractTracks', clipId, videoPath, options),
+  cancelAudioExtraction: (clipId: string) => ipcRenderer.invoke('audio:cancelExtraction', clipId),
 
   // Video loading
   getVideoFileUrl: (filename: string) => ipcRenderer.invoke('video:getFileUrl', filename),

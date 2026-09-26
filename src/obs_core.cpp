@@ -33,7 +33,7 @@ using obs_source_active_t = bool(*)(obs_source_t *source);
 using obs_source_get_width_t = uint32_t(*)(obs_source_t *source);
 using obs_source_get_height_t = uint32_t(*)(obs_source_t *source);
 using obs_source_activate_t = void(*)(obs_source_t *source);
-using obs_source_deactivate_t = void(*)(obs_source_t *source, uint32_t hint);
+using obs_source_deactivate_t = void(*)(obs_source_t *source);
 
 using obs_render_main_texture_t = void(*)(void);
 
@@ -225,8 +225,10 @@ static bool load_obs_functions()
     g_obs_source_active = (obs_source_active_t)GetProcAddress(g_obs_module, "obs_source_active");
     g_obs_source_get_width = (obs_source_get_width_t)GetProcAddress(g_obs_module, "obs_source_get_width");
     g_obs_source_get_height = (obs_source_get_height_t)GetProcAddress(g_obs_module, "obs_source_get_height");
-    g_obs_source_activate = (obs_source_activate_t)GetProcAddress(g_obs_module, "obs_source_activate");
-    g_obs_source_deactivate = (obs_source_deactivate_t)GetProcAddress(g_obs_module, "obs_source_deactivate");
+    // Use the public, one-argument active-reference API. The internal
+    // obs_source_activate function also requires a view type.
+    g_obs_source_activate = (obs_source_activate_t)GetProcAddress(g_obs_module, "obs_source_inc_active");
+    g_obs_source_deactivate = (obs_source_deactivate_t)GetProcAddress(g_obs_module, "obs_source_dec_active");
     
     // CRITICAL: Load video render function (needed to produce frames)
     g_obs_render_main_texture = (obs_render_main_texture_t)GetProcAddress(g_obs_module, "obs_render_main_texture");
@@ -244,7 +246,8 @@ static bool load_obs_functions()
     }
 
     if (!g_obs_data_create || !g_obs_data_release || !g_obs_source_create ||
-        !g_obs_source_release || !g_obs_set_output_source) {
+        !g_obs_source_release || !g_obs_set_output_source ||
+        !g_obs_source_activate || !g_obs_source_deactivate) {
         LOG_ERROR("Failed to load source/data OBS functions");
         return false;
     }
@@ -639,9 +642,9 @@ void source_activate(obs_source_t* source)
     if (g_obs_source_activate && source) g_obs_source_activate(source);
 }
 
-void source_deactivate(obs_source_t* source, uint32_t hint)
+void source_deactivate(obs_source_t* source)
 {
-    if (g_obs_source_deactivate && source) g_obs_source_deactivate(source, hint);
+    if (g_obs_source_deactivate && source) g_obs_source_deactivate(source);
 }
 
 void render_main_texture()

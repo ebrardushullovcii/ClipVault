@@ -125,11 +125,7 @@ bool CaptureManager::initialize()
     }
 
     if (!create_audio_sources()) {
-        // Cleanup video source if audio fails
-        if (video_source_) {
-            obs_api::source_release(video_source_);
-            video_source_ = nullptr;
-        }
+        shutdown();
         return false;
     }
 
@@ -140,23 +136,28 @@ bool CaptureManager::initialize()
 
 void CaptureManager::shutdown()
 {
-    if (!initialized_) {
+    if (!initialized_ && !microphone_ && !desktop_audio_ && !video_source_) {
         return;
     }
 
     LOG_INFO("Shutting down capture sources...");
 
     if (microphone_) {
+        obs_api::set_output_source(2, nullptr);
+        obs_api::source_deactivate(microphone_);
         obs_api::source_release(microphone_);
         microphone_ = nullptr;
     }
 
     if (desktop_audio_) {
+        obs_api::set_output_source(1, nullptr);
+        obs_api::source_deactivate(desktop_audio_);
         obs_api::source_release(desktop_audio_);
         desktop_audio_ = nullptr;
     }
 
     if (video_source_) {
+        obs_api::set_output_source(0, nullptr);
         obs_api::source_release(video_source_);
         video_source_ = nullptr;
     }

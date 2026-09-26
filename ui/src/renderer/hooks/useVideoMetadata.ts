@@ -18,7 +18,11 @@ interface MetadataCache {
 
 interface UseVideoMetadataReturn {
   metadata: MetadataCache
-  fetchMetadata: (clipId: string, videoPath: string) => Promise<VideoMetadata | undefined>
+  fetchMetadata: (
+    clipId: string,
+    videoPath: string,
+    force?: boolean
+  ) => Promise<VideoMetadata | undefined>
   formatDuration: (seconds: number) => string
   formatResolution: (width: number, height: number) => string
 }
@@ -32,9 +36,11 @@ export const useVideoMetadata = (): UseVideoMetadataReturn => {
 
   const fetchMetadata = async (
     clipId: string,
-    videoPath: string
+    videoPath: string,
+    force = false
   ): Promise<VideoMetadata | undefined> => {
     // Return cached metadata if available
+    if (force) delete globalMetadataCache[clipId]
     if (globalMetadataCache[clipId]) {
       return globalMetadataCache[clipId]
     }

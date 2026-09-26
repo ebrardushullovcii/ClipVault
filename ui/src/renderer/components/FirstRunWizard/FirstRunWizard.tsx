@@ -10,6 +10,8 @@ const DEFAULT_VIDEO: AppSettings['video'] = {
   height: 1080,
   fps: 60,
   encoder: 'auto',
+  codec: 'h264',
+  adaptive_quantization: true,
   quality: 23,
   nvenc_preset: 'p3',
   capture_method: 'dxgi',
@@ -551,12 +553,7 @@ export const FirstRunWizard: React.FC<FirstRunWizardProps> = ({
                               className="sr-only"
                             />
                             <div>
-                              <div className="font-semibold text-text-primary">
-                                {preset.label}
-                                <span className="ml-1 font-normal text-text-muted">
-                                  · CQP {preset.quality}
-                                </span>
-                              </div>
+                              <div className="font-semibold text-text-primary">{preset.label}</div>
                               <div className="text-xs text-text-muted">{preset.description}</div>
                             </div>
                             <div className="text-xs font-semibold text-text-muted">

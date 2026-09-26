@@ -6,7 +6,11 @@ interface ThumbnailCache {
 
 interface UseThumbnailsReturn {
   thumbnails: ThumbnailCache
-  generateThumbnail: (clipId: string, videoPath: string) => Promise<string | undefined>
+  generateThumbnail: (
+    clipId: string,
+    videoPath: string,
+    force?: boolean
+  ) => Promise<string | undefined>
   isLoading: boolean
 }
 
@@ -54,8 +58,9 @@ export const useThumbnails = (): UseThumbnailsReturn => {
   }, [])
 
   const generateThumbnail = useCallback(
-    async (clipId: string, videoPath: string): Promise<string | undefined> => {
+    async (clipId: string, videoPath: string, force = false): Promise<string | undefined> => {
       // Return cached thumbnail immediately if available - NO IPC CALL
+      if (force) delete globalThumbnailCache[clipId]
       if (globalThumbnailCache[clipId]) {
         return globalThumbnailCache[clipId]
       }
@@ -70,7 +75,8 @@ export const useThumbnails = (): UseThumbnailsReturn => {
 
       try {
         // Only make IPC call if not cached
-        const thumbnailUrl = await window.electronAPI.generateThumbnail(clipId, videoPath)
+        const generatedUrl = await window.electronAPI.generateThumbnail(clipId, videoPath)
+        const thumbnailUrl = force ? `${generatedUrl}?v=${Date.now()}` : generatedUrl
 
         // Store in global cache
         globalThumbnailCache[clipId] = thumbnailUrl

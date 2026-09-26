@@ -370,23 +370,41 @@ export const Library: React.FC<LibraryProps> = ({
   useEffect(() => {
     if (!isRestored) return
 
-    const interval = setInterval(async () => {
+    let refreshing = false
+    let disposed = false
+    const refresh = async () => {
       if (!isActive || document.visibilityState !== 'visible') return
+      if (refreshing) return
+      refreshing = true
 
       try {
         const freshList = await window.electronAPI.getClipsList()
+        if (disposed) return
         setClips(prev => {
           if (freshList.length !== prev.length) return freshList
-          const prevNames = new Set(prev.map(c => c.filename))
-          const hasNew = freshList.some(c => !prevNames.has(c.filename))
+          const prevPaths = new Set(prev.map(c => c.path))
+          const hasNew = freshList.some(c => !prevPaths.has(c.path))
           return hasNew ? freshList : prev
         })
       } catch {
         // Silently ignore - this is just a fallback
+      } finally {
+        refreshing = false
       }
-    }, 30000)
+    }
 
-    return () => clearInterval(interval)
+    // Catch up immediately after settings, editing, or time spent minimized.
+    void refresh()
+    document.addEventListener('visibilitychange', refresh)
+    window.addEventListener('focus', refresh)
+    const interval = setInterval(refresh, 30000)
+
+    return () => {
+      disposed = true
+      clearInterval(interval)
+      document.removeEventListener('visibilitychange', refresh)
+      window.removeEventListener('focus', refresh)
+    }
   }, [isRestored, isActive])
 
   // Refresh data for a specific clip

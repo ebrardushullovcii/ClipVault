@@ -624,9 +624,8 @@ function getClipsPath(): string {
     if (existsSync(settingsPath)) {
       const content = readFileSync(settingsPath, 'utf-8')
       const settings = JSON.parse(content)
-      const normalized = normalizeSettings(settings, true)
-      if (normalized.output_path && typeof normalized.output_path === 'string') {
-        return normalized.output_path
+      if (typeof settings.output_path === 'string' && settings.output_path.trim()) {
+        return settings.output_path.trim()
       }
     }
   } catch (error) {
@@ -858,12 +857,13 @@ async function createWindow() {
       sandbox: false,
       webSecurity: false,
     },
-    titleBarStyle: 'hiddenInset', // Modern look on macOS
+    titleBarStyle: process.platform === 'win32' ? 'hidden' : 'hiddenInset',
     ...(process.platform === 'win32'
       ? {
           titleBarOverlay: {
-            color: '#0f0f0f',
+            color: '#1a1a1a',
             symbolColor: '#ffffff',
+            height: 56,
           },
         }
       : {}),
@@ -2009,6 +2009,7 @@ ipcMain.handle('settings:save', async (_, settings: unknown) => {
 
     await persistNormalizedSettings(normalized)
     console.log('Settings saved to:', settingsPath)
+    startClipsWatcher(normalized.output_path)
 
     // Editor, export and library preferences do not affect the rolling recorder.
     const backendSettings = (value: typeof normalized) => ({
@@ -2140,13 +2141,15 @@ ipcMain.handle('audio:getDevices', async (_, type: 'output' | 'input') => {
 // Get list of clips
 ipcMain.handle('clips:getList', async () => {
   try {
-    if (!existsSync(getClipsPath())) {
-      await mkdir(getClipsPath(), { recursive: true })
-      return []
+    const clipsDir = getClipsPath()
+    if (!existsSync(clipsDir)) {
+      await mkdir(clipsDir, { recursive: true })
     }
+    // Reconcile after externally restored settings as well as changes in the UI.
+    startClipsWatcher(clipsDir)
 
     // Ensure clips-metadata directory exists
-    const metadataDir = join(getClipsPath(), 'clips-metadata')
+    const metadataDir = join(clipsDir, 'clips-metadata')
     if (!existsSync(metadataDir)) {
       await mkdir(metadataDir, { recursive: true })
     }
@@ -2158,12 +2161,12 @@ ipcMain.handle('clips:getList', async () => {
     }> = []
     let migratedGameTags = 0
 
-    const files = await readdir(getClipsPath())
+    const files = await readdir(clipsDir)
     const clips = await Promise.all(
       files
         .filter(file => file.endsWith('.mp4'))
         .map(async filename => {
-          const filePath = join(getClipsPath(), filename)
+          const filePath = join(clipsDir, filename)
           const stats = await stat(filePath)
           const clipId = filename.replace('.mp4', '')
           const metadataPath = join(metadataDir, `${clipId}.json`)
@@ -2606,24 +2609,18 @@ async function preGenerateThumbnails() {
 // Watch clips folder for new files and generate thumbnails instantly
 // This is the KEY to fast library loading - thumbnails are ready before you open the Library
 let clipsWatcher: ReturnType<typeof chokidar.watch> | null = null
+let watchedClipsPath: string | null = null
 
-function startClipsWatcher() {
-  const clipsDir = getClipsPath()
-  if (!existsSync(clipsDir)) {
-    console.log('[ClipsWatcher] No clips directory yet, will start watcher when it exists')
-    return
-  }
-
-  if (clipsWatcher) {
-    console.log('[ClipsWatcher] Already watching')
-    return
-  }
+function startClipsWatcher(directory = getClipsPath()) {
+  const clipsDir = resolve(directory)
+  if (clipsWatcher && watchedClipsPath === clipsDir) return
+  stopClipsWatcher()
 
   console.log(`[ClipsWatcher] Watching for new clips in: ${clipsDir}`)
   logThumbnail(`Starting clips watcher on: ${clipsDir}`)
 
   // Track files being written (recording in progress)
-  clipsWatcher = chokidar.watch(clipsDir, {
+  const watcher = chokidar.watch(clipsDir, {
     ignored: /(^|[\/\\])\../, // Ignore hidden files
     persistent: true,
     depth: 0,
@@ -2633,10 +2630,12 @@ function startClipsWatcher() {
       pollInterval: 200,
     },
   })
+  clipsWatcher = watcher
+  watchedClipsPath = clipsDir
 
-  clipsWatcher.on('add', async (filePath: string) => {
+  watcher.on('add', async (filePath: string) => {
     // Only process .mp4 files
-    if (!filePath.endsWith('.mp4')) return
+    if (clipsWatcher !== watcher || !filePath.endsWith('.mp4')) return
 
     const filename = basename(filePath)
 
@@ -2654,8 +2653,8 @@ function startClipsWatcher() {
     }
   })
 
-  clipsWatcher.on('unlink', (filePath: string) => {
-    if (!filePath.endsWith('.mp4') || suppressFileWatcher) return
+  watcher.on('unlink', (filePath: string) => {
+    if (clipsWatcher !== watcher || !filePath.endsWith('.mp4') || suppressFileWatcher) return
 
     const filename = basename(filePath)
     BrowserWindow.getAllWindows().forEach(window => {
@@ -2663,7 +2662,7 @@ function startClipsWatcher() {
     })
   })
 
-  clipsWatcher.on('error', error => {
+  watcher.on('error', error => {
     console.error('[ClipsWatcher] Error:', error)
     logThumbnail(`[Watcher] Error: ${error}`)
   })
@@ -2671,8 +2670,10 @@ function startClipsWatcher() {
 
 function stopClipsWatcher() {
   if (clipsWatcher) {
-    clipsWatcher.close()
+    const watcher = clipsWatcher
     clipsWatcher = null
+    watchedClipsPath = null
+    void watcher.close().catch(error => console.error('[ClipsWatcher] Failed to close:', error))
     console.log('[ClipsWatcher] Stopped')
   }
 }
@@ -4829,6 +4830,7 @@ app.whenReady().then(async () => {
 
   try {
     await ensureClipsDirectory()
+    startClipsWatcher()
   } catch (error) {
     console.error('Failed to ensure clips directory:', error)
   }
@@ -4847,10 +4849,6 @@ app.whenReady().then(async () => {
 
       // Pre-generate thumbnails in background
       preGenerateThumbnails()
-
-      // Start watching for new clips - generates thumbnails INSTANTLY when clips are saved
-      // This is what Medal, SteelSeries, etc. do - thumbnails are ready before you open Library
-      startClipsWatcher()
 
       // Clean up old .clipvault.json files from clips folder (move to clips-metadata)
       console.log('[Main] Migrating old metadata files to clips-metadata folder...')

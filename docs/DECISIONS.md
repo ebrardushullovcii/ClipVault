@@ -151,11 +151,19 @@ Decision: one main-process watcher handles clip add/remove notifications and thu
 
 Why: duplicate watchers and frequent full-library scans add filesystem work without improving the normal event-driven path.
 
+Keep the watcher attached to the current output folder after settings changes or restores. Start it independently of thumbnail/cache maintenance. Refresh once when the library becomes active or regains focus so clips saved while it was hidden appear immediately.
+
 ### Use The `clipvault://` Protocol For Renderer Media
 
 Decision: the renderer loads clips, thumbnails, audio, and exports through a custom `clipvault://` protocol.
 
 Why: the UI needs media access without exposing arbitrary filesystem paths to the renderer. Keep path validation tight around clip-scoped files.
+
+### Integrate Native Window Controls Into The App Header
+
+Decision: on Windows, use Electron's hidden title bar with Window Controls Overlay. Reserve the native buttons' area in the library, editor, and settings headers, and mark interactive controls as non-draggable.
+
+Why: removing the extra system title bar saves space while native caption buttons preserve Windows minimize, maximize/restore, Snap, accessibility, and close behavior. Closing still follows the existing tray preference.
 
 ### Packaged Resources Live Under `process.resourcesPath`
 

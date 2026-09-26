@@ -47,7 +47,7 @@ export const Header: React.FC<HeaderProps> = ({
   }
 
   return (
-    <header className="flex h-14 shrink-0 items-center justify-between border-b border-border bg-background-secondary px-6">
+    <header className="window-titlebar flex h-14 shrink-0 items-center justify-between border-b border-border bg-background-secondary px-6">
       <div className="flex items-center gap-3">
         <Video className="h-6 w-6 text-accent-primary" />
         <h1 className="text-lg font-semibold text-text-primary">ClipVault Editor</h1>
@@ -102,7 +102,7 @@ export const Header: React.FC<HeaderProps> = ({
           <FolderOpen className="h-4 w-4" />
           Open Folder
         </button>
-        <button onClick={onOpenSettings} className="btn-secondary p-2">
+        <button onClick={onOpenSettings} className="btn-secondary p-2" aria-label="Settings">
           <Settings className="h-4 w-4" />
         </button>
       </div>

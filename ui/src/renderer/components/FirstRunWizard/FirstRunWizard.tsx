@@ -345,7 +345,10 @@ export const FirstRunWizard: React.FC<FirstRunWizardProps> = ({
   const playSoundLabelId = 'first-run-play-sound-label'
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center overflow-y-auto bg-black/70 p-4 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[70] flex items-center justify-center overflow-y-auto bg-black/70 p-4 pt-20 backdrop-blur-sm">
+      <div className="window-titlebar absolute inset-x-0 top-0 flex h-14 items-center bg-background-secondary px-6 text-sm text-text-secondary">
+        ClipVault
+      </div>
       <div className="w-full max-w-4xl rounded-2xl border border-border bg-background-secondary p-8 shadow-2xl">
         <div className="flex max-h-[calc(100vh-4rem)] flex-col gap-6">
           <div className="flex items-start justify-between gap-4">

@@ -48,6 +48,19 @@
   }
 }
 
+/* The native caption buttons overlay the app header. Reserve their actual width,
+   including DPI/maximize changes, while keeping normal Windows drag behavior. */
+.window-titlebar {
+  -webkit-app-region: drag;
+  user-select: none;
+  padding-left: calc(24px + env(titlebar-area-x, 0px));
+  padding-right: calc(24px + 100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw));
+}
+
+.window-titlebar :is(button, input, select, textarea, a, [role='button']) {
+  -webkit-app-region: no-drag;
+}
+
 @layer components {
   .btn-primary {
     @apply rounded-lg bg-accent-primary px-4 py-2 font-medium text-background-primary transition-all duration-200 hover:scale-105 hover:bg-accent-hover active:scale-95 disabled:cursor-not-allowed disabled:opacity-50;

@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.6] - 2026-09-26
+
+### Fixed
+
+- Kept live library updates connected to the selected clip folder after settings changes or restores, and refreshed the library when returning to it.
+- Started clip notifications independently of background cache maintenance.
+
+### Changed
+
+- Integrated standard Windows minimize, maximize/restore, and close controls into the app headers, removing the extra system title bar.
+
 ## [1.7.5] - 2026-09-26
 
 ### Fixed

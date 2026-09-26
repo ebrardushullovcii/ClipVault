@@ -1299,16 +1299,17 @@ export const Editor: FC<EditorProps> = ({
   return (
     <div className="flex h-full flex-col bg-background-primary">
       {/* Header */}
-      <div className="flex h-14 shrink-0 items-center justify-between border-b border-border px-6">
-        <div className="flex items-center gap-4">
+      <div className="window-titlebar flex h-14 shrink-0 items-center justify-between gap-4 border-b border-border bg-background-secondary px-6">
+        <div className="flex min-w-0 items-center gap-4">
           <button
             onClick={onClose}
             disabled={isTrimming || isDeleting}
+            aria-label="Back to library"
             className="rounded-lg p-2 text-text-muted transition-colors hover:bg-background-tertiary hover:text-text-primary"
           >
             <X className="h-5 w-5" />
           </button>
-          <div className="flex items-center gap-1 rounded-lg border border-border bg-background-secondary p-1">
+          <div className="flex shrink-0 items-center gap-1 rounded-lg border border-border bg-background-secondary p-1">
             <button
               type="button"
               onClick={() => {
@@ -1348,8 +1349,10 @@ export const Editor: FC<EditorProps> = ({
               <ChevronRight className="h-4 w-4" />
             </button>
           </div>
-          <div>
-            <h2 className="font-semibold text-text-primary">{clip.filename.replace('.mp4', '')}</h2>
+          <div className="min-w-0">
+            <h2 className="truncate font-semibold text-text-primary" title={clip.filename}>
+              {clip.filename.replace('.mp4', '')}
+            </h2>
             <p className="text-xs text-text-muted">
               {hasResolvedDimensions
                 ? `${resolvedMetadata.width}x${resolvedMetadata.height}`
@@ -1364,7 +1367,7 @@ export const Editor: FC<EditorProps> = ({
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2">
           {/* Tags */}
           <div className="mr-2 flex items-center gap-1">
             {tags.map(tag => (

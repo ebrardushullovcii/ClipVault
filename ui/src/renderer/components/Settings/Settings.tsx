@@ -491,14 +491,17 @@ export const Settings: React.FC<SettingsProps> = ({ onClose, onSettingsSaved }) 
   return (
     <div className="flex h-full flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-border px-6 py-4">
-        <div className="flex items-center gap-3">
-          <h1 className="text-xl font-semibold text-text-primary">Settings</h1>
-          <span className="text-sm text-text-muted">
+      <div className="window-titlebar flex h-14 shrink-0 items-center justify-between gap-4 border-b border-border bg-background-secondary px-6">
+        <div className="flex min-w-0 items-center gap-3">
+          <h1 className="shrink-0 text-xl font-semibold text-text-primary">Settings</h1>
+          <span
+            className="truncate text-sm text-text-muted"
+            title="Recording changes restart the replay buffer when saved"
+          >
             Recording changes restart the replay buffer when saved
           </span>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex shrink-0 items-center gap-3">
           {saveSuccess && <span className="text-success text-sm">Settings saved</span>}
           {hasChanges && <span className="text-warning text-sm">Unsaved changes</span>}
           <button

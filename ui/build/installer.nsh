@@ -1,4 +1,6 @@
-Var ClipVaultStartupCommand
+!ifndef BUILD_UNINSTALLER
+  Var ClipVaultStartupCommand
+!endif
 
 !macro customInit
   ReadRegStr $ClipVaultStartupCommand HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "ClipVault"

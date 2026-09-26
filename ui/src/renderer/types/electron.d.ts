@@ -61,9 +61,13 @@ export interface AppSettings {
     height: number
     fps: number
     encoder: 'auto' | 'nvenc' | 'x264'
+    codec: 'h264' | 'av1'
+    adaptive_quantization: boolean
     quality: number
     nvenc_preset: 'p1' | 'p2' | 'p3' | 'p4' | 'p5' | 'p6' | 'p7'
     capture_method: 'auto' | 'dxgi' | 'wgc'
+    capture_target: 'monitor' | 'game' | 'hybrid' | 'window'
+    capture_window: string
     capture_cursor: boolean
     monitor: number
   }
@@ -154,6 +158,7 @@ export type { TrimInPlaceParams } from '../../shared/types'
 export interface TrimInPlaceResult {
   success: boolean
   newDuration: number
+  warning?: string
 }
 
 export interface AudioDeviceInfo {
@@ -185,16 +190,25 @@ export interface MonitorInfo {
   primary: boolean
 }
 
+export interface CaptureWindowInfo {
+  id: string
+  title: string
+  executable: string
+  minimized: boolean
+}
+
 export interface ElectronAPI {
   getSettings: () => Promise<AppSettings>
   saveSettings: (
     settings: AppSettings
-  ) => Promise<{ success: boolean; restarted?: boolean; error?: string }>
+  ) => Promise<{ success: boolean; restarted?: boolean; restartRequired?: boolean; error?: string }>
   restartBackend: () => Promise<{ success: boolean; restarted?: boolean }>
   getMonitors: () => Promise<MonitorInfo[]>
+  getCaptureWindows: () => Promise<CaptureWindowInfo[]>
   getAudioDevices: (type: 'output' | 'input') => Promise<AudioDeviceInfo[]>
   setStartup: (enabled: boolean) => Promise<{ success: boolean; error?: string }>
   getClipsList: () => Promise<ClipInfo[]>
+  getClip: (clipId: string) => Promise<ClipInfo | null>
   saveClipMetadata: (clipId: string, metadata: ClipMetadata) => Promise<boolean>
   getClipMetadata: (clipId: string) => Promise<ClipMetadata | null>
   deleteClip: (clipId: string) => Promise<{ success: boolean }>
@@ -206,6 +220,7 @@ export interface ElectronAPI {
     videoPath: string,
     options?: { forceReextract?: boolean }
   ) => Promise<AudioTrackUrls>
+  cancelAudioExtraction: (clipId: string) => Promise<void>
   getVideoFileUrl: (
     filename: string
   ) => Promise<{ success: boolean; url?: string; path?: string; error?: string }>

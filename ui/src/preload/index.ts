@@ -18,10 +18,12 @@ const electronAPI: ElectronAPI = {
 
   // System
   getMonitors: () => ipcRenderer.invoke('system:getMonitors'),
+  getCaptureWindows: () => ipcRenderer.invoke('system:getCaptureWindows'),
   getAudioDevices: (type: 'output' | 'input') => ipcRenderer.invoke('audio:getDevices', type),
 
   // Clips
   getClipsList: () => ipcRenderer.invoke('clips:getList'),
+  getClip: (clipId: string) => ipcRenderer.invoke('clips:get', clipId),
   saveClipMetadata: (clipId: string, metadata: ClipMetadata) =>
     ipcRenderer.invoke('clips:saveMetadata', clipId, metadata),
   getClipMetadata: (clipId: string) => ipcRenderer.invoke('clips:getMetadata', clipId),
@@ -34,6 +36,7 @@ const electronAPI: ElectronAPI = {
   // Audio tracks
   extractAudioTracks: (clipId: string, videoPath: string, options?: { forceReextract?: boolean }) =>
     ipcRenderer.invoke('audio:extractTracks', clipId, videoPath, options),
+  cancelAudioExtraction: (clipId: string) => ipcRenderer.invoke('audio:cancelExtraction', clipId),
 
   // Video loading
   getVideoFileUrl: (filename: string) => ipcRenderer.invoke('video:getFileUrl', filename),

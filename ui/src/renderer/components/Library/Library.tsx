@@ -41,6 +41,7 @@ export interface LibraryProps {
     ) => { clip: ClipInfo; metadata: VideoMetadata } | null
   ) => void
   hoverPreviewEnabled?: boolean
+  isActive?: boolean
   exportDefaults?: ExportDefaults
 }
 
@@ -89,11 +90,17 @@ const resolveAudioEnabled = (track?: AudioTrackSetting): boolean => {
   return track?.enabled ?? true
 }
 
+const resolveAudioVolume = (track?: AudioTrackSetting): number => {
+  if (typeof track === 'boolean') return 0.7
+  return track?.muted ? 0 : (track?.volume ?? 0.7)
+}
+
 export const Library: React.FC<LibraryProps> = ({
   onOpenEditor,
   onRegisterUpdate,
   onRegisterNavigation,
   hoverPreviewEnabled = true,
+  isActive = true,
   exportDefaults,
 }) => {
   const defaultExportCodec = exportDefaults?.codec ?? 'av1'
@@ -192,8 +199,7 @@ export const Library: React.FC<LibraryProps> = ({
 
   // Track filenames currently being processed to avoid re-processing on re-renders
   const processingFilesRef = useRef<Set<string>>(new Set())
-  // Track retry attempts for each filename
-  const retryAttemptsRef = useRef<Map<string, number>>(new Map())
+  const refreshTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
   const selectedClips = useMemo(
     () => clips.filter(clip => selectedClipIds.has(clip.id)),
     [clips, selectedClipIds]
@@ -230,7 +236,7 @@ export const Library: React.FC<LibraryProps> = ({
 
   const requestHoverPreview = useCallback(
     (clipId: string) => {
-      if (!hoverPreviewEnabled) {
+      if (!hoverPreviewEnabled || !isActive || document.visibilityState === 'hidden') {
         return
       }
 
@@ -263,8 +269,17 @@ export const Library: React.FC<LibraryProps> = ({
         setHoverPreviewClipId(prev => (prev === pendingClipId ? prev : pendingClipId))
       }, HOVER_PREVIEW_DELAY_MS)
     },
-    [hoverPreviewClipId, hoverPreviewEnabled, selectionActive]
+    [hoverPreviewClipId, hoverPreviewEnabled, selectionActive, isActive]
   )
+
+  useEffect(() => {
+    if (!isActive) stopHoverPreview()
+    const handleVisibility = () => {
+      if (document.visibilityState === 'hidden') stopHoverPreview()
+    }
+    document.addEventListener('visibilitychange', handleVisibility)
+    return () => document.removeEventListener('visibilitychange', handleVisibility)
+  }, [isActive, stopHoverPreview])
 
   // Calculate responsive columns based on container width
   const getGridCols = (width: number): number => {
@@ -281,7 +296,7 @@ export const Library: React.FC<LibraryProps> = ({
     }
 
     const unsubscribeNew = window.electronAPI.on('clips:new', (data: unknown) => {
-      const { filename } = data as { filename: string }
+      const { filename, path } = data as { filename: string; path: string }
 
       // Skip if already processing this file
       if (processingFilesRef.current.has(filename)) {
@@ -291,48 +306,35 @@ export const Library: React.FC<LibraryProps> = ({
 
       // Mark as processing
       processingFilesRef.current.add(filename)
-      retryAttemptsRef.current.set(filename, 0)
 
       // Immediately add placeholder to show something to the user
       const newClip: ClipInfo = {
         id: filename.replace('.mp4', ''),
         filename,
-        path: filename,
+        path,
         size: 0,
         createdAt: new Date().toISOString(),
         modifiedAt: new Date().toISOString(),
         metadata: null,
       }
-      setClips(prev => [newClip, ...prev])
+      setClips(prev => (prev.some(clip => clip.filename === filename) ? prev : [newClip, ...prev]))
 
-      // Attempt 1: Wait 3 seconds for file to be fully written
-      setTimeout(() => {
-        console.log(`[Library] Attempt 1: Refreshing clip data for ${filename}...`)
-        retryAttemptsRef.current.set(filename, 1)
-        refreshClipData(filename, 1)
-      }, 3000)
-
-      // Attempt 2: Wait 6 seconds total (3s additional)
-      setTimeout(() => {
-        console.log(`[Library] Attempt 2: Refreshing clip data for ${filename}...`)
-        retryAttemptsRef.current.set(filename, 2)
-        refreshClipData(filename, 2)
-      }, 6000)
-
-      // Attempt 3: Wait 15 seconds total (9s additional after attempt 2)
-      // This is the FINAL attempt - stop after this regardless of result
-      setTimeout(() => {
-        console.log(`[Library] Attempt 3 (FINAL): Refreshing clip data for ${filename}...`)
-        retryAttemptsRef.current.set(filename, 3)
-        refreshClipData(filename, 3)
-
-        // Clean up tracking after final attempt
-        setTimeout(() => {
+      // The watcher waits for a stable file. Retry only when that clip is not ready.
+      const refresh = async (attempt = 0) => {
+        if (!processingFilesRef.current.has(filename)) return
+        const ready = await refreshClipData(filename, true)
+        if (!processingFilesRef.current.has(filename)) return
+        if (ready || attempt >= 2) {
           processingFilesRef.current.delete(filename)
-          retryAttemptsRef.current.delete(filename)
-          console.log(`[Library] Final attempt completed for ${filename}, stopped tracking`)
-        }, 100)
-      }, 15000)
+          refreshTimersRef.current.delete(filename)
+          return
+        }
+        refreshTimersRef.current.set(
+          filename,
+          setTimeout(() => void refresh(attempt + 1), 1000)
+        )
+      }
+      void refresh()
     })
 
     const unsubscribeRemoved = window.electronAPI.on('clips:removed', (data: unknown) => {
@@ -340,7 +342,8 @@ export const Library: React.FC<LibraryProps> = ({
       setClips(prev => prev.filter(clip => clip.filename !== filename))
       // Clean up tracking when file is removed
       processingFilesRef.current.delete(filename)
-      retryAttemptsRef.current.delete(filename)
+      clearTimeout(refreshTimersRef.current.get(filename))
+      refreshTimersRef.current.delete(filename)
     })
 
     // Listen for trim-in-place completion to refresh the clip in the list
@@ -348,12 +351,15 @@ export const Library: React.FC<LibraryProps> = ({
       const { filename } = data as { filename: string }
       console.log(`[Library] Clip trimmed, refreshing: ${filename}`)
       // Use refreshClipData to reload clip info and regenerate thumbnail/metadata
-      refreshClipData(filename).catch(error =>
+      refreshClipData(filename, true).catch(error =>
         console.error('[Library] Failed to refresh trimmed clip:', error)
       )
     })
 
     return () => {
+      refreshTimersRef.current.forEach(clearTimeout)
+      refreshTimersRef.current.clear()
+      processingFilesRef.current.clear()
       unsubscribeNew?.()
       unsubscribeRemoved?.()
       unsubscribeTrimmed?.()
@@ -365,7 +371,7 @@ export const Library: React.FC<LibraryProps> = ({
     if (!isRestored) return
 
     const interval = setInterval(async () => {
-      if (document.visibilityState !== 'visible') return
+      if (!isActive || document.visibilityState !== 'visible') return
 
       try {
         const freshList = await window.electronAPI.getClipsList()
@@ -381,15 +387,13 @@ export const Library: React.FC<LibraryProps> = ({
     }, 30000)
 
     return () => clearInterval(interval)
-  }, [isRestored])
+  }, [isRestored, isActive])
 
   // Refresh data for a specific clip
   const refreshClipData = useCallback(
-    async (filename: string, attempt?: number) => {
+    async (filename: string, force = false) => {
       try {
-        // Reload the entire clips list to get updated file info
-        const clipList = await window.electronAPI.getClipsList()
-        const updatedClip = clipList.find(c => c.filename === filename)
+        const updatedClip = await window.electronAPI.getClip(filename.replace(/\.mp4$/, ''))
 
         if (updatedClip) {
           // Update the clip in state with real data
@@ -397,29 +401,27 @@ export const Library: React.FC<LibraryProps> = ({
 
           // Trigger thumbnail generation
           if (updatedClip.path && updatedClip.size > 0) {
-            console.log(
-              `[Library] Attempt ${attempt || '?'}: Generating thumbnail for ${filename}...`
-            )
-            generateThumbnail(updatedClip.id, updatedClip.path)
+            console.log(`[Library] Generating thumbnail for ${filename}...`)
+            generateThumbnail(updatedClip.id, updatedClip.path, force)
               .then(() => console.log(`[Library] Thumbnail generated for ${filename}`))
               .catch(err =>
                 console.error(`[Library] Failed to generate thumbnail for ${filename}:`, err)
               )
 
             // Fetch video metadata (duration, resolution, etc.)
-            console.log(`[Library] Attempt ${attempt || '?'}: Fetching metadata for ${filename}...`)
-            fetchMetadata(updatedClip.id, updatedClip.path)
+            console.log(`[Library] Fetching metadata for ${filename}...`)
+            fetchMetadata(updatedClip.id, updatedClip.path, force)
               .then(() => console.log(`[Library] Metadata fetched for ${filename}`))
               .catch(err =>
                 console.error(`[Library] Failed to fetch metadata for ${filename}:`, err)
               )
           }
+          return updatedClip.size > 0
         }
+        return false
       } catch (err) {
-        console.error(
-          `[Library] Attempt ${attempt || '?'}: Failed to refresh clip data for ${filename}:`,
-          err
-        )
+        console.error(`[Library] Failed to refresh clip data for ${filename}:`, err)
+        return false
       }
     },
     [generateThumbnail, fetchMetadata]
@@ -1029,6 +1031,7 @@ export const Library: React.FC<LibraryProps> = ({
   const handleBulkDelete = useCallback(async () => {
     if (selectedClips.length === 0) return
 
+    stopHoverPreview()
     setIsBulkDeleting(true)
     const deletedIds = new Set<string>()
     const failed: string[] = []
@@ -1060,7 +1063,7 @@ export const Library: React.FC<LibraryProps> = ({
     } else {
       showBulkMessage('Deleted selected clips')
     }
-  }, [clearSelection, selectedClips, showBulkMessage])
+  }, [clearSelection, selectedClips, showBulkMessage, stopHoverPreview])
 
   const handleBulkExport = useCallback(async () => {
     if (selectedClips.length === 0) return
@@ -1126,8 +1129,8 @@ export const Library: React.FC<LibraryProps> = ({
           trimEnd,
           audioTrack1,
           audioTrack2,
-          audioTrack1Volume: 1.0,
-          audioTrack2Volume: 1.0,
+          audioTrack1Volume: resolveAudioVolume(clip.metadata?.audio?.track1),
+          audioTrack2Volume: resolveAudioVolume(clip.metadata?.audio?.track2),
           targetSizeMB: bulkTargetSizeMB,
           exportCodec: bulkExportCodec,
           exportFps: bulkExportFps !== 'original' ? bulkExportFps : undefined,
@@ -1908,11 +1911,13 @@ export const Library: React.FC<LibraryProps> = ({
                         onToggleSelect={handleToggleSelect}
                         onEditGame={handleEditGame}
                         previewSrc={
-                          hoverPreviewEnabled && hoverPreviewClipId === clip.id
+                          isActive && hoverPreviewEnabled && hoverPreviewClipId === clip.id
                             ? `clipvault://clip/${encodeURIComponent(clip.filename)}`
                             : undefined
                         }
-                        isPreviewActive={hoverPreviewEnabled && hoverPreviewClipId === clip.id}
+                        isPreviewActive={
+                          isActive && hoverPreviewEnabled && hoverPreviewClipId === clip.id
+                        }
                         onPreviewStart={hoverPreviewEnabled ? requestHoverPreview : undefined}
                         onPreviewStop={hoverPreviewEnabled ? stopHoverPreview : undefined}
                       />

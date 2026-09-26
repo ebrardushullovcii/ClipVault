@@ -12,9 +12,13 @@ struct VideoConfig {
     int height = 1080;
     int fps = 60;
     std::string encoder = "auto";
+    std::string codec = "h264";
+    bool adaptive_quantization = true;
     int quality = 23;
     std::string nvenc_preset = "p3";
     std::string capture_method = "dxgi";
+    std::string capture_target = "monitor"; // monitor, game, hybrid, or window
+    std::string capture_window;
     bool capture_cursor = true;
     int monitor = 0;
 };

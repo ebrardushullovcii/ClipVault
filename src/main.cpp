@@ -3,6 +3,8 @@
 #include "tray.h"
 #include "obs_core.h"
 #include "capture.h"
+#include "capture_windows.h"
+#include "json.hpp"
 #include "encoder.h"
 #include "replay.h"
 #include "hotkey.h"
@@ -23,6 +25,117 @@ static bool g_background_mode = false;
 static bool g_no_tray = false;
 static HANDLE g_shutdown_event = nullptr;
 static HANDLE g_single_instance_mutex = nullptr;
+static HWINEVENTHOOK g_game_visibility_events = nullptr;
+
+static void CALLBACK on_game_window_event(HWINEVENTHOOK, DWORD event, HWND window,
+    LONG object, LONG child, DWORD, DWORD)
+{
+    const bool unavailable = event == EVENT_SYSTEM_MINIMIZESTART ||
+        ((event == EVENT_OBJECT_HIDE || event == EVENT_OBJECT_DESTROY) && object == OBJID_WINDOW && child == CHILDID_SELF);
+    if (unavailable &&
+        reinterpret_cast<uintptr_t>(window) == clipvault::CaptureManager::instance().game_window().handle) {
+        // Pause before WGC loses its texture. Waiting for the availability timer
+        // can otherwise encode a short black interval during minimization.
+        clipvault::ReplayManager::instance().set_capture_paused(true);
+    }
+}
+
+static HWINEVENTHOOK watch_game_window_events()
+{
+    const auto& mode = clipvault::ConfigManager::instance().video().capture_target;
+    if (mode != "game" && mode != "hybrid") return nullptr;
+    if (mode == "hybrid") {
+        g_game_visibility_events = SetWinEventHook(EVENT_OBJECT_DESTROY, EVENT_OBJECT_HIDE,
+            nullptr, on_game_window_event, 0, 0, WINEVENT_OUTOFCONTEXT | WINEVENT_SKIPOWNPROCESS);
+        if (!g_game_visibility_events) LOG_WARNING("Could not watch game closing; using periodic checks: " + std::to_string(GetLastError()));
+    }
+    // Out-of-context Windows notifications do not inject code into the game.
+    const auto hook = SetWinEventHook(EVENT_SYSTEM_MINIMIZESTART, EVENT_SYSTEM_MINIMIZESTART,
+        nullptr, on_game_window_event, 0, 0, WINEVENT_OUTOFCONTEXT | WINEVENT_SKIPOWNPROCESS);
+    if (!hook) LOG_WARNING("Could not watch game minimization; using periodic checks: " + std::to_string(GetLastError()));
+    return hook;
+}
+
+static void stop_game_window_events(HWINEVENTHOOK minimize_hook)
+{
+    for (auto hook : {minimize_hook, g_game_visibility_events}) {
+        if (hook && !UnhookWinEvent(hook)) LOG_WARNING("Could not stop game window notifications: " + std::to_string(GetLastError()));
+    }
+    g_game_visibility_events = nullptr;
+}
+
+static std::string detect_capture_game()
+{
+    const auto& video = clipvault::ConfigManager::instance().video();
+    if (video.capture_target == "game" || video.capture_target == "hybrid")
+        return clipvault::CaptureManager::instance().game_window().game;
+    if (video.capture_target != "window") {
+        return clipvault::GameDetector::instance().detect_game_from_foreground();
+    }
+    const size_t separator = video.capture_window.rfind(':');
+    if (separator == std::string::npos) return {};
+    std::string executable = video.capture_window.substr(separator + 1);
+    for (const auto& escape : {std::make_pair(std::string("#3A"), std::string(":")),
+                               std::make_pair(std::string("#22"), std::string("#"))}) {
+        size_t position = 0;
+        while ((position = executable.find(escape.first, position)) != std::string::npos) {
+            executable.replace(position, escape.first.size(), escape.second);
+            position += escape.second.size();
+        }
+    }
+    const auto game = clipvault::GameDatabase::instance().find_game_by_process(executable);
+    return game ? game->name : "";
+}
+
+static void CALLBACK check_capture_state(HWND, UINT, UINT_PTR, DWORD)
+{
+    // Source warm-up pumps window messages. Do not reenter from the timer.
+    static bool checking = false;
+    if (checking) return;
+    struct CheckGuard { bool& flag; CheckGuard(bool& f) : flag(f) { flag = true; } ~CheckGuard() { flag = false; } } guard(checking);
+    auto& capture = clipvault::CaptureManager::instance();
+    auto& replay = clipvault::ReplayManager::instance();
+    const auto& mode = clipvault::ConfigManager::instance().video().capture_target;
+    const ULONGLONG now = GetTickCount64();
+    static ULONGLONG next_game_check = 0;
+    static ULONGLONG next_start_attempt = 0;
+    static bool changing_target = false;
+    if ((mode == "game" || mode == "hybrid") && now >= next_game_check) {
+        next_game_check = now + 1000;
+        auto target = clipvault::find_game_capture_window(capture.game_window());
+        if (mode == "hybrid" && target.minimized) target = clipvault::find_game_capture_window({});
+        const auto& current = capture.game_window();
+        const bool changed = target.handle != current.handle || target.process_id != current.process_id ||
+            (!capture.has_video() && (target.id != current.id || mode == "hybrid"));
+        changing_target = mode == "game" && changed;
+        if (changed && mode == "hybrid" && !replay.is_save_pending()) {
+            if (!replay.switch_hybrid_capture(target)) next_game_check = GetTickCount64() + 10000;
+            std::cout << "[CAPTURE_GAME]" << capture.game_window().game << std::endl;
+        } else if (changed && mode == "game" && !replay.is_save_pending()) {
+            if (replay.is_active()) replay.stop();
+            if (replay.is_stopped()) {
+                if (!capture.set_game_window(target)) LOG_ERROR(capture.last_error());
+                changing_target = false;
+                next_start_attempt = 0;
+                std::cout << "[CAPTURE_GAME]" << capture.game_window().game << std::endl;
+            }
+        }
+    }
+    bool ready = capture.has_video() && !changing_target;
+    if ((mode == "game" || mode == "hybrid") && ready && replay.is_stopped() && now >= next_start_attempt) {
+        next_start_attempt = now + 5000; // Avoid repeated encoder initialization on failure.
+        if (!replay.start()) LOG_ERROR(replay.last_error());
+    }
+    if (mode == "window" || mode == "game" || mode == "hybrid") {
+        if (replay.is_active() && !replay.set_capture_paused(!ready)) return;
+        ready = ready && replay.is_active();
+    }
+    static int previous = -1;
+    if (previous != static_cast<int>(ready)) {
+        previous = ready;
+        std::cout << "[CAPTURE_STATE]" << (ready ? "ready" : mode == "game" ? "waiting-game" : "waiting") << std::endl;
+    }
+}
 
 // Check for single instance
 bool check_single_instance()
@@ -219,19 +332,16 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     (void)hPrevInstance;
     (void)nCmdShow;
 
-    // Get exe directory for relative paths
-    std::string exe_dir = get_exe_directory();
-    const std::string clip_sound_path = exe_dir + "\\clip_saved.wav";
-
-    // Initialize logger
-    std::string log_path = exe_dir + "\\clipvault.log";
-    if (!clipvault::Logger::instance().initialize(log_path)) {
-        MessageBoxA(nullptr, "Failed to initialize logger", "ClipVault Error", MB_OK | MB_ICONERROR);
-        return 1;
+    // Enumeration must not initialize OBS, take the recorder mutex, or truncate its log.
+    if (std::string(lpCmdLine) == "--list-windows") {
+        auto result = nlohmann::json::array();
+        for (const auto& window : clipvault::list_capture_windows()) {
+            result.push_back({{"id", window.id}, {"title", window.title},
+                {"executable", window.executable}, {"minimized", window.minimized}});
+        }
+        std::cout << result.dump() << std::endl;
+        return 0;
     }
-
-    // Parse command line arguments
-    parse_arguments(lpCmdLine);
 
     // Handle --list-audio-devices flag (used by UI to enumerate devices)
     std::string cmdLineStr(lpCmdLine);
@@ -257,6 +367,20 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         std::cout << "]";
         return 0;
     }
+
+    // Get exe directory for relative paths
+    std::string exe_dir = get_exe_directory();
+    const std::string clip_sound_path = exe_dir + "\\clip_saved.wav";
+
+    // Initialize logger
+    std::string log_path = exe_dir + "\\clipvault.log";
+    if (!clipvault::Logger::instance().initialize(log_path)) {
+        MessageBoxA(nullptr, "Failed to initialize logger", "ClipVault Error", MB_OK | MB_ICONERROR);
+        return 1;
+    }
+
+    // Parse command line arguments
+    parse_arguments(lpCmdLine);
 
     // Check single instance (prevent multiple backends)
     if (!check_single_instance()) {
@@ -289,6 +413,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         if (config_loaded) {
             LOG_INFO("Configuration loaded from: " + config_path);
         } else {
+            if (GetFileAttributesA(config_path.c_str()) != INVALID_FILE_ATTRIBUTES) {
+                LOG_ERROR("Could not read existing settings. Leave them intact and stop instead of recording a different target.");
+                clipvault::Logger::instance().shutdown();
+                return 1;
+            }
             LOG_WARNING("No config found at: " + config_path + ", using defaults");
             // Save default config for next time
             clipvault::ConfigManager::instance().save(config_path);
@@ -364,7 +493,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     }
 
     // Start the replay buffer
-    if (!replay.start()) {
+    if (clipvault::ConfigManager::instance().video().capture_target != "game" && !replay.start()) {
         LOG_ERROR("Failed to start replay buffer: " + replay.last_error());
         if (!g_background_mode) {
             MessageBoxA(nullptr, ("Failed to start replay buffer:\n" + replay.last_error()).c_str(),
@@ -378,6 +507,18 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         return 1;
     }
 
+    const HWINEVENTHOOK game_window_events = watch_game_window_events();
+    check_capture_state(nullptr, 0, 0, 0);
+    const UINT_PTR capture_timer = SetTimer(nullptr, 0, 250, check_capture_state);
+    if (!capture_timer) {
+        stop_game_window_events(game_window_events);
+        LOG_ERROR("Failed to start capture availability checks: " + std::to_string(GetLastError()));
+        replay.shutdown();
+        encoder.shutdown();
+        capture.shutdown();
+        obs.shutdown();
+        return 1;
+    }
     int result = 0;
 
     if (!g_no_tray && !g_background_mode) {
@@ -456,8 +597,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         hotkey.set_callback([&replay]() {
             LOG_INFO("Hotkey callback executing - triggering save...");
             
-            // Detect game from foreground window
-            std::string detected_game = clipvault::GameDetector::instance().detect_game_from_foreground();
+            // Use the selected capture target when naming a clip.
+            std::string detected_game = detect_capture_game();
             if (!detected_game.empty()) {
                 LOG_INFO("Game detected: " + detected_game);
             } else {
@@ -510,7 +651,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
                 LOG_INFO("Hotkey callback executing - triggering save...");
                 
                 // Detect game from foreground window
-                std::string detected_game = clipvault::GameDetector::instance().detect_game_from_foreground();
+                std::string detected_game = detect_capture_game();
                 if (!detected_game.empty()) {
                     LOG_INFO("Game detected: " + detected_game);
                 } else {
@@ -550,6 +691,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     }
 
     // Cleanup
+    KillTimer(nullptr, capture_timer);
+    stop_game_window_events(game_window_events);
     LOG_INFO("Shutting down...");
     replay.shutdown();
     encoder.shutdown();

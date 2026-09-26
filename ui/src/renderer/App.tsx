@@ -245,10 +245,8 @@ function App() {
       addToHistory({ type: 'library' })
     }
     setShowEditor(false)
-    setTimeout(() => {
-      setSelectedClip(null)
-      setSelectedClipMetadata(null)
-    }, 300)
+    setSelectedClip(null)
+    setSelectedClipMetadata(null)
   }, [addToHistory])
 
   const handleOpenSettings = useCallback(() => {
@@ -383,6 +381,7 @@ function App() {
         }}
       >
         <Library
+          isActive={!showEditor && currentView !== 'settings' && !showFirstRun}
           onOpenEditor={handleOpenEditor}
           onRegisterUpdate={handleRegisterLibraryUpdate}
           onRegisterNavigation={handleRegisterLibraryNavigation}

@@ -20,17 +20,35 @@ Why: many failures only appear after Electron resource paths, bundled OBS files,
 
 ### Prefer Monitor Capture For Anti-Cheat Safety
 
-Decision: video capture prefers OBS `monitor_capture` using selectable DXGI, WGC, or Auto, with DXGI as the default. Process/window capture remains a last-resort fallback.
+Decision: monitor capture remains the compatibility default, using selectable DXGI, WGC, or Auto. Automatic game capture and manual app-window capture are explicit experimental options using WGC without hooks or injection. Game-only and manual window capture never fall back to recording the desktop. The separate Monitor + automatic games option explicitly records the selected monitor when no capturable game is available.
 
 Why: ClipVault should avoid game hooks and injection. This is safer for anti-cheat-sensitive games, even if direct game capture can be more targeted.
 
-OBS 31 monitor capture requires the Windows display-interface string in `monitor_id`; the old numeric `monitor` source setting is not valid for the D3D11 monitor source. Resolve and log that ID before source creation. Keep DXGI, WGC, and Auto selectable so capture overhead can be compared without changing resolution or frame rate; DXGI remains the default because it performed at least as well as WGC in local full-monitor tests.
+OBS 31 monitor capture requires the Windows display-interface string in `monitor_id`; the old numeric `monitor` source setting is not valid for the D3D11 monitor source. Resolve and log that ID before source creation. Check for captured dimensions before starting the replay buffer; source creation alone does not prove capture works. If the requested monitor method has no video after startup, try the alternate monitor method, then fail clearly. DXGI returned `DXGI_ERROR_UNSUPPORTED` on this PC while WGC worked. Earlier comparisons made with the incorrect module initialization order actually used legacy GDI and cannot establish DXGI/WGC performance.
 
-### Load OBS Modules Before Video And Audio Reset
+### Initialize Graphics Before Loading OBS Modules
 
-Decision: OBS startup order is `obs_startup`, add data/module paths, `obs_load_all_modules`, `obs_post_load_modules`, then `obs_reset_video` and `obs_reset_audio`.
+Decision: OBS startup order is `obs_startup`, add data/module paths, `obs_reset_video` and `obs_reset_audio`, then `obs_load_all_modules` and `obs_post_load_modules`.
 
-Why: capture and encoder modules need to register before video/audio reset. Reversing this can produce black video or missing capture sources. On Windows, video init also needs `graphics_module = "libobs-d3d11"`.
+Why: OBS 31's win-capture module checks the graphics device during module load. Loading it before D3D11 initialization disables WGC and registers legacy GDI monitor capture. A controlled visible-window test produced all-black BitBlt output with the former order and working WGC output after correcting it. This follows OBS Studio's initialization sequence. Keep `graphics_module = "libobs-d3d11"` and use `%module%` in the plugin data path so each plugin finds its own resources.
+
+### Automatic Game And Manual Window Capture
+
+Automatic game capture uses exact executable matches from the bundled game database, excluding launchers and generic Java app windows. OBS must also use executable-priority matching: title-priority matching can select an unrelated application with the same title. Prefer the foreground game, retain the current game across alt-tab, and otherwise select an open game. Fullscreen alone is not evidence that a browser or app is a game. Poll once per second rather than continuously scanning processes. A new game process/window gets a fresh replay buffer, so clips do not mix different games. Wait for video before starting the encoder; stop recording when the game closes. A minimized game keeps its buffer paused with both audio tracks together. Out-of-context Windows minimize notifications reduce the pause delay without injecting into the game; a few already-queued black frames can still appear at that transition. Unknown games remain available through manual window capture.
+
+Why: the normal game-clipping workflow should work across launches and matches without asking users to reselect a window. Desktop apps must not be mistaken for gameplay. Keep manual selection for intentional app recording and unrecognized games.
+
+Decision: use the OBS-escaped `title:class:executable` selector, exact-title matching, and WGC. Fit the window into the recording canvas without stretching; resize and borderless fullscreen changes should not require restarting capture. Do not enable the window source's audio capture: all PC audio and microphone capture retain their separate tracks.
+
+Why: a title alone is not a valid OBS window selector. Exact-title matching avoids falling back to an unrelated title. A renamed window can continue while its handle survives; automatic game mode reacquires new game windows after reopening. Manual app mode needs reselection if reopened under a different title. WGC game capture is experimental until verified in the user's actual games, especially exclusive fullscreen and protected applications.
+
+Pause the replay output while the selected window has no captured dimensions, preserving its buffer and pausing both audio tracks together. Resume when it returns. A save while unavailable should ask the user to restore the window, not produce a black clip. The tray reports waiting; the settings explain this behavior.
+
+### Keep History In Monitor + Automatic Games Mode
+
+Decision: hybrid mode records the selected monitor until a supported game opens, follows that game across alt-tab, and returns to the monitor when it closes, is minimized, or fails to produce video. Keep the replay encoder and both audio sources alive across source switches. Pause video and both audio tracks together during source warm-up rather than clearing recent history. Suspend the health reader while replacing its source, and reuse the last working monitor method to avoid repeating a failed API probe on every switch. Only one video capture source remains active after each switch.
+
+Why: this explicit mode serves continuous clipping across desktop and gameplay. A clip may intentionally contain both. Keep game-only mode's fresh buffers and no-desktop boundary unchanged. Failed game captures retry at a bounded interval rather than repeatedly interrupting desktop capture.
 
 ### Use Bundled OBS Through Dynamic Function Loading
 
@@ -40,7 +58,7 @@ Why: ClipVault ships a bundled OBS runtime. Dynamic loading gives clear diagnost
 
 ### Feed A Single Monitor Source Directly
 
-Decision: connect the selected full-monitor source directly to OBS output channel 0. Introduce a scene only when capture composition needs more than one video source.
+Decision: connect the selected full-monitor source directly to OBS output channel 0. Use a scene for multiple video sources or to fit a variable-sized window into the recording canvas.
 
 Why: the replay encoder consumes the OBS video mix, so a single active monitor source does not need a one-item scene. Removing that composition layer reduces render work while preserving verified 1080p60 replay output and both audio tracks.
 
@@ -52,6 +70,8 @@ Decision: desktop audio uses `wasapi_output_capture`, microphone uses `wasapi_in
 
 Why: the editor depends on separate desktop and microphone tracks for muting, volume adjustment, and exports. Missing source activation or output-channel connection can make clips silent even when sources were created successfully.
 
+Use OBS's public active-reference API, balance each explicit activation, and detach output channels before releasing capture sources. Leaving channel references alive until OBS teardown caused intermittent shutdown crashes in packaged-runtime tests.
+
 ### Encoder Fallback Order Is Intentional
 
 Decision: automatic video encoding tries NVENC variants first, then x264. Explicit `nvenc` or `x264` settings are respected.
@@ -62,8 +82,12 @@ Important constraints:
 
 - On OBS 31, prefer the native `obs_nvenc_h264_tex` encoder. `jim_nvenc` is a deprecated compatibility ID whose settings migration can replace an incorrectly supplied preset.
 - Keep visual quality (CQP/CRF) independent from NVENC performance (`p1`-`p7`). The default is P3; P1/P2 are user-selectable when more encode-engine headroom is valuable.
-- Keep CQP, high-quality tuning, adaptive quantization, two B-frames, high profile, lookahead disabled, and single-pass encoding unless measurements justify changing them.
+- Keep CQP, high-quality tuning, two B-frames, lookahead disabled, and single-pass encoding. Adaptive quantization defaults on but can be disabled independently to compare GPU work against image quality; it does not change audio, resolution, or frame rate.
 - Log local OBS render/encode frame deltas so preset and capture changes can be compared without adding remote telemetry.
+
+Recording codec is a separate opt-in choice. H.264 remains the default for existing settings and uses high profile. AV1 uses the native OBS texture encoder with main profile and falls back to the H.264 NVENC chain if creation or replay startup fails. Only Auto may fall back to CPU encoding. Preserve both AAC tracks regardless of video codec. OBS 31 scales AV1 CQP by four internally; map the quality tiers separately instead of treating the native H.264 and AV1 quantizers as interchangeable.
+
+Why: AV1 can reduce file size and encoded replay-buffer memory on supported NVIDIA GPUs. It does not reduce monitor capture work, and software decoding can increase editor CPU use. Keep the codec and AQ controls independent and preserve export codec selection so users can still produce compatible H.264 sharing files.
 
 ### Use A Low-Level Keyboard Hook For The Save Hotkey
 
@@ -91,11 +115,21 @@ Decision: backend and UI share `%APPDATA%\ClipVault\settings.json`.
 
 Why: settings changed in the UI must affect backend capture and replay behavior. Be careful with migrations because persisted user settings span app versions.
 
+The Windows installer backs up shared settings outside that folder before upgrading and restores them afterward, because older uninstallers remove the folder during an upgrade. Keep the backup on disk if restoration fails. New uninstallers skip settings removal when invoked for an upgrade.
+
+Preserve an existing Windows startup entry across upgrades and point it at the new installation path. Installed app launches also repair a missing or outdated entry when the saved startup preference is enabled; development, unpacked, and portable builds must not register temporary paths automatically. Leave Windows Task Manager's startup approval state untouched. A packaged startup launch must start the backend and tray without opening the editor.
+
 ### Keep Clip Data Beside Clips, Cache In UserData
 
 Decision: saved MP4 clips live under the configured output path. Per-clip metadata lives in `clips-metadata` under that output path. Exported clips live in `exported-clips`. Thumbnails and extracted editor audio are cache data under Electron `userData`.
 
 Why: clip files and editor metadata should stay with the user's chosen clip folder, while generated thumbnails/audio can be rebuilt and cleaned as cache.
+
+### Stream Editor Audio And Preserve Track Controls
+
+Decision: prepare separate editor audio files by copying AAC packets with their timestamps intact; use a bounded AAC conversion only for other codecs. Serialize preparation and cancel work when the editor leaves a clip. Stream those files through native audio players with independent mute and volume controls instead of decoding the entire recording into PCM buffers.
+
+Why: normal editing starts with two- to three-minute recordings. Full audio decoding consumes substantial memory, and re-encoding existing AAC wastes CPU. The muted video remains the playback clock. Avoid repeated fractional playback-rate corrections: local pulse tests found growing audible delay in Chromium's time stretcher despite aligned media time counters. Verify actual audio pulses against presented video frames after playback changes. Exports must honor the same mute and volume settings; trimming the original preserves both source tracks.
 
 ### Treat Recording Size As A Range
 

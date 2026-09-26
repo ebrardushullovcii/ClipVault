@@ -12,6 +12,7 @@ import {
 } from 'lucide-react'
 import type { VideoMetadata } from '../../hooks/useVideoMetadata'
 import type { ClipInfo } from '../../types/electron'
+import { releaseVideo } from '../../utils/media'
 
 interface ClipCardProps {
   clip: ClipInfo
@@ -152,6 +153,14 @@ export const ClipCard: React.FC<ClipCardProps> = memo(
         video.currentTime = 0
       }
     }, [isPreviewActive])
+
+    useEffect(() => {
+      const video = previewVideoRef.current
+      if (video && previewSrc && !video.hasAttribute('src')) video.src = previewSrc
+      return () => {
+        if (video) releaseVideo(video)
+      }
+    }, [isPreviewActive, previewSrc])
 
     const handleClick = (event: React.MouseEvent<HTMLDivElement>) => {
       if (onCardClick) {
@@ -394,6 +403,8 @@ export const ClipCard: React.FC<ClipCardProps> = memo(
     // Custom comparison for memo - only re-render if these change
     return (
       prevProps.clip.id === nextProps.clip.id &&
+      prevProps.clip.size === nextProps.clip.size &&
+      prevProps.clip.modifiedAt === nextProps.clip.modifiedAt &&
       prevProps.viewMode === nextProps.viewMode &&
       prevProps.thumbnailUrl === nextProps.thumbnailUrl &&
       prevProps.previewSrc === nextProps.previewSrc &&

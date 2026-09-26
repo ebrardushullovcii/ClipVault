@@ -3,6 +3,7 @@
 #include "config.h"
 #include "encoder.h"
 #include "capture.h"
+#include <iostream>
 #include "game_detector.h"
 
 #include <windows.h>
@@ -296,6 +297,7 @@ void ReplayManager::shutdown()
 
     set_lifecycle_state(LifecycleState::Inactive);
     initialized_ = false;
+    capture_paused_ = false;
     LOG_INFO("[REPLAY] Shutdown complete");
 }
 
@@ -365,6 +367,7 @@ bool ReplayManager::start()
     LOG_INFO("[REPLAY] Pre-start diagnostics:");
     obs_api::debug_log_output_state(replay_output_, "Before Start");
 
+    capture_paused_ = false; // OBS clears its pause state when stopping output.
     LOG_INFO("[REPLAY] Calling obs_output_start()...");
     if (!obs_api::output_start(replay_output_)) {
         LOG_WARNING("[REPLAY] Initial start failed, attempting encoder fallback...");
@@ -468,8 +471,29 @@ void ReplayManager::stop()
     LOG_INFO("[REPLAY] Stop requested; waiting for callback...");
 }
 
+bool ReplayManager::set_capture_paused(bool paused)
+{
+    if (paused == capture_paused_) return true;
+    if (paused && is_save_pending()) return false; // Finish an already requested save first.
+    if (!obs_api::output_pause(replay_output_, paused)) {
+        LOG_WARNING("Could not change capture pause state");
+        return false;
+    }
+    capture_paused_ = paused;
+    LOG_INFO(paused ? "Replay paused: selected window unavailable" : "Replay resumed: selected window available");
+    return true;
+}
+
 bool ReplayManager::save_clip()
 {
+    if (capture_paused_ || !CaptureManager::instance().has_video()) {
+        last_error_ = ConfigManager::instance().video().capture_target == "game"
+            ? "Open or restore a supported game and wait for capture to start before saving a clip"
+            : "Restore the selected capture window or display before saving a clip";
+        LOG_WARNING(last_error_);
+        std::cout << "[CAPTURE_SAVE_FAILED]" << last_error_ << std::endl;
+        return false;
+    }
     LOG_INFO("[REPLAY] ==========================================");
     LOG_INFO("[REPLAY] SAVE CLIP REQUESTED");
     LOG_INFO("[REPLAY] ==========================================");
@@ -549,6 +573,30 @@ bool ReplayManager::save_clip()
     LOG_INFO("[REPLAY] ==========================================");
 
     return true;
+}
+
+bool ReplayManager::switch_hybrid_capture(const CaptureWindow& window)
+{
+    if (save_pending_.load() || !set_capture_paused(true)) return false;
+    // The encoder and audio sources stay alive. Only suspend our diagnostic
+    // reader while releasing sources; OBS owns its rendering references.
+    stop_render_thread();
+    // OBS schedules its pause boundary two video frames ahead. Keep the old
+    // source alive until that boundary has passed, or those frames turn black.
+    const unsigned int fps = std::max(1, ConfigManager::instance().video().fps);
+    std::this_thread::sleep_for(std::chrono::milliseconds((3000 + fps - 1) / fps));
+    auto& capture = CaptureManager::instance();
+    bool selected = capture.set_game_window(window);
+    if (selected && window.handle) selected = capture.wait_for_video(3000);
+    if (!selected && window.handle) {
+        LOG_WARNING("[AUTO_GAME] Game has no video; returning to monitor capture");
+        capture.set_game_window({});
+    }
+    if (is_active()) {
+        start_render_thread();
+        set_capture_paused(!capture.has_video());
+    }
+    return selected;
 }
 
 void ReplayManager::log_pipeline_stats()
@@ -826,6 +874,7 @@ void ReplayManager::stop_render_thread()
     }
     
     render_thread_running_.store(false);
+    health_check_cv_.notify_all();
     
     if (render_thread_.joinable()) {
         render_thread_.join();
@@ -865,7 +914,9 @@ void ReplayManager::render_thread_loop()
         auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
 
         if (elapsed < check_interval) {
-            std::this_thread::sleep_for(check_interval - elapsed);
+            std::unique_lock<std::mutex> lock(health_check_mutex_);
+            health_check_cv_.wait_for(lock, check_interval - elapsed,
+                [this]() { return !render_thread_running_.load(); });
         }
     }
 

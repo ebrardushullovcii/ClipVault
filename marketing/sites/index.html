@@ -1,0 +1,58 @@
+<title>ClipVault Concepts</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700&family=Geist:wght@400;600&family=Geist+Mono:wght@500&display=swap">
+<style>
+:root {
+  /* Layout: a dark contact sheet; page previews as tall cards, videos below. */
+  --bg: #0b0d0d;
+  --panel: #131616;
+  --line: rgba(236, 244, 242, 0.1);
+  --fg: #ecf4f2;
+  --muted: rgba(236, 244, 242, 0.62);
+  --accent: #19d3ad;
+  --display: 'Bricolage Grotesque', 'Segoe UI', system-ui, sans-serif;
+  --body: 'Geist', 'Segoe UI', system-ui, sans-serif;
+  --mono: 'Geist Mono', Consolas, monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font-family: var(--body); line-height: 1.5; }
+a { color: inherit; }
+a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 6px; }
+.wrap { max-width: 1320px; margin: 0 auto; padding-inline: 20px; padding-block: 40px 56px; }
+header { display: flex; gap: 18px; align-items: center; flex-wrap: wrap; }
+header img { width: 52px; height: 52px; }
+h1 { font-family: var(--display); font-size: clamp(28px, 4vw, 44px); letter-spacing: -0.02em; margin: 0; text-wrap: balance; }
+.lede { margin: 6px 0 0; color: var(--muted); max-width: 62ch; }
+h2 { font-family: var(--display); font-size: 22px; margin: 44px 0 16px; }
+.note { color: var(--muted); font-size: 14px; margin: -8px 0 18px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 20px; }
+.card { display: flex; flex-direction: column; min-width: 0; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; text-decoration: none; }
+a.card:hover { border-color: var(--accent); }
+.shot { aspect-ratio: 16 / 10; overflow: hidden; background: #000; }
+.shot img { width: 100%; height: 100%; object-fit: cover; object-position: top; display: block; }
+.meta { padding: 14px 16px 16px; display: grid; gap: 4px; }
+.num { font-family: var(--mono); font-size: 12px; letter-spacing: 0.08em; color: var(--accent); }
+.meta h3 { margin: 0; font-size: 18px; }
+.meta p { margin: 0; color: var(--muted); font-size: 14.5px; }
+.vid { aspect-ratio: 16 / 9; background: #000; }
+.vid video { width: 100%; height: 100%; object-fit: contain; display: block; }
+.links { display: flex; flex-wrap: wrap; gap: 14px; font-size: 14px; margin-top: 4px; }
+.links a { color: var(--accent); }
+footer { margin-top: 48px; color: var(--muted); font-size: 13.5px; }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto; } }
+</style>
+<div class="wrap">
+<header><img src="assets/brand/icon-256.png" alt="" width="52" height="52">
+<div><h1>ClipVault landing page concepts</h1>
+<p class="lede">Ten directions built from the real app and a real clip library. Open one to see it full size; each is a complete page.</p></div></header>
+<main>
+<h2>Landing pages</h2>
+<div class="grid"><a class="card" href="01-broadcast/index.html"><div class="shot"><img src="gallery/01-broadcast.webp" alt="First screen of the Instant Replay concept" width="960" height="600" loading="lazy"></div><div class="meta"><span class="num">01</span><h3>Instant Replay</h3><p>Live sports broadcast package: scorebug, lower thirds, replay wipes, telestrator marks.</p></div></a><a class="card" href="02-vault/index.html"><div class="shot"><img src="gallery/02-vault.webp" alt="First screen of the The Vault concept" width="960" height="600" loading="lazy"></div><div class="meta"><span class="num">02</span><h3>The Vault</h3><p>A vault door that opens onto the product; features as safe-deposit boxes.</p></div></a><a class="card" href="03-rewind/index.html"><div class="shot"><img src="gallery/03-rewind.webp" alt="First screen of the Rewind concept" width="960" height="600" loading="lazy"></div><div class="meta"><span class="num">03</span><h3>Rewind</h3><p>Home video era: a CRT, tape counters and a shelf of labeled cassettes.</p></div></a><a class="card" href="04-manpage/index.html"><div class="shot"><img src="gallery/04-manpage.webp" alt="First screen of the man clipvault concept" width="960" height="600" loading="lazy"></div><div class="meta"><span class="num">04</span><h3>man clipvault</h3><p>The product written up as a Unix manual page, for open-source and power users.</p></div></a><a class="card" href="05-arcade/index.html"><div class="shot"><img src="gallery/05-arcade.webp" alt="First screen of the Insert Coin concept" width="960" height="600" loading="lazy"></div><div class="meta"><span class="num">05</span><h3>Insert Coin</h3><p>An arcade cabinet in attract mode, with a high-score table of real clips.</p></div></a><a class="card" href="06-issue/index.html"><div class="shot"><img src="gallery/06-issue.webp" alt="First screen of the Issue 1.7.6 concept" width="960" height="600" loading="lazy"></div><div class="meta"><span class="num">06</span><h3>Issue 1.7.6</h3><p>A Swiss-style magazine feature printed on paper. Light theme.</p></div></a><a class="card" href="07-timeline/index.html"><div class="shot"><img src="gallery/07-timeline.webp" alt="First screen of the Scrub concept" width="960" height="600" loading="lazy"></div><div class="meta"><span class="num">07</span><h3>Scrub</h3><p>The page is a video editor timeline, with game and mic audio lanes.</p></div></a><a class="card" href="08-thread/index.html"><div class="shot"><img src="gallery/08-thread.webp" alt="First screen of the #clips concept" width="960" height="600" loading="lazy"></div><div class="meta"><span class="num">08</span><h3>#clips</h3><p>A group chat where a clip gets saved, trimmed and shared.</p></div></a><a class="card" href="09-poster/index.html"><div class="shot"><img src="gallery/09-poster.webp" alt="First screen of the Poster concept" width="960" height="600" loading="lazy"></div><div class="meta"><span class="num">09</span><h3>Poster</h3><p>Kinetic brutalist poster: giant type, acid lime, tickers and stickers.</p></div></a><a class="card" href="10-studio/index.html"><div class="shot"><img src="gallery/10-studio.webp" alt="First screen of the Studio concept" width="960" height="600" loading="lazy"></div><div class="meta"><span class="num">10</span><h3>Studio</h3><p>A light, premium product page with scroll-driven product shots.</p></div></a></div>
+<h2>Videos</h2>
+
+<div class="grid"><div class="card"><div class="vid"><video src="assets/video/launch-film.mp4" poster="assets/video/launch-film.jpg" controls preload="none" playsinline></video></div><div class="meta"><h3>Launch film</h3><p>35 s, 60 fps. Kinetic type, the hotkey press, a 3D library wall, trim, mute, export and a feature montage.</p><div class="links"><a href="assets/video/launch-film.mp4">Open video</a></div></div></div><div class="card"><div class="vid"><video src="assets/video/exploded.mp4" poster="assets/video/exploded.jpg" controls preload="none" playsinline></video></div><div class="meta"><h3>Exploded view</h3><p>24 s, 60 fps. The real app split into 3D layers with callouts.</p><div class="links"><a href="assets/video/exploded.mp4">Open video</a></div></div></div><div class="card"><div class="vid"><video src="assets/video/vertical.mp4" poster="assets/video/vertical.jpg" controls preload="none" playsinline></video></div><div class="meta"><h3>Vertical cut</h3><p>20 s, 60 fps, 9:16 for X, TikTok and Reels.</p><div class="links"><a href="assets/video/vertical.mp4">Open video</a></div></div></div><div class="card"><div class="vid"><video src="assets/video/bento-wide.mp4" poster="assets/video/bento-wide.jpg" controls preload="none" playsinline></video></div><div class="meta"><h3>Bento loop</h3><p>16 s seamless loop of animated feature tiles.</p><div class="links"><a href="assets/video/bento-wide.mp4">Open video</a><a href="assets/video/bento-square.mp4">Square</a></div></div></div><div class="card"><div class="vid"><video src="assets/video/hero-wide.mp4" poster="assets/video/hero-wide.jpg" controls preload="none" playsinline></video></div><div class="meta"><h3>Hero loop</h3><p>12 s seamless loop: round win, hotkey, library, trim, export.</p><div class="links"><a href="assets/video/hero-wide.mp4">Open video</a><a href="assets/video/hero-compact.mp4">1280×800 app</a></div></div></div><div class="card"><div class="vid"><video src="assets/video/tour-wide.mp4" poster="assets/video/tour-wide.jpg" controls preload="none" playsinline></video></div><div class="meta"><h3>Product tour</h3><p>50 s tour with captions.</p><div class="links"><a href="assets/video/tour-wide.mp4">Open video</a><a href="assets/video/tour-compact.mp4">1280×800 app</a></div></div></div><div class="card"><div class="vid"><video src="assets/video/trim-export-wide.mp4" poster="assets/video/trim-export-wide.jpg" controls preload="none" playsinline></video></div><div class="meta"><h3>Trim &amp; export</h3><p>17 s: tag, trim, mute the mic, export under 10 MB.</p><div class="links"><a href="assets/video/trim-export-wide.mp4">Open video</a><a href="assets/video/trim-export-compact.mp4">1280×800 app</a></div></div></div><div class="card"><div class="vid"><video src="assets/video/library-wide.mp4" poster="assets/video/library-wide.jpg" controls preload="none" playsinline></video></div><div class="meta"><h3>Library</h3><p>17 s: a new clip arrives, hover preview, filters, bulk select.</p><div class="links"><a href="assets/video/library-wide.mp4">Open video</a><a href="assets/video/library-compact.mp4">1280×800 app</a></div></div></div></div>
+</main>
+<footer>Gameplay recorded with ClipVault. Game names and footage belong to their respective owners.</footer>
+</div>

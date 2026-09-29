@@ -1,0 +1,4 @@
+# Generated media: seed clips, raw screenshots, full-size renders, isolated app copy
+.out/
+node_modules/
+capture/fake-backend/*.exe

@@ -1,0 +1,513 @@
+<!doctype html>
+<html lang="en" class="no-js">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ClipVault · Press your hotkey, keep the last two minutes</title>
+<meta name="description" content="ClipVault is a free, open-source game clipping app for Windows 10 and 11. Press your save hotkey to keep the last 2 minutes as an MP4, with game audio and your mic on separate tracks.">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#141516">
+<link rel="icon" type="image/png" href="../assets/brand/favicon-64.png">
+<script>document.documentElement.className = document.documentElement.className.replace('no-js', 'js')</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="style.css">
+<script src="script.js" defer></script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<svg class="defs" width="0" height="0" aria-hidden="true" focusable="false">
+  <defs>
+    <path id="wv-a1" d="M0 17.1h2.4v5.8h-2.4zM4 16.8h2.4v6.4h-2.4zM8 14.4h2.4v11.3h-2.4zM12 14.9h2.4v10.2h-2.4zM16 15.2h2.4v9.6h-2.4zM20 15.4h2.4v9.2h-2.4zM24 15.1h2.4v9.7h-2.4zM28 15.6h2.4v8.8h-2.4zM32 14.7h2.4v10.5h-2.4zM36 14.2h2.4v11.5h-2.4zM40 15.4h2.4v9.2h-2.4zM44 15.6h2.4v8.7h-2.4zM48 14.1h2.4v11.7h-2.4zM52 14.8h2.4v10.4h-2.4zM56 15.6h2.4v8.7h-2.4zM60 15.3h2.4v9.4h-2.4zM64 15.6h2.4v8.9h-2.4zM68 15.1h2.4v9.9h-2.4zM72 15.8h2.4v8.4h-2.4zM76 14.2h2.4v11.6h-2.4zM80 8.2h2.4v23.6h-2.4zM84 9.7h2.4v20.6h-2.4zM88 13.6h2.4v12.9h-2.4zM92 15.5h2.4v9h-2.4zM96 17h2.4v5.9h-2.4zM100 16.8h2.4v6.3h-2.4zM104 16.3h2.4v7.4h-2.4zM108 15.9h2.4v8.2h-2.4zM112 17.7h2.4v4.5h-2.4zM116 15.7h2.4v8.5h-2.4zM120 16.7h2.4v6.6h-2.4zM124 16.6h2.4v6.8h-2.4zM128 16.5h2.4v7h-2.4zM132 15.8h2.4v8.5h-2.4zM136 16.6h2.4v6.8h-2.4zM140 15.8h2.4v8.3h-2.4zM144 16h2.4v8h-2.4zM148 17.9h2.4v4.1h-2.4zM152 17.5h2.4v5h-2.4zM156 16.9h2.4v6.1h-2.4zM160 16.6h2.4v6.7h-2.4zM164 17.5h2.4v5h-2.4zM168 17.2h2.4v5.6h-2.4zM172 15.3h2.4v9.3h-2.4zM176 16.2h2.4v7.6h-2.4zM180 15.9h2.4v8.2h-2.4zM184 15.6h2.4v8.7h-2.4zM188 14.3h2.4v11.4h-2.4zM192 14.8h2.4v10.5h-2.4zM196 14.7h2.4v10.6h-2.4zM200 15.5h2.4v9.1h-2.4zM204 15.3h2.4v9.4h-2.4zM208 15.8h2.4v8.4h-2.4zM212 15.7h2.4v8.5h-2.4zM216 13.7h2.4v12.5h-2.4zM220 15.2h2.4v9.5h-2.4zM224 15.6h2.4v8.9h-2.4zM228 14.5h2.4v11h-2.4zM232 15.3h2.4v9.4h-2.4zM236 16.1h2.4v7.8h-2.4zM240 14.6h2.4v10.8h-2.4zM244 3.6h2.4v32.7h-2.4zM248 8.8h2.4v22.4h-2.4zM252 14.6h2.4v10.8h-2.4zM256 15.2h2.4v9.7h-2.4zM260 14.7h2.4v10.7h-2.4zM264 16.8h2.4v6.3h-2.4zM268 6.1h2.4v27.8h-2.4zM272 10.5h2.4v19h-2.4zM276 15.3h2.4v9.3h-2.4zM280 15.3h2.4v9.4h-2.4zM284 15.7h2.4v8.6h-2.4zM288 7h2.4v26h-2.4zM292 11.1h2.4v17.7h-2.4zM296 13.2h2.4v13.6h-2.4zM300 5.1h2.4v29.9h-2.4zM304 10.9h2.4v18.3h-2.4zM308 18.2h2.4v3.6h-2.4zM312 16.9h2.4v6.2h-2.4zM316 17.3h2.4v5.3h-2.4zM320 16.3h2.4v7.4h-2.4zM324 16.6h2.4v6.7h-2.4zM328 16h2.4v7.9h-2.4zM332 15.4h2.4v9.3h-2.4zM336 6.8h2.4v26.4h-2.4zM340 7.7h2.4v24.5h-2.4zM344 11.1h2.4v17.8h-2.4zM348 13.7h2.4v12.6h-2.4zM352 15.3h2.4v9.5h-2.4zM356 11h2.4v17.9h-2.4zM360 14.2h2.4v11.7h-2.4zM364 15.8h2.4v8.4h-2.4zM368 16.5h2.4v7h-2.4zM372 7.8h2.4v24.5h-2.4zM376 10.7h2.4v18.7h-2.4zM380 13.1h2.4v13.9h-2.4zM384 14.5h2.4v10.9h-2.4zM388 16h2.4v7.9h-2.4zM392 9.4h2.4v21.3h-2.4zM396 13.6h2.4v12.7h-2.4zM400 4h2.4v32h-2.4zM404 8.1h2.4v23.8h-2.4zM408 11.2h2.4v17.6h-2.4zM412 13.7h2.4v12.5h-2.4zM416 14.7h2.4v10.7h-2.4zM420 14.4h2.4v11.2h-2.4zM424 15h2.4v10.1h-2.4zM428 14.6h2.4v10.8h-2.4zM432 16.5h2.4v7.1h-2.4zM436 14.5h2.4v11.1h-2.4zM440 15.8h2.4v8.3h-2.4zM444 15.9h2.4v8.3h-2.4zM448 17h2.4v5.9h-2.4zM452 16.6h2.4v6.8h-2.4zM456 17.2h2.4v5.6h-2.4zM460 15.8h2.4v8.4h-2.4zM464 15.8h2.4v8.5h-2.4zM468 16.2h2.4v7.6h-2.4zM472 16.4h2.4v7.1h-2.4zM476 15.7h2.4v8.7h-2.4zM480 16.7h2.4v6.7h-2.4zM484 16.3h2.4v7.3h-2.4zM488 15.8h2.4v8.4h-2.4zM492 16.9h2.4v6.2h-2.4zM496 17.5h2.4v5h-2.4zM500 16.6h2.4v6.9h-2.4zM504 15.9h2.4v8.1h-2.4zM508 5.4h2.4v29.1h-2.4zM512 8.2h2.4v23.5h-2.4zM516 12.3h2.4v15.4h-2.4zM520 14h2.4v12h-2.4zM524 15.8h2.4v8.4h-2.4zM528 16.7h2.4v6.7h-2.4zM532 16.3h2.4v7.3h-2.4zM536 15.7h2.4v8.6h-2.4zM540 15.5h2.4v9.1h-2.4zM544 16.1h2.4v7.8h-2.4zM548 16.4h2.4v7.2h-2.4zM552 10.3h2.4v19.5h-2.4zM556 13.6h2.4v12.9h-2.4zM560 15.4h2.4v9.3h-2.4zM564 13.9h2.4v12.3h-2.4zM568 13.6h2.4v12.9h-2.4zM572 15.9h2.4v8.2h-2.4zM576 15.6h2.4v8.8h-2.4zM580 7.9h2.4v24.3h-2.4zM584 10.5h2.4v18.9h-2.4zM588 8.3h2.4v23.5h-2.4zM592 12.3h2.4v15.3h-2.4zM596 14h2.4v12h-2.4zM600 14.5h2.4v10.9h-2.4zM604 14.9h2.4v10.2h-2.4zM608 14.8h2.4v10.4h-2.4zM612 15.6h2.4v8.7h-2.4zM616 15.1h2.4v9.8h-2.4zM620 7h2.4v25.9h-2.4zM624 12h2.4v16h-2.4zM628 13.6h2.4v12.7h-2.4zM632 15.4h2.4v9.1h-2.4zM636 15.9h2.4v8.2h-2.4zM640 17.7h2.4v4.5h-2.4zM644 5.3h2.4v29.3h-2.4zM648 10.3h2.4v19.4h-2.4zM652 13.3h2.4v13.4h-2.4zM656 6.9h2.4v26.2h-2.4zM660 10.7h2.4v18.5h-2.4zM664 13.6h2.4v12.9h-2.4zM668 15.2h2.4v9.7h-2.4zM672 16.7h2.4v6.6h-2.4zM676 17.1h2.4v5.8h-2.4zM680 16.7h2.4v6.5h-2.4zM684 15.7h2.4v8.5h-2.4zM688 7h2.4v26h-2.4zM692 10.2h2.4v19.6h-2.4zM696 12.6h2.4v14.8h-2.4zM700 16.2h2.4v7.7h-2.4zM704 16.3h2.4v7.5h-2.4zM708 15.6h2.4v8.8h-2.4zM712 16.1h2.4v7.9h-2.4zM716 14.4h2.4v11.1h-2.4zM720 15.1h2.4v9.8h-2.4zM724 13.9h2.4v12.2h-2.4zM728 14.2h2.4v11.6h-2.4zM732 15h2.4v10.1h-2.4zM736 6.1h2.4v27.8h-2.4zM740 9.8h2.4v20.4h-2.4zM744 12.7h2.4v14.6h-2.4zM748 14.6h2.4v10.8h-2.4zM752 14.4h2.4v11.2h-2.4zM756 15.7h2.4v8.6h-2.4zM760 14.4h2.4v11.2h-2.4zM764 15.2h2.4v9.5h-2.4zM768 14.8h2.4v10.4h-2.4zM772 14.3h2.4v11.5h-2.4zM776 15.6h2.4v8.8h-2.4zM780 15.9h2.4v8.1h-2.4zM784 16.6h2.4v6.8h-2.4zM788 6.8h2.4v26.5h-2.4zM792 9.3h2.4v21.3h-2.4zM796 14.9h2.4v10.3h-2.4zM800 16.6h2.4v6.7h-2.4zM804 16.9h2.4v6.1h-2.4zM808 7.3h2.4v25.5h-2.4zM812 4.9h2.4v30.2h-2.4zM816 9.1h2.4v21.8h-2.4zM820 12.6h2.4v14.8h-2.4zM824 14.2h2.4v11.7h-2.4zM828 15.7h2.4v8.5h-2.4zM832 17.2h2.4v5.6h-2.4zM836 15.7h2.4v8.5h-2.4zM840 6.4h2.4v27.3h-2.4zM844 9.6h2.4v20.8h-2.4zM848 12.2h2.4v15.6h-2.4zM852 7.9h2.4v24.3h-2.4zM856 9.9h2.4v20.1h-2.4zM860 14.1h2.4v11.8h-2.4zM864 15h2.4v10h-2.4zM868 16h2.4v8h-2.4zM872 15.9h2.4v8.2h-2.4zM876 16.6h2.4v6.8h-2.4zM880 15h2.4v10h-2.4zM884 15.7h2.4v8.5h-2.4zM888 16.5h2.4v7.1h-2.4zM892 14.8h2.4v10.3h-2.4zM896 15.4h2.4v9.3h-2.4zM900 15h2.4v10h-2.4zM904 14.9h2.4v10.2h-2.4zM908 14h2.4v12.1h-2.4zM912 13.7h2.4v12.5h-2.4zM916 15.7h2.4v8.6h-2.4zM920 15.8h2.4v8.4h-2.4zM924 15.3h2.4v9.4h-2.4zM928 14.7h2.4v10.5h-2.4zM932 15.1h2.4v9.8h-2.4zM936 13.9h2.4v12.3h-2.4zM940 14.1h2.4v11.9h-2.4zM944 15h2.4v10h-2.4zM948 14.1h2.4v11.7h-2.4zM952 15.8h2.4v8.3h-2.4zM956 15.4h2.4v9.1h-2.4zM960 14.5h2.4v11h-2.4zM964 15.3h2.4v9.4h-2.4zM968 15.1h2.4v9.7h-2.4zM972 16.4h2.4v7.1h-2.4zM976 15.1h2.4v9.7h-2.4zM980 15.1h2.4v9.7h-2.4zM984 9.6h2.4v20.8h-2.4zM988 9.5h2.4v20.9h-2.4zM992 11.8h2.4v16.4h-2.4zM996 14.2h2.4v11.7h-2.4zM1000 17.3h2.4v5.4h-2.4zM1004 18h2.4v4.1h-2.4zM1008 15.9h2.4v8.2h-2.4zM1012 17.5h2.4v5h-2.4zM1016 16.7h2.4v6.6h-2.4zM1020 17.5h2.4v5h-2.4zM1024 16.1h2.4v7.8h-2.4zM1028 16.2h2.4v7.6h-2.4zM1032 17.8h2.4v4.4h-2.4zM1036 5.8h2.4v28.5h-2.4zM1040 9.8h2.4v20.4h-2.4zM1044 13.6h2.4v12.8h-2.4zM1048 14.8h2.4v10.4h-2.4zM1052 16.3h2.4v7.4h-2.4zM1056 10h2.4v20.1h-2.4zM1060 12.8h2.4v14.4h-2.4zM1064 16.1h2.4v7.8h-2.4zM1068 15.4h2.4v9.2h-2.4zM1072 16.3h2.4v7.5h-2.4zM1076 15.2h2.4v9.6h-2.4zM1080 15.2h2.4v9.6h-2.4zM1084 14.8h2.4v10.3h-2.4zM1088 15.7h2.4v8.6h-2.4zM1092 14.1h2.4v11.7h-2.4zM1096 15.3h2.4v9.4h-2.4zM1100 14.3h2.4v11.4h-2.4zM1104 14h2.4v12.1h-2.4zM1108 16h2.4v8h-2.4zM1112 15.7h2.4v8.6h-2.4zM1116 14.4h2.4v11.2h-2.4zM1120 6.6h2.4v26.8h-2.4zM1124 10.4h2.4v19.2h-2.4zM1128 12.3h2.4v15.4h-2.4zM1132 2.9h2.4v34.1h-2.4zM1136 8h2.4v24h-2.4zM1140 11.9h2.4v16.2h-2.4zM1144 14.3h2.4v11.4h-2.4zM1148 14.8h2.4v10.4h-2.4zM1152 15.7h2.4v8.6h-2.4zM1156 16.9h2.4v6.1h-2.4zM1160 16.4h2.4v7.2h-2.4zM1164 17.7h2.4v4.7h-2.4zM1168 7.1h2.4v25.8h-2.4zM1172 11.1h2.4v17.7h-2.4zM1176 13.1h2.4v13.9h-2.4zM1180 15.5h2.4v8.9h-2.4zM1184 16.3h2.4v7.4h-2.4zM1188 17.5h2.4v5.1h-2.4zM1192 17.6h2.4v4.8h-2.4zM1196 17.6h2.4v4.7h-2.4z"/>
+    <path id="wv-a2" d="M0 16.4h2.4v7.2h-2.4zM4 14.5h2.4v10.9h-2.4zM8 15.3h2.4v9.4h-2.4zM12 14.3h2.4v11.5h-2.4zM16 13.1h2.4v13.8h-2.4zM20 9.9h2.4v20.3h-2.4zM24 13.7h2.4v12.6h-2.4zM28 19.6h2.4v0.8h-2.4zM32 19.3h2.4v1.5h-2.4zM36 19.5h2.4v0.9h-2.4zM40 19.6h2.4v0.8h-2.4zM44 19.1h2.4v1.8h-2.4zM48 16.6h2.4v6.8h-2.4zM52 17.6h2.4v4.8h-2.4zM56 16.1h2.4v7.8h-2.4zM60 12.5h2.4v15h-2.4zM64 11h2.4v18h-2.4zM68 15.4h2.4v9.3h-2.4zM72 9.9h2.4v20.3h-2.4zM76 15.1h2.4v9.8h-2.4zM80 14.8h2.4v10.4h-2.4zM84 10.9h2.4v18.2h-2.4zM88 14.8h2.4v10.4h-2.4zM92 12.6h2.4v14.8h-2.4zM96 12.6h2.4v14.8h-2.4zM100 14.5h2.4v11.1h-2.4zM104 7.6h2.4v24.7h-2.4zM108 12.5h2.4v15.1h-2.4zM112 10h2.4v20h-2.4zM116 11.9h2.4v16.3h-2.4zM120 13.9h2.4v12.3h-2.4zM124 13.6h2.4v12.9h-2.4zM128 15.5h2.4v9h-2.4zM132 19.5h2.4v1h-2.4zM136 19.5h2.4v1.1h-2.4zM140 19.4h2.4v1.3h-2.4zM144 19.2h2.4v1.7h-2.4zM148 19.1h2.4v1.7h-2.4zM152 19.2h2.4v1.6h-2.4zM156 19.3h2.4v1.4h-2.4zM160 19.5h2.4v1.1h-2.4zM164 19.2h2.4v1.7h-2.4zM168 19.5h2.4v0.9h-2.4zM172 19.4h2.4v1.1h-2.4zM176 16.8h2.4v6.5h-2.4zM180 12.3h2.4v15.3h-2.4zM184 14.4h2.4v11.1h-2.4zM188 17.4h2.4v5.2h-2.4zM192 13.6h2.4v12.7h-2.4zM196 12.6h2.4v14.9h-2.4zM200 10.5h2.4v18.9h-2.4zM204 13.9h2.4v12.2h-2.4zM208 13.7h2.4v12.6h-2.4zM212 16.8h2.4v6.3h-2.4zM216 16.3h2.4v7.3h-2.4zM220 16.2h2.4v7.5h-2.4zM224 9.8h2.4v20.3h-2.4zM228 17.3h2.4v5.3h-2.4zM232 11.6h2.4v16.8h-2.4zM236 11.8h2.4v16.5h-2.4zM240 12.2h2.4v15.6h-2.4zM244 16.9h2.4v6.1h-2.4zM248 17.2h2.4v5.6h-2.4zM252 14.8h2.4v10.3h-2.4zM256 19.3h2.4v1.3h-2.4zM260 19.5h2.4v1.1h-2.4zM264 19.6h2.4v0.8h-2.4zM268 19.2h2.4v1.6h-2.4zM272 19.2h2.4v1.5h-2.4zM276 19.2h2.4v1.6h-2.4zM280 18.4h2.4v3.2h-2.4zM284 13.6h2.4v12.7h-2.4zM288 15h2.4v10h-2.4zM292 15.6h2.4v8.9h-2.4zM296 14.6h2.4v10.8h-2.4zM300 14.9h2.4v10.3h-2.4zM304 14.9h2.4v10.3h-2.4zM308 12h2.4v16h-2.4zM312 6.5h2.4v27h-2.4zM316 17.1h2.4v5.8h-2.4zM320 9.2h2.4v21.7h-2.4zM324 14.4h2.4v11.1h-2.4zM328 15.7h2.4v8.7h-2.4zM332 12.4h2.4v15.1h-2.4zM336 12.5h2.4v14.9h-2.4zM340 14.4h2.4v11.1h-2.4zM344 12h2.4v16h-2.4zM348 14.9h2.4v10.1h-2.4zM352 19.2h2.4v1.6h-2.4zM356 19.5h2.4v0.9h-2.4zM360 19.6h2.4v0.8h-2.4zM364 19.2h2.4v1.6h-2.4zM368 16.6h2.4v6.7h-2.4zM372 13.3h2.4v13.4h-2.4zM376 15.1h2.4v9.8h-2.4zM380 12.4h2.4v15.2h-2.4zM384 15.9h2.4v8.2h-2.4zM388 10.2h2.4v19.6h-2.4zM392 15.1h2.4v9.9h-2.4zM396 8.2h2.4v23.7h-2.4zM400 9.3h2.4v21.4h-2.4zM404 16.6h2.4v6.9h-2.4zM408 15.1h2.4v9.8h-2.4zM412 11.8h2.4v16.4h-2.4zM416 15.5h2.4v9.1h-2.4zM420 15.8h2.4v8.4h-2.4zM424 17.1h2.4v5.9h-2.4zM428 17.1h2.4v5.8h-2.4zM432 18.2h2.4v3.6h-2.4zM436 19.2h2.4v1.6h-2.4zM440 19.3h2.4v1.3h-2.4zM444 19.5h2.4v1h-2.4zM448 19.3h2.4v1.4h-2.4zM452 19.1h2.4v1.7h-2.4zM456 19.6h2.4v0.9h-2.4zM460 19.5h2.4v1h-2.4zM464 19.4h2.4v1.3h-2.4zM468 19.6h2.4v0.8h-2.4zM472 19.4h2.4v1.3h-2.4zM476 19.4h2.4v1.3h-2.4zM480 19.3h2.4v1.4h-2.4zM484 19.4h2.4v1.2h-2.4zM488 16.3h2.4v7.4h-2.4zM492 13.3h2.4v13.5h-2.4zM496 13.8h2.4v12.3h-2.4zM500 11.6h2.4v16.9h-2.4zM504 16.7h2.4v6.5h-2.4zM508 13.2h2.4v13.6h-2.4zM512 19.1h2.4v1.7h-2.4zM516 19.5h2.4v1h-2.4zM520 19.2h2.4v1.6h-2.4zM524 19.3h2.4v1.3h-2.4zM528 19.4h2.4v1.1h-2.4zM532 17.2h2.4v5.5h-2.4zM536 13.5h2.4v13.1h-2.4zM540 16.7h2.4v6.6h-2.4zM544 15.5h2.4v9h-2.4zM548 15.9h2.4v8.3h-2.4zM552 8.6h2.4v22.8h-2.4zM556 14.4h2.4v11.2h-2.4zM560 11.9h2.4v16.2h-2.4zM564 12h2.4v15.9h-2.4zM568 15.2h2.4v9.7h-2.4zM572 19.6h2.4v0.9h-2.4zM576 19.3h2.4v1.4h-2.4zM580 19.2h2.4v1.6h-2.4zM584 19.3h2.4v1.4h-2.4zM588 19.1h2.4v1.8h-2.4zM592 19.6h2.4v0.8h-2.4zM596 19.3h2.4v1.5h-2.4zM600 19.6h2.4v0.9h-2.4zM604 19.2h2.4v1.6h-2.4zM608 19.2h2.4v1.6h-2.4zM612 19.5h2.4v1.1h-2.4zM616 16.7h2.4v6.6h-2.4zM620 11.8h2.4v16.4h-2.4zM624 16.6h2.4v6.8h-2.4zM628 17h2.4v5.9h-2.4zM632 16.7h2.4v6.7h-2.4zM636 8.9h2.4v22.3h-2.4zM640 10.4h2.4v19.2h-2.4zM644 8.2h2.4v23.6h-2.4zM648 14.7h2.4v10.5h-2.4zM652 16.1h2.4v7.8h-2.4zM656 8.6h2.4v22.7h-2.4zM660 16.5h2.4v7h-2.4zM664 16.4h2.4v7.2h-2.4zM668 17.7h2.4v4.6h-2.4zM672 15h2.4v10.1h-2.4zM676 19.6h2.4v0.8h-2.4zM680 19.2h2.4v1.7h-2.4zM684 19.5h2.4v1h-2.4zM688 19.1h2.4v1.7h-2.4zM692 19.4h2.4v1.1h-2.4zM696 19.6h2.4v0.8h-2.4zM700 19.5h2.4v1h-2.4zM704 19.2h2.4v1.7h-2.4zM708 19.3h2.4v1.4h-2.4zM712 19.6h2.4v0.9h-2.4zM716 19.4h2.4v1.2h-2.4zM720 19.4h2.4v1.2h-2.4zM724 19.5h2.4v1.1h-2.4zM728 17.7h2.4v4.5h-2.4zM732 14.4h2.4v11.2h-2.4zM736 15.8h2.4v8.3h-2.4zM740 9.5h2.4v20.9h-2.4zM744 13.6h2.4v12.8h-2.4zM748 13.5h2.4v13h-2.4zM752 8.7h2.4v22.7h-2.4zM756 14.9h2.4v10.1h-2.4zM760 11.3h2.4v17.4h-2.4zM764 16.7h2.4v6.5h-2.4zM768 10.6h2.4v18.8h-2.4zM772 17.1h2.4v5.8h-2.4zM776 12.8h2.4v14.3h-2.4zM780 19.5h2.4v0.9h-2.4zM784 19.4h2.4v1.1h-2.4zM788 19.6h2.4v0.8h-2.4zM792 19.1h2.4v1.8h-2.4zM796 19.4h2.4v1.1h-2.4zM800 19.3h2.4v1.4h-2.4zM804 19.3h2.4v1.4h-2.4zM808 19.1h2.4v1.7h-2.4zM812 19.5h2.4v0.9h-2.4zM816 19.2h2.4v1.7h-2.4zM820 19.4h2.4v1.2h-2.4zM824 19.6h2.4v0.8h-2.4zM828 19.4h2.4v1.1h-2.4zM832 19.5h2.4v1.1h-2.4zM836 19.6h2.4v0.8h-2.4zM840 19.6h2.4v0.8h-2.4zM844 19.5h2.4v0.9h-2.4zM848 15.8h2.4v8.4h-2.4zM852 16.5h2.4v6.9h-2.4zM856 13.8h2.4v12.5h-2.4zM860 9h2.4v22h-2.4zM864 14.2h2.4v11.6h-2.4zM868 12.3h2.4v15.5h-2.4zM872 8.6h2.4v22.7h-2.4zM876 9.8h2.4v20.5h-2.4zM880 9.3h2.4v21.4h-2.4zM884 15.6h2.4v8.8h-2.4zM888 15.1h2.4v9.7h-2.4zM892 13.5h2.4v13h-2.4zM896 12.6h2.4v14.8h-2.4zM900 16.1h2.4v7.8h-2.4zM904 17.7h2.4v4.7h-2.4zM908 19.4h2.4v1.3h-2.4zM912 19.4h2.4v1.3h-2.4zM916 19.3h2.4v1.3h-2.4zM920 19.5h2.4v1h-2.4zM924 19.5h2.4v1.1h-2.4zM928 19.4h2.4v1.3h-2.4zM932 19.3h2.4v1.3h-2.4zM936 19.3h2.4v1.3h-2.4zM940 19.2h2.4v1.7h-2.4zM944 19.2h2.4v1.5h-2.4zM948 19.2h2.4v1.7h-2.4zM952 19.6h2.4v0.8h-2.4zM956 19.3h2.4v1.4h-2.4zM960 19.5h2.4v1h-2.4zM964 19.5h2.4v1.1h-2.4zM968 19.4h2.4v1.3h-2.4zM972 15.6h2.4v8.7h-2.4zM976 12.5h2.4v15h-2.4zM980 15.9h2.4v8.1h-2.4zM984 10.1h2.4v19.9h-2.4zM988 14.6h2.4v10.8h-2.4zM992 18h2.4v4h-2.4zM996 19.5h2.4v1.1h-2.4zM1000 19.4h2.4v1.2h-2.4zM1004 19.6h2.4v0.8h-2.4zM1008 19.4h2.4v1.2h-2.4zM1012 19.5h2.4v1h-2.4zM1016 19.6h2.4v0.9h-2.4zM1020 19.1h2.4v1.8h-2.4zM1024 19.2h2.4v1.5h-2.4zM1028 19.6h2.4v0.9h-2.4zM1032 19.4h2.4v1.3h-2.4zM1036 19.2h2.4v1.6h-2.4zM1040 19.6h2.4v0.9h-2.4zM1044 18h2.4v4h-2.4zM1048 11.9h2.4v16.2h-2.4zM1052 16.4h2.4v7.2h-2.4zM1056 14.8h2.4v10.5h-2.4zM1060 16.9h2.4v6.2h-2.4zM1064 14.6h2.4v10.7h-2.4zM1068 8.7h2.4v22.7h-2.4zM1072 11.8h2.4v16.4h-2.4zM1076 11.4h2.4v17.3h-2.4zM1080 14.8h2.4v10.4h-2.4zM1084 8.2h2.4v23.6h-2.4zM1088 14.2h2.4v11.6h-2.4zM1092 11.7h2.4v16.5h-2.4zM1096 16.2h2.4v7.6h-2.4zM1100 16.5h2.4v7h-2.4zM1104 19.6h2.4v0.8h-2.4zM1108 19.4h2.4v1.3h-2.4zM1112 19.6h2.4v0.8h-2.4zM1116 19.4h2.4v1.2h-2.4zM1120 19.2h2.4v1.5h-2.4zM1124 19.6h2.4v0.9h-2.4zM1128 19.5h2.4v0.9h-2.4zM1132 19.3h2.4v1.4h-2.4zM1136 19.6h2.4v0.8h-2.4zM1140 19.2h2.4v1.5h-2.4zM1144 19.5h2.4v1h-2.4zM1148 19.3h2.4v1.5h-2.4zM1152 19.5h2.4v1.1h-2.4zM1156 17.7h2.4v4.7h-2.4zM1160 15.1h2.4v9.8h-2.4zM1164 11.7h2.4v16.6h-2.4zM1168 15.7h2.4v8.7h-2.4zM1172 14.9h2.4v10.2h-2.4zM1176 10.6h2.4v18.9h-2.4zM1180 9h2.4v22h-2.4zM1184 13.9h2.4v12.3h-2.4zM1188 17.7h2.4v4.5h-2.4zM1192 19.1h2.4v1.7h-2.4zM1196 19.6h2.4v0.8h-2.4z"/>
+  </defs>
+</svg>
+
+<header class="appbar">
+  <a class="brand" href="#top">
+    <img src="../assets/brand/icon-256.png" width="28" height="28" alt="">
+    <span>ClipVault</span>
+    <span class="ver">1.7.6</span>
+  </a>
+  <p class="seq" aria-hidden="true"><span>Sequence 01</span><span>V1 · A1 · A2</span><span>02:00.00</span></p>
+  <nav class="appnav" aria-label="Site">
+    <a class="navlink" href="https://github.com/ebrardushullovcii/ClipVault">Source</a>
+    <a class="btn btn-sm" href="https://github.com/ebrardushullovcii/ClipVault/releases/latest">Download</a>
+  </nav>
+</header>
+
+<nav class="timeline" id="timeline" aria-label="Page timeline">
+  <div class="tl-full">
+    <div class="tl-bar">
+      <span class="tl-tc" data-readout aria-hidden="true">00:00.00</span>
+      <span class="tl-now" data-now aria-hidden="true">01 Hero</span>
+      <span class="tl-seq" aria-hidden="true">Sequence 01</span>
+      <span class="tl-hint">Select a clip to jump to that section</span>
+      <span class="tl-dur" aria-hidden="true">02:00.00</span>
+    </div>
+    <div class="tl-grid">
+      <div class="th th-r" aria-hidden="true"><span>Timecode</span></div>
+      <div class="ruler" aria-hidden="true">
+        <span class="range"></span>
+        <span class="marks"></span>
+        <span class="tick" style="--t:0">00:00</span>
+        <span class="tick" style="--t:10">00:10</span>
+        <span class="tick" style="--t:20">00:20</span>
+        <span class="tick" style="--t:30">00:30</span>
+        <span class="tick" style="--t:40">00:40</span>
+        <span class="tick" style="--t:50">00:50</span>
+        <span class="tick" style="--t:60">01:00</span>
+        <span class="tick" style="--t:70">01:10</span>
+        <span class="tick" style="--t:80">01:20</span>
+        <span class="tick" style="--t:90">01:30</span>
+        <span class="tick" style="--t:100">01:40</span>
+        <span class="tick" style="--t:110">01:50</span>
+        <span class="tick" style="--t:120">02:00</span>
+      </div>
+
+      <div class="th th-v1" aria-hidden="true"><b>V1</b><span>Video</span></div>
+      <ol class="v1">
+        <li style="--in:0;--out:10"><a href="#top"><span class="line1"><span class="n">01</span><span class="t">Hero</span></span><span class="io">00:00.00–00:10.00</span></a></li>
+        <li style="--in:10;--out:20"><a href="#save"><span class="line1"><span class="n">02</span><span class="t">The save</span></span><span class="io">00:10.00–00:20.00</span></a></li>
+        <li style="--in:20;--out:38.38"><a href="#library"><span class="line1"><span class="n">03</span><span class="t">Library</span></span><span class="io">00:20.00–00:38.38</span></a></li>
+        <li style="--in:38.38;--out:64.18"><a href="#trim"><span class="line1"><span class="n">04</span><span class="t">Trim</span></span><span class="io">00:38.38–01:04.18</span></a></li>
+        <li style="--in:64.18;--out:76"><a href="#tracks"><span class="line1"><span class="n">05</span><span class="t">Two tracks</span></span><span class="io">01:04.18–01:16.00</span></a></li>
+        <li style="--in:76;--out:88"><a href="#export"><span class="line1"><span class="n">06</span><span class="t">Export</span></span><span class="io">01:16.00–01:28.00</span></a></li>
+        <li style="--in:88;--out:98"><a href="#capture"><span class="line1"><span class="n">07</span><span class="t">Capture</span></span><span class="io">01:28.00–01:38.00</span></a></li>
+        <li style="--in:98;--out:108"><a href="#tour"><span class="line1"><span class="n">08</span><span class="t">Tour</span></span><span class="io">01:38.00–01:48.00</span></a></li>
+        <li style="--in:108;--out:116"><a href="#faq"><span class="line1"><span class="n">09</span><span class="t">FAQ</span></span><span class="io">01:48.00–01:56.00</span></a></li>
+        <li style="--in:116;--out:120"><a href="#download"><span class="line1"><span class="n">10</span><span class="t">End</span></span><span class="io">01:56.00–02:00.00</span></a></li>
+      </ol>
+
+      <div class="th th-a1" aria-hidden="true"><b>A1</b><span>Game audio</span></div>
+      <div class="lane lane-a1" aria-hidden="true">
+        <svg viewBox="0 0 1200 40" preserveAspectRatio="none"><use href="#wv-a1"/></svg>
+        <span class="segs"></span>
+      </div>
+
+      <div class="th th-a2" aria-hidden="true"><b>A2</b><span>Mic</span><i class="mute">M</i></div>
+      <div class="lane lane-a2" aria-hidden="true">
+        <svg viewBox="0 0 1200 40" preserveAspectRatio="none"><use href="#wv-a2"/></svg>
+        <span class="segs"></span>
+      </div>
+
+      <div class="ph-wrap" aria-hidden="true"><span class="playhead"></span></div>
+    </div>
+  </div>
+
+  <div class="tl-mini" aria-hidden="true">
+    <span class="mini-bar"><span class="mini-segs"></span><span class="mini-fill"></span></span>
+    <span class="mini-tc" data-readout>00:00.00</span>
+    <span class="mini-now" data-now>01 Hero</span>
+    <span class="mini-dur">/ 02:00.00</span>
+  </div>
+</nav>
+
+<div class="workspace">
+  <main id="main" class="panel">
+    <div class="panel-tab" aria-hidden="true"><span>Inspector</span><span data-now>01 Hero</span></div>
+
+    <!-- 01 HERO ============================================================ -->
+    <section class="clip hero" id="top" data-in="0" data-out="10" data-name="Hero" aria-labelledby="h-hero">
+      <p class="clip-meta"><span class="no">01</span><span class="lbl">IN</span> 00:00.00 <span class="lbl">OUT</span> 00:10.00</p>
+      <h1 id="h-hero">Press your hotkey. Keep the last two minutes.</h1>
+      <div class="step plain" data-tc="0" data-shot="hero">
+        <p class="lede">ClipVault is a free game clipping app for Windows 10 and 11. It keeps a rolling replay buffer in the background. Press your save hotkey and the last 2 minutes are saved as an MP4, with game audio and your mic on separate tracks.</p>
+        <div class="cta-row">
+          <a class="btn btn-clip" href="https://github.com/ebrardushullovcii/ClipVault/releases/latest">
+            <span>Download for Windows</span>
+            <small>ClipVault-Setup-1.7.6.exe · x64</small>
+          </a>
+          <a class="btn btn-ghost" href="https://github.com/ebrardushullovcii/ClipVault">Source on GitHub</a>
+        </div>
+        <p class="fine">Free and open source (GPL-2.0-or-later). No account. Nothing is uploaded. <a href="#tour">Watch the 50-second tour</a></p>
+
+        <div class="props">
+          <p class="props-h">Clip properties</p>
+          <dl>
+            <div><dt>Save key</dt><dd>One key, set in Settings</dd></div>
+            <div><dt>Buffer</dt><dd>2:00 by default</dd></div>
+            <div><dt>File</dt><dd>MP4 in your folder</dd></div>
+            <div><dt>Audio</dt><dd>A1 game · A2 mic</dd></div>
+            <div><dt>Capture</dt><dd>Monitor, no hooks</dd></div>
+            <div><dt>Frame rate</dt><dd>Up to 144 fps</dd></div>
+          </dl>
+        </div>
+
+        <figure class="shot" data-file="hero-wide.mp4">
+          <div class="shot-bar" aria-hidden="true"><span>hero-wide.mp4</span><span>00:12</span></div>
+          <video autoplay muted loop playsinline preload="metadata" poster="../assets/video/hero-wide.jpg" width="1280" height="720" data-auto="1">
+            <source src="../assets/video/hero-wide.mp4" type="video/mp4">
+          </video>
+          <figcaption>A round win in VALORANT, the hotkey press, the Clip Saved notification, then trim and export.</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <!-- 02 THE SAVE ======================================================== -->
+    <section class="clip" id="save" data-in="10" data-out="20" data-name="The save" aria-labelledby="h-save">
+      <p class="clip-meta"><span class="no">02</span><span class="lbl">IN</span> 00:10.00 <span class="lbl">OUT</span> 00:20.00</p>
+      <h2 id="h-save">One key writes the buffer to a file.</h2>
+      <p class="lede">The replay buffer is always running. Your save hotkey writes what it holds to a normal MP4 in your clips folder.</p>
+
+      <div class="step" data-tc="10" data-shot="valorant-won">
+        <p class="marker">00:10.00</p>
+        <h3>Something happens. Press your hotkey.</h3>
+        <p class="keyrow" aria-hidden="true"><span class="keycap"><i></i>HOTKEY</span><span class="keyarrow">→</span><span class="keyout">Clip Saved</span></p>
+        <p>The hotkey uses a low-level keyboard hook, so it works while a fullscreen game has focus. You pick the key in Settings.</p>
+        <figure class="shot" data-file="valorant-won.webp">
+          <div class="shot-bar" aria-hidden="true"><span>valorant-won</span><span>1920×1080</span></div>
+          <img src="../assets/frames/valorant-won-960.webp" srcset="../assets/frames/valorant-won-960.webp 960w, ../assets/frames/valorant-won-1920.webp 1920w" sizes="(min-width: 800px) 740px, calc(100vw - 50px)" width="1920" height="1080" loading="lazy" alt="VALORANT gameplay with the WON banner at the top of the screen after a round win.">
+          <figcaption>The round ends. This is the moment to keep.</figcaption>
+        </figure>
+      </div>
+
+      <div class="step" data-tc="13.4" data-shot="clip-saved">
+        <p class="marker">00:13.40</p>
+        <h3>Windows shows “Clip Saved”</h3>
+        <p>A notification confirms the save and shows the path. The file name includes the detected game:</p>
+        <p class="file"><span>2026-09-28_23-30-00_VALORANT.mp4</span></p>
+        <figure class="shot" data-file="hero-wide.jpg">
+          <div class="shot-bar" aria-hidden="true"><span>hero-wide · still</span><span>1280×720</span></div>
+          <img src="../assets/video/hero-wide.jpg" width="1280" height="720" loading="lazy" alt="The ClipVault library with a Windows notification titled Clip Saved in the corner, showing where the file was saved.">
+          <figcaption>The Clip Saved notification with the saved file path.</figcaption>
+        </figure>
+      </div>
+
+      <div class="step" data-tc="16.7" data-shot="03-library-new-clip">
+        <p class="marker">00:16.70</p>
+        <h3>The clip is at the top of the library</h3>
+        <p>It appears right away with a thumbnail and its game tag, ready to open in the editor.</p>
+        <figure class="shot" data-file="03-library-new-clip.webp">
+          <div class="shot-bar" aria-hidden="true"><span>03-library-new-clip</span><span>1600×1000</span></div>
+          <img src="../assets/shots/03-library-new-clip-960.webp" srcset="../assets/shots/03-library-new-clip-960.webp 960w, ../assets/shots/03-library-new-clip-1600.webp 1600w" sizes="(min-width: 800px) 740px, calc(100vw - 50px)" width="1600" height="1000" loading="lazy" alt="The ClipVault library grid with the new VALORANT clip first among 24 clips.">
+          <figcaption>The new VALORANT clip, first in a library of 24.</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <!-- 03 LIBRARY ========================================================= -->
+    <section class="clip" id="library" data-in="20" data-out="38.38" data-name="Library" aria-labelledby="h-library">
+      <p class="clip-meta"><span class="no">03</span><span class="lbl">IN</span> 00:20.00 <span class="lbl">OUT</span> 00:38.38</p>
+      <h2 id="h-library">Find the clip without opening files.</h2>
+      <p class="lede">The library shows every clip with a thumbnail, game tag, size and date. Search it, sort by date, size, name or favorite, and switch between grid and list.</p>
+
+      <div class="step" data-tc="20" data-shot="02-library-hover">
+        <p class="marker">00:20.00</p>
+        <h3>Hover to preview</h3>
+        <p>Clips play in the grid when you point at them, so you can check a moment before opening it.</p>
+        <figure class="shot" data-file="02-library-hover.webp">
+          <div class="shot-bar" aria-hidden="true"><span>02-library-hover</span><span>1600×1000</span></div>
+          <img src="../assets/shots/02-library-hover-960.webp" srcset="../assets/shots/02-library-hover-960.webp 960w, ../assets/shots/02-library-hover-1600.webp 1600w" sizes="(min-width: 800px) 740px, calc(100vw - 50px)" width="1600" height="1000" loading="lazy" alt="Library grid with one clip card playing a preview under the mouse pointer.">
+          <figcaption>A hover preview playing in the grid.</figcaption>
+        </figure>
+      </div>
+
+      <div class="step" data-tc="24.6" data-shot="04-library-filter-game">
+        <p class="marker">00:24.60</p>
+        <h3>Filter by game, tag or favorite</h3>
+        <p>Detected games are tagged automatically. Narrow the grid to one game, one tag, or your favorites.</p>
+        <figure class="shot" data-file="04-library-filter-game.webp">
+          <div class="shot-bar" aria-hidden="true"><span>04-library-filter-game</span><span>1600×1000</span></div>
+          <img src="../assets/shots/04-library-filter-game-960.webp" srcset="../assets/shots/04-library-filter-game-960.webp 960w, ../assets/shots/04-library-filter-game-1600.webp 1600w" sizes="(min-width: 800px) 740px, calc(100vw - 50px)" width="1600" height="1000" loading="lazy" alt="Library filtered to show only VALORANT clips.">
+          <figcaption>The library filtered to VALORANT.</figcaption>
+        </figure>
+      </div>
+
+      <div class="step" data-tc="29.2" data-shot="07-library-list">
+        <p class="marker">00:29.20</p>
+        <h3>Grid or list</h3>
+        <p>List view puts each clip on one row with its name, size, date and tags.</p>
+        <figure class="shot" data-file="07-library-list.webp">
+          <div class="shot-bar" aria-hidden="true"><span>07-library-list</span><span>1600×1000</span></div>
+          <img src="../assets/shots/07-library-list-960.webp" srcset="../assets/shots/07-library-list-960.webp 960w, ../assets/shots/07-library-list-1600.webp 1600w" sizes="(min-width: 800px) 740px, calc(100vw - 50px)" width="1600" height="1000" loading="lazy" alt="Library in list view, one clip per row with thumbnail, file name, size, date and tags.">
+          <figcaption>List view.</figcaption>
+        </figure>
+      </div>
+
+      <div class="step" data-tc="33.8" data-shot="08-library-selected">
+        <p class="marker">00:33.80</p>
+        <h3>Change many clips at once</h3>
+        <p>Select several clips to favorite, tag, add or remove a game, export or delete them in one go.</p>
+        <figure class="shot" data-file="08-library-selected.webp">
+          <div class="shot-bar" aria-hidden="true"><span>08-library-selected</span><span>1600×1000</span></div>
+          <img src="../assets/shots/08-library-selected-960.webp" srcset="../assets/shots/08-library-selected-960.webp 960w, ../assets/shots/08-library-selected-1600.webp 1600w" sizes="(min-width: 800px) 740px, calc(100vw - 50px)" width="1600" height="1000" loading="lazy" alt="Three clips selected, with a bulk action bar: Favorite, Add Tag, Remove Tag, Add Game, Remove Game, Size, Compression, Export and Delete.">
+          <figcaption>Three clips selected and the bulk action bar.</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <!-- 04 TRIM ============================================================ -->
+    <section class="clip" id="trim" data-in="38.38" data-out="64.18" data-name="Trim" aria-labelledby="h-trim">
+      <p class="clip-meta"><span class="no">04</span><span class="lbl">IN</span> 00:38.38 <span class="lbl">OUT</span> 01:04.18</p>
+      <h2 id="h-trim">Trim to the moment.</h2>
+      <p class="lede">Open a clip in the editor, set the in and out points, and export only that part.</p>
+
+      <div class="step" data-tc="38.38" data-shot="09-editor">
+        <p class="marker">00:38.38</p>
+        <h3>Open it in the editor</h3>
+        <p>The clip plays on the left with a trim bar under it. Frame-step and 5-second skip buttons help you land on the exact frame. Audio tracks and export settings sit on the right.</p>
+        <figure class="shot" data-file="09-editor.webp">
+          <div class="shot-bar" aria-hidden="true"><span>09-editor</span><span>1600×1000</span></div>
+          <img src="../assets/shots/09-editor-960.webp" srcset="../assets/shots/09-editor-960.webp 960w, ../assets/shots/09-editor-1600.webp 1600w" sizes="(min-width: 800px) 740px, calc(100vw - 50px)" width="1600" height="1000" loading="lazy" alt="The ClipVault editor on the VALORANT clip: video, trim bar and playback controls on the left, audio tracks and export panel on the right.">
+          <figcaption>The editor on the new clip.</figcaption>
+        </figure>
+      </div>
+
+      <div class="step" data-tc="47.5" data-shot="09b-editor-tagged">
+        <p class="marker">00:47.50</p>
+        <h3>Tag it</h3>
+        <p>Add tags such as “clutch”, mark the clip as a favorite, or change its game tag.</p>
+        <figure class="shot" data-file="09b-editor-tagged.webp">
+          <div class="shot-bar" aria-hidden="true"><span>09b-editor-tagged</span><span>1600×1000</span></div>
+          <img src="../assets/shots/09b-editor-tagged-960.webp" srcset="../assets/shots/09b-editor-tagged-960.webp 960w, ../assets/shots/09b-editor-tagged-1600.webp 1600w" sizes="(min-width: 800px) 740px, calc(100vw - 50px)" width="1600" height="1000" loading="lazy" alt="The editor after adding the tag clutch and marking the clip as a favorite.">
+          <figcaption>Tagged “clutch” and favorited.</figcaption>
+        </figure>
+      </div>
+
+      <div class="step" data-tc="55.8" data-shot="10-editor-trimmed">
+        <p class="marker">00:55.80</p>
+        <h3>Drag the trim handles</h3>
+        <p>Here the clip is cut to 0:38.38–1:04.18, 25.8 seconds around the WON banner. Playback stays inside the trim while you check it. Trim Original cuts the file itself in place.</p>
+        <div class="trimbar" role="img" aria-label="Trim range from 0:38.38 to 1:04.18 on a clip of 2:02.02.">
+          <span class="tb-track"><span class="tb-sel"></span></span>
+          <span class="tb-l">0:00.00</span><span class="tb-in">0:38.38</span><span class="tb-out">1:04.18</span><span class="tb-r">2:02.02</span>
+        </div>
+        <p class="aside">This section’s clip on the page timeline runs from 00:38.38 to 01:04.18 too.</p>
+        <figure class="shot" data-file="10-editor-trimmed.webp">
+          <div class="shot-bar" aria-hidden="true"><span>10-editor-trimmed</span><span>1600×1000</span></div>
+          <img src="../assets/shots/10-editor-trimmed-960.webp" srcset="../assets/shots/10-editor-trimmed-960.webp 960w, ../assets/shots/10-editor-trimmed-1600.webp 1600w" sizes="(min-width: 800px) 740px, calc(100vw - 50px)" width="1600" height="1000" loading="lazy" alt="The editor with trim handles set from 0:38.38 to 1:04.18 on the WON moment, 25.79 seconds long.">
+          <figcaption>Trimmed to 0:38.38–1:04.18.</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <!-- 05 TWO TRACKS ====================================================== -->
+    <section class="clip" id="tracks" data-in="64.18" data-out="76" data-name="Two tracks" aria-labelledby="h-tracks">
+      <p class="clip-meta"><span class="no">05</span><span class="lbl">IN</span> 01:04.18 <span class="lbl">OUT</span> 01:16.00</p>
+      <h2 id="h-tracks">Game and mic on separate tracks.</h2>
+      <p class="lede">Game and desktop audio record to one track, your microphone to another. In the editor you can turn either one off or change its volume before you export.</p>
+
+      <div class="step" data-tc="64.18" data-shot="11-editor-audio">
+        <p class="marker">01:04.18</p>
+        <div class="mix" role="img" aria-label="Two audio lanes. A1, game audio, with its volume raised. A2, microphone, turned off.">
+          <div class="mix-row mix-a1">
+            <span class="mix-head"><b>A1</b><span>Game audio</span><em>Volume up</em></span>
+            <span class="mix-wave"><svg viewBox="0 0 420 40" preserveAspectRatio="none" aria-hidden="true"><use href="#wv-a1"/></svg></span>
+          </div>
+          <div class="mix-row mix-a2">
+            <span class="mix-head"><b>A2</b><span>Mic</span><em>Off</em></span>
+            <span class="mix-wave"><svg viewBox="260 0 420 40" preserveAspectRatio="none" aria-hidden="true"><use href="#wv-a2"/></svg></span>
+          </div>
+          <span class="mix-ph" aria-hidden="true"></span>
+        </div>
+        <h3>Mic off, game up</h3>
+        <p>For this export the microphone track is off and desktop audio is turned up. A disabled track is muted while you edit and left out of the exported file.</p>
+        <figure class="shot" data-file="11-editor-audio.webp">
+          <div class="shot-bar" aria-hidden="true"><span>11-editor-audio</span><span>1600×1000</span></div>
+          <img src="../assets/shots/11-editor-audio-960.webp" srcset="../assets/shots/11-editor-audio-960.webp 960w, ../assets/shots/11-editor-audio-1600.webp 1600w" sizes="(min-width: 800px) 740px, calc(100vw - 50px)" width="1600" height="1000" loading="lazy" alt="The editor's Audio Tracks panel with Desktop Audio checked and its volume raised, and Microphone unchecked.">
+          <figcaption>Desktop Audio up, Microphone off.</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <!-- 06 EXPORT ========================================================== -->
+    <section class="clip" id="export" data-in="76" data-out="88" data-name="Export" aria-labelledby="h-export">
+      <p class="clip-meta"><span class="no">06</span><span class="lbl">IN</span> 01:16.00 <span class="lbl">OUT</span> 01:28.00</p>
+      <h2 id="h-export">Export to a size you can send.</h2>
+      <p class="lede">Pick a size target and a codec, then export the trimmed part.</p>
+
+      <div class="step" data-tc="76" data-shot="12-editor-size-menu">
+        <p class="marker">01:16.00</p>
+        <h3>Up to 10 MB for Discord</h3>
+        <ul class="chips" aria-label="Size targets">
+          <li>Keep original</li><li class="on">Up to 10 MB</li><li>50 MB</li><li>100 MB</li>
+        </ul>
+        <p>H.264 is the most compatible. AV1 gives better quality per MB and needs an NVIDIA RTX 40-series or newer GPU. You can also set the export to 30 or 60 fps and 720p or 1080p.</p>
+        <figure class="shot" data-file="12-editor-size-menu.webp">
+          <div class="shot-bar" aria-hidden="true"><span>12-editor-size-menu</span><span>1600×1000</span></div>
+          <img src="../assets/shots/12-editor-size-menu-960.webp" srcset="../assets/shots/12-editor-size-menu-960.webp 960w, ../assets/shots/12-editor-size-menu-1600.webp 1600w" sizes="(min-width: 800px) 740px, calc(100vw - 50px)" width="1600" height="1000" loading="lazy" alt="The export size menu open with Keep original, Up to 10 MB, Up to 50 MB and Up to 100 MB.">
+          <figcaption>The size menu, set to Up to 10 MB.</figcaption>
+        </figure>
+      </div>
+
+      <div class="step" data-tc="82" data-shot="14-export-complete">
+        <p class="marker">01:22.00</p>
+        <h3>Drag the file anywhere</h3>
+        <p>When the export finishes, a small window shows the result. Drag from it to drop the file wherever you want it, copy its path, or open its folder.</p>
+        <figure class="shot" data-file="14-export-complete.webp">
+          <div class="shot-bar" aria-hidden="true"><span>14-export-complete</span><span>980×733</span></div>
+          <img src="../assets/shots/14-export-complete-490.webp" srcset="../assets/shots/14-export-complete-490.webp 490w, ../assets/shots/14-export-complete-980.webp 980w" sizes="(min-width: 800px) 740px, calc(100vw - 50px)" width="980" height="733" loading="lazy" alt="The export window: the finished clip, the text Drag from here to share the file anywhere, and Copy Path and Open Folder buttons.">
+          <figcaption>The export window.</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <!-- 07 CAPTURE ========================================================= -->
+    <section class="clip" id="capture" data-in="88" data-out="98" data-name="Capture" aria-labelledby="h-capture">
+      <p class="clip-meta"><span class="no">07</span><span class="lbl">IN</span> 01:28.00 <span class="lbl">OUT</span> 01:38.00</p>
+      <h2 id="h-capture">Monitor capture. No game hooks.</h2>
+      <p class="lede">By default ClipVault records your monitor with DXGI. It does not hook into games or inject anything into them, which keeps it anti-cheat friendly.</p>
+
+      <div class="step" data-tc="88" data-shot="18-settings-capture">
+        <p class="marker">01:28.00</p>
+        <h3>Monitor by default</h3>
+        <p>Choose which monitor to record, the resolution, the frame rate, and a quality preset: Compact, Efficient, Balanced, Detailed or Maximum.</p>
+        <figure class="shot" data-file="18-settings-capture.webp">
+          <div class="shot-bar" aria-hidden="true"><span>18-settings-capture</span><span>1600×1000</span></div>
+          <img src="../assets/shots/18-settings-capture-960.webp" srcset="../assets/shots/18-settings-capture-960.webp 960w, ../assets/shots/18-settings-capture-1600.webp 1600w" sizes="(min-width: 800px) 740px, calc(100vw - 50px)" width="1600" height="1000" loading="lazy" alt="Settings, Video and Capture: Record set to Monitor, Monitor 1 selected, DXGI capture method, 1080p, 60 fps and the Balanced preset.">
+          <figcaption>Settings › Video &amp; Capture, recording the monitor.</figcaption>
+        </figure>
+      </div>
+
+      <div class="step" data-tc="91.4" data-shot="19-settings-games">
+        <p class="marker">01:31.40</p>
+        <h3>Or follow the game (experimental)</h3>
+        <p>“Games automatically” records supported games only and follows the active game. “Monitor + automatic games” is also experimental, or you can pick one app window by hand.</p>
+        <figure class="shot" data-file="19-settings-games.webp">
+          <div class="shot-bar" aria-hidden="true"><span>19-settings-games</span><span>1600×1000</span></div>
+          <img src="../assets/shots/19-settings-games-960.webp" srcset="../assets/shots/19-settings-games-960.webp 960w, ../assets/shots/19-settings-games-1600.webp 1600w" sizes="(min-width: 800px) 740px, calc(100vw - 50px)" width="1600" height="1000" loading="lazy" alt="Record set to Games automatically (Experimental), with its explanation below.">
+          <figcaption>Record: Games automatically (Experimental).</figcaption>
+        </figure>
+      </div>
+
+      <div class="step" data-tc="94.7" data-shot="20-settings-quality">
+        <p class="marker">01:34.70</p>
+        <h3>NVENC or x264, up to 144 fps</h3>
+        <ul class="chips" aria-label="Frame rates">
+          <li>30</li><li>60</li><li>120</li><li class="on">144 fps</li>
+        </ul>
+        <p>Auto uses NVENC on an NVIDIA GPU for the lowest CPU use and falls back to x264 on the CPU. Record in H.264 or AV1. The buffer length is set here too.</p>
+        <figure class="shot" data-file="20-settings-quality.webp">
+          <div class="shot-bar" aria-hidden="true"><span>20-settings-quality</span><span>1600×1000</span></div>
+          <img src="../assets/shots/20-settings-quality-960.webp" srcset="../assets/shots/20-settings-quality-960.webp 960w, ../assets/shots/20-settings-quality-1600.webp 1600w" sizes="(min-width: 800px) 740px, calc(100vw - 50px)" width="1600" height="1000" loading="lazy" alt="Quality presets, a buffer duration of 120 seconds, encoder choices Auto, NVENC and x264, and recording codec H.264 or AV1.">
+          <figcaption>Quality, buffer length, encoder and codec.</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <!-- 08 TOUR ============================================================ -->
+    <section class="clip" id="tour" data-in="98" data-out="108" data-name="Tour" aria-labelledby="h-tour">
+      <p class="clip-meta"><span class="no">08</span><span class="lbl">IN</span> 01:38.00 <span class="lbl">OUT</span> 01:48.00</p>
+      <h2 id="h-tour">The whole app in 50 seconds.</h2>
+      <div class="step plain" data-tc="98" data-shot="tour">
+        <p class="lede">Saving a clip, the library, the editor, audio tracks, export and capture settings. Captions are on screen and the video has no sound.</p>
+        <button class="btn btn-clip btn-play" type="button" data-play-tour>
+          <span><svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2.5v11l9-5.5z"/></svg>Play the tour</span>
+        </button>
+        <figure class="shot" data-file="tour-wide.mp4">
+          <div class="shot-bar" aria-hidden="true"><span>tour-wide.mp4</span><span>00:50</span></div>
+          <video controls playsinline preload="none" poster="../assets/video/tour-wide.jpg" width="1280" height="720" aria-label="ClipVault product tour, 50 seconds, with on-screen captions and no sound">
+            <source src="../assets/video/tour-wide.mp4" type="video/mp4">
+          </video>
+          <figcaption>Product tour, 50 seconds, captioned.</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <!-- 09 FAQ ============================================================= -->
+    <section class="clip" id="faq" data-in="108" data-out="116" data-name="FAQ" aria-labelledby="h-faq">
+      <p class="clip-meta"><span class="no">09</span><span class="lbl">IN</span> 01:48.00 <span class="lbl">OUT</span> 01:56.00</p>
+      <h2 id="h-faq">Questions</h2>
+      <div class="step plain" data-tc="108" data-shot="22-settings-hotkey">
+        <div class="faq">
+          <details>
+            <summary>Is ClipVault free?</summary>
+            <p>Yes. It is free and open source under GPL-2.0-or-later, and the source is on GitHub.</p>
+          </details>
+          <details>
+            <summary>Does it upload my clips?</summary>
+            <p>No. Clips are ordinary MP4 files in a folder you choose. There is no account and nothing is uploaded.</p>
+          </details>
+          <details>
+            <summary>Does it hook into games?</summary>
+            <p>Not in the default mode. Monitor capture uses DXGI and involves no game hooks or injection, which keeps it anti-cheat friendly.</p>
+          </details>
+          <details>
+            <summary>Can I change the hotkey or the 2-minute length?</summary>
+            <p>Yes. The save hotkey is F9 by default, changeable in Settings, and the buffer length is set there too. The first-run setup also walks through the clips folder, capture, audio and hotkey.</p>
+          </details>
+          <details>
+            <summary>Do I need an NVIDIA GPU?</summary>
+            <p>No. Auto uses NVENC on NVIDIA GPUs, which has the lowest CPU use, and x264 on the CPU otherwise. AV1 needs an NVIDIA RTX 40-series or newer GPU.</p>
+          </details>
+          <details>
+            <summary>Which Windows versions?</summary>
+            <p>Windows 10 and 11, 64-bit. It runs from the tray and can start with Windows.</p>
+          </details>
+          <details>
+            <summary>What is it built on?</summary>
+            <p>libobs, the engine from OBS Studio, plus an Electron and React app.</p>
+          </details>
+        </div>
+        <figure class="shot mon-only" data-file="22-settings-hotkey.webp">
+          <div class="shot-bar" aria-hidden="true"><span>22-settings-hotkey</span><span>1600×1000</span></div>
+          <img src="../assets/shots/22-settings-hotkey-960.webp" srcset="../assets/shots/22-settings-hotkey-960.webp 960w, ../assets/shots/22-settings-hotkey-1600.webp 1600w" sizes="(min-width: 800px) 740px, calc(100vw - 50px)" width="1600" height="1000" loading="lazy" alt="Settings with the Save Clip Hotkey field, export defaults, and Startup and Behavior options including Start with Windows.">
+          <figcaption>Settings: the save hotkey and Start with Windows.</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <!-- 10 END ============================================================= -->
+    <section class="clip end" id="download" data-in="116" data-out="120" data-name="End" aria-labelledby="h-end">
+      <p class="clip-meta"><span class="no">10</span><span class="lbl">IN</span> 01:56.00 <span class="lbl">OUT</span> 02:00.00</p>
+      <h2 id="h-end">Install it. Press your hotkey when it counts.</h2>
+      <div class="step plain" data-tc="116" data-shot="slate">
+        <p class="lede">ClipVault 1.7.6 for Windows 10 and 11. Free, open source, and your clips stay on your PC.</p>
+        <div class="cta-row">
+          <a class="btn btn-clip" href="https://github.com/ebrardushullovcii/ClipVault/releases/latest">
+            <span>Download ClipVault</span>
+            <small>ClipVault-Setup-1.7.6.exe · x64</small>
+          </a>
+          <a class="btn btn-ghost" href="https://github.com/ebrardushullovcii/ClipVault">Source on GitHub</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <aside class="monitor" aria-label="Program monitor">
+    <div class="mon-tab">
+      <span>Program: Sequence 01</span>
+      <span class="mon-now" data-now>01 Hero</span>
+    </div>
+    <div class="mon-view" id="monView">
+      <div class="mlayer slate" id="slate">
+        <div class="bars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+        <div class="slate-body">
+          <img src="../assets/brand/icon-256.png" width="96" height="96" alt="" loading="lazy">
+          <p class="slate-t">ClipVault 1.7.6</p>
+          <p class="slate-s">Windows 10 / 11 x64 · GPL-2.0-or-later</p>
+          <p class="slate-tc">END · 02:00.00</p>
+        </div>
+      </div>
+    </div>
+    <div class="mon-transport">
+      <span class="mon-tc" data-readout aria-hidden="true">00:00.00</span>
+      <button class="mon-play" type="button" id="monPlay" aria-label="Pause video" disabled>
+        <svg class="i-pause" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2.5h3v11H4zM9 2.5h3v11H9z"/></svg>
+        <svg class="i-play" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2.5v11l9-5.5z"/></svg>
+      </button>
+      <span class="mon-cap" id="monCap"></span>
+      <span class="mon-file" id="monFile" aria-hidden="true"></span>
+    </div>
+  </aside>
+
+  <footer class="site-foot">
+    <div class="foot-row">
+      <a class="brand" href="#top">
+        <img src="../assets/brand/icon-256.png" width="24" height="24" alt="" loading="lazy">
+        <span>ClipVault</span>
+      </a>
+      <ul class="foot-links">
+        <li><a href="https://github.com/ebrardushullovcii/ClipVault/releases/latest">Releases</a></li>
+        <li><a href="https://github.com/ebrardushullovcii/ClipVault">GitHub</a></li>
+      </ul>
+    </div>
+    <p>Free software under GPL-2.0-or-later. Built on libobs, the engine from OBS Studio.</p>
+    <p class="owners">Gameplay recorded with ClipVault. Game names and footage belong to their respective owners.</p>
+  </footer>
+</div>
+</body>
+</html>

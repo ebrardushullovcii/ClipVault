@@ -1,0 +1,404 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ClipVault · Save the last 2 minutes of gameplay with one key</title>
+<meta name="description" content="ClipVault is a free, open-source game clipping app for Windows 10 and 11. Press your save hotkey to keep the last 2 minutes as an MP4, with game audio and microphone on separate tracks.">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#0c0d0e">
+<link rel="icon" type="image/png" href="../assets/brand/favicon-64.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,700;0,800;1,400&amp;display=swap">
+<!-- Box-drawing and block glyphs are outside Google's latin subsets; this requests exactly the ones used on the page. -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&amp;text=%E2%86%92%E2%94%80%E2%94%82%E2%94%8C%E2%94%90%E2%94%94%E2%94%98%E2%94%9C%E2%94%A4%E2%96%88%E2%96%8F%E2%96%95%E2%96%B6%E2%96%B8%E2%96%BC%E2%97%8F&amp;display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="topbar">
+  <div class="topbar-in wrap">
+    <a class="tb-name" href="#top" aria-label="ClipVault, back to top">CLIPVAULT(1)</a>
+    <span class="tb-mid" aria-hidden="true">ClipVault Manual</span>
+    <nav class="tb-links" aria-label="Project">
+      <a href="https://github.com/ebrardushullovcii/ClipVault">source</a>
+      <a class="tb-dl" href="https://github.com/ebrardushullovcii/ClipVault/releases/latest">download 1.7.6</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main" class="wrap">
+
+  <!-- NAME -->
+  <section class="hero" id="name" aria-labelledby="h1">
+    <span id="top" class="anchor-top"></span>
+    <div class="hero-head">
+      <div class="hero-title">
+        <p class="sh" aria-hidden="true">NAME</p>
+        <h1 id="h1" tabindex="-1"><span class="cmd">clipvault</span> <span class="dash">—</span> save the last two minutes of gameplay with one key</h1>
+      </div>
+      <div class="hero-side">
+        <p class="lede">A free, open-source game clipping app for Windows&nbsp;10 and&nbsp;11. It runs in the tray with an always-on replay buffer. Press your save hotkey and the last 2&nbsp;minutes become an MP4 file, with game audio and your microphone on separate tracks.</p>
+        <div class="cta">
+          <a class="btn btn-primary" href="https://github.com/ebrardushullovcii/ClipVault/releases/latest"><span class="br" aria-hidden="true">[</span> Download for Windows <span class="br" aria-hidden="true">]</span></a>
+          <a class="btn btn-ghost" href="https://github.com/ebrardushullovcii/ClipVault"><span class="br" aria-hidden="true">[</span> View source <span class="br" aria-hidden="true">]</span></a>
+        </div>
+        <p class="meta">ClipVault-Setup-1.7.6.exe · Windows 10/11 x64 · <span class="nw">GPL-2.0-or-later</span> · <a href="#fig-8">watch the 50&nbsp;s tour</a></p>
+      </div>
+    </div>
+
+    <div class="hero-demo">
+      <figure class="frame term" data-typer>
+        <span class="tag" aria-hidden="true"><span class="bx">┤</span> what the hotkey does <span class="bx">├</span></span>
+        <div class="term-stack">
+<pre class="term-out"><span class="l c"># illustration, not real output</span>
+<span class="l c"># ClipVault has no command line</span>
+
+<span class="l" data-p="150"><span class="k">tray    </span>running in the background</span>
+<span class="l"><span class="k">buffer  </span><span class="ln">▕</span><span class="keep">████████████████████</span><span class="ln">▏</span> <span class="hl">2:00</span></span>
+<span class="l"><span class="k">        </span>rolling, last 120 s kept</span>
+
+<span class="l" data-p="450"><span class="k">press   </span><span class="key"><span class="rec">●</span> HOTKEY</span></span>
+<span class="l" data-p="150"><span class="k">save    </span>last 120 s → MP4</span>
+<span class="l"><span class="k">file    </span><span class="file">2026-09-28_23-30-00_VALORANT.mp4</span></span>
+<span class="l"><span class="k">audio   </span>a1 game + desktop · a2 mic</span>
+<span class="l" data-p="150"><span class="k">notify  </span>“Clip Saved”</span>
+<span class="l" data-p="150"><span class="k">library </span>new clip at the top</span>
+<span class="l"><span class="k">        </span>tagged VALORANT</span></pre>
+        </div>
+        <figcaption>Illustration of what happens when you press your save hotkey. Not program output.</figcaption>
+      </figure>
+
+      <figure class="frame vid" id="fig-1">
+        <span class="tag" aria-hidden="true"><span class="bx">┤</span> fig. 1 <span class="bx">├</span></span>
+        <video id="hero-video" autoplay muted loop playsinline preload="metadata" poster="../assets/video/hero-wide.jpg" width="1280" height="720" aria-describedby="fig-1-cap">
+          <source src="../assets/video/hero-wide.mp4" type="video/mp4">
+        </video>
+        <figcaption>
+          <span id="fig-1-cap"><b>fig. 1</b> A round won in VALORANT, the save hotkey, “Clip Saved”, the new clip in the library, a trim and an export. 12&nbsp;s loop, no sound.</span>
+          <button type="button" class="vbtn" data-video="hero-video" aria-controls="hero-video" hidden>pause</button>
+        </figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <div class="body">
+    <nav class="toc" aria-label="Sections">
+      <p class="sh">SECTIONS</p>
+      <ol>
+        <li><a href="#name">NAME</a></li>
+        <li><a href="#synopsis">SYNOPSIS</a></li>
+        <li><a href="#description">DESCRIPTION</a></li>
+        <li><a href="#library">LIBRARY</a></li>
+        <li><a href="#editor">EDITOR</a></li>
+        <li><a href="#audio">AUDIO</a></li>
+        <li><a href="#export">EXPORT</a></li>
+        <li><a href="#capture">CAPTURE</a></li>
+        <li><a href="#options">OPTIONS</a></li>
+        <li><a href="#files">FILES</a></li>
+        <li><a href="#examples">EXAMPLES</a></li>
+        <li><a href="#availability">AVAILABILITY</a></li>
+        <li><a href="#faq">FAQ</a></li>
+        <li><a href="#bugs">BUGS</a></li>
+        <li><a href="#license">LICENSE</a></li>
+        <li><a href="#see-also">SEE ALSO</a></li>
+        <li><a href="#authors">AUTHORS</a></li>
+      </ol>
+    </nav>
+
+    <div class="man">
+
+      <section id="synopsis" aria-labelledby="h-synopsis">
+        <h2 id="h-synopsis" tabindex="-1">SYNOPSIS</h2>
+        <p class="synopsis">Press your save <kbd class="hk"><span class="rec" aria-hidden="true">●</span> HOTKEY</kbd>.</p>
+        <p><i>HOTKEY</i> is the save key you set in Settings. That is the whole interface while you play. ClipVault is a Windows desktop app with no command line; this page only borrows the manual-page format. The <a href="#options">OPTIONS</a> below are fields in the Settings screen, not flags.</p>
+      </section>
+
+      <section id="description" aria-labelledby="h-description">
+        <h2 id="h-description" tabindex="-1">DESCRIPTION</h2>
+        <p><b>ClipVault</b> runs in the background from the system tray and keeps an always-on replay buffer of your screen. When you press your save hotkey, the last 2&nbsp;minutes are saved to your clips folder as a normal MP4 file.</p>
+        <p>The hotkey uses a low-level keyboard hook, so it works while a fullscreen game has focus. Game and desktop audio are recorded to one audio track and your microphone to another, so either can be turned down or off later.</p>
+        <p>Windows shows a “Clip Saved” notification and the clip appears in the library right away. Clips stay on your PC as ordinary files in a folder you choose. There is no account, and nothing is uploaded.</p>
+        <p>ClipVault is built on libobs, the capture and encoding engine from OBS Studio, plus an Electron and React app for the library and editor.</p>
+
+        <h3>The replay buffer</h3>
+        <figure class="frame diagram" id="fig-2">
+          <span class="tag" aria-hidden="true"><span class="bx">┤</span> fig. 2 <span class="bx">├</span></span>
+<pre class="d-wide" aria-hidden="true"><span class="dm"> recording while ClipVault runs </span><span class="ln">──────────────────────────────────</span><span class="dm">▶ time</span>
+
+<span class="tape"> <span class="drop">··············</span><span class="keep">███████████████████████████████████████████████████</span><span class="head">█</span><span class="hl"> now</span></span>
+ <span class="dm">└─ dropped ──┘</span><span class="ln">└───────────</span><span class="fg"> replay buffer, last 120 s </span><span class="ln">────────────┘</span>
+                                                                  <span class="ln">│</span>
+                                                    <span class="fg">press </span><span class="hl">hotkey</span><span class="ln"> ─┤</span>
+                                                                  <span class="ln">▼</span>
+ <span class="ln">┌────────────────────────────────────────────────────────────────────┐</span>
+ <span class="ln">│</span> <span class="file">2026-09-28_23-30-00_VALORANT.mp4</span><span class="dm">   one MP4, three tracks</span>           <span class="ln">│</span>
+ <span class="ln">│</span>                                                                    <span class="ln">│</span>
+ <span class="ln">│</span><span class="k">   video  </span><span class="fg">H.264 or AV1</span>                                              <span class="ln">│</span>
+ <span class="ln">│</span><span class="k">   a1     </span><span class="fg">game + desktop audio</span>                                      <span class="ln">│</span>
+ <span class="ln">│</span><span class="k">   a2     </span><span class="fg">microphone</span>                                                <span class="ln">│</span>
+ <span class="ln">└────────────────────────────────────────────────────────────────────┘</span>
+<span class="dm">   saved to your clips folder · appears in the library right away</span></pre>
+<pre class="d-compact" aria-hidden="true"><span class="tape"> <span class="drop">·····</span><span class="keep">██████████████████████████</span><span class="head">█</span><span class="hl"> now</span></span>
+ <span class="dm">└───┘</span><span class="ln">└──────</span><span class="fg"> last 120 s </span><span class="ln">───────┘</span>
+<span class="dm"> dropped</span>                        <span class="ln">│</span>
+                   <span class="fg">press </span><span class="hl">hotkey</span> <span class="ln">│</span>
+                                <span class="ln">▼</span>
+ <span class="ln">┌──────────────────────────────────┐</span>
+ <span class="ln">│</span> <span class="file">2026-09-28_23-30-00_VALORANT.mp4</span> <span class="ln">│</span>
+ <span class="ln">│</span><span class="k">   video  </span><span class="fg">H.264 or AV1</span>            <span class="ln">│</span>
+ <span class="ln">│</span><span class="k">   a1     </span><span class="fg">game + desktop audio</span>    <span class="ln">│</span>
+ <span class="ln">│</span><span class="k">   a2     </span><span class="fg">microphone</span>              <span class="ln">│</span>
+ <span class="ln">└──────────────────────────────────┘</span>
+<span class="dm">  saved to your clips folder,</span>
+<span class="dm">  appears in the library right away</span></pre>
+          <figcaption><b>fig. 2</b> ClipVault keeps the most recent 120&nbsp;seconds and drops anything older. The hotkey writes the kept part to one MP4 with a video track and two audio tracks. The buffer length is a setting.</figcaption>
+        </figure>
+      </section>
+
+      <section id="library" aria-labelledby="h-library">
+        <h2 id="h-library" tabindex="-1">LIBRARY</h2>
+        <p>Every saved clip lands in the library.</p>
+        <ul class="list">
+          <li>Thumbnails with hover-to-preview: clips play right in the grid.</li>
+          <li>Grid or list view.</li>
+          <li>Search, and sort by date, size, name or favorite.</li>
+          <li>Filter by game, by tag, or to favorites only.</li>
+          <li>Detected games are tagged automatically. The file name carries the game as well: <code class="path">2026-09-28_23-30-00_VALORANT.mp4</code>.</li>
+          <li>Select several clips to favorite, tag, add or remove a game, export or delete them together.</li>
+        </ul>
+        <figure class="frame shot" id="fig-3">
+          <span class="tag" aria-hidden="true"><span class="bx">┤</span> fig. 3 <span class="bx">├</span></span>
+          <img src="../assets/shots/01-library-960.webp" srcset="../assets/shots/01-library-960.webp 960w, ../assets/shots/01-library-1600.webp 1600w" sizes="(min-width: 1100px) 900px, (min-width: 720px) 88vw, 94vw" width="1600" height="1000" loading="lazy" decoding="async" alt="ClipVault library in grid view with 23 clips from TEKKEN 8, League of Legends, VALORANT and Counter-Strike 2. Each card shows a thumbnail, the file name, size, date, frame rate, a game tag and custom tags such as combo and teamfight.">
+          <figcaption><b>fig. 3</b> The library in grid view: 23 clips across VALORANT, TEKKEN 8, League of Legends, CS2 and TFT, sorted by date.</figcaption>
+        </figure>
+      </section>
+
+      <section id="editor" aria-labelledby="h-editor">
+        <h2 id="h-editor" tabindex="-1">EDITOR</h2>
+        <p>Open a clip to cut it down.</p>
+        <ul class="list">
+          <li>Drag the trim handles. Playback stays inside the trim.</li>
+          <li>Frame-step and 5-second skip controls for finding the exact moment.</li>
+          <li>Add tags, mark the clip as a favorite, or change its game tag.</li>
+          <li><b>Trim Original</b> trims the file in place instead of exporting a copy.</li>
+        </ul>
+        <figure class="frame shot" id="fig-4">
+          <span class="tag" aria-hidden="true"><span class="bx">┤</span> fig. 4 <span class="bx">├</span></span>
+          <img src="../assets/shots/10-editor-trimmed-960.webp" srcset="../assets/shots/10-editor-trimmed-960.webp 960w, ../assets/shots/10-editor-trimmed-1600.webp 1600w" sizes="(min-width: 1100px) 900px, (min-width: 720px) 88vw, 94vw" width="1600" height="1000" loading="lazy" decoding="async" alt="ClipVault editor on the VALORANT clip. The WON banner is on screen, the timeline is trimmed from 0:38 to 1:04, and the right panel shows the Desktop Audio and Microphone tracks and the export settings.">
+          <figcaption><b>fig. 4</b> The new VALORANT clip trimmed to 0:38–1:04 (25.8&nbsp;s) around the round win. Audio tracks and export settings sit on the right.</figcaption>
+        </figure>
+      </section>
+
+      <section id="audio" aria-labelledby="h-audio">
+        <h2 id="h-audio" tabindex="-1">AUDIO</h2>
+        <p>Every clip has two separate audio tracks: track&nbsp;1 is game and desktop audio, track&nbsp;2 is your microphone. In the editor you can turn either track off or change its volume before export. A track that is off is muted while you edit and left out of the export.</p>
+        <figure class="frame diagram diagram-sm" id="fig-5">
+          <span class="tag" aria-hidden="true"><span class="bx">┤</span> fig. 5 <span class="bx">├</span></span>
+<pre aria-hidden="true"><span class="file">2026-09-28_23-30-00_VALORANT.mp4</span>
+<span class="ln">├─ </span><span class="k">video</span>
+<span class="ln">├─ </span><span class="k">a1</span><span class="fg">  game + desktop audio</span>
+<span class="ln">└─ </span><span class="k">a2</span><span class="fg">  microphone</span>
+
+<span class="dm">in the editor, before export:</span>
+<span class="tape"><span class="k">[x]</span><span class="fg"> a1  </span><span class="ln">▕</span><span class="keep">████████████</span><span class="drop">····</span><span class="ln">▏</span><span class="dm"> volume</span></span>
+<span class="dm">[ ]</span><span class="fg"> a2  </span><span class="dm">off: muted, not exported</span></pre>
+          <figcaption><b>fig. 5</b> Track layout of a saved clip. In the editor, track 1 stays on with its volume raised and the microphone track is switched off.</figcaption>
+        </figure>
+      </section>
+
+      <section id="export" aria-labelledby="h-export">
+        <h2 id="h-export" tabindex="-1">EXPORT</h2>
+        <p>Export writes a new file from the trimmed clip, with the tracks you left on.</p>
+        <dl class="opts">
+          <dt><b>Size</b> <span class="eq">=</span> <i>Up to 10 MB</i> <span class="or">|</span> <i>Up to 50 MB</i> <span class="or">|</span> <i>Up to 100 MB</i> <span class="or">|</span> <i>Keep original</i></dt>
+          <dd>Up to 10&nbsp;MB is the Discord-friendly one. Keep original is fast and large: it copies the recording without recompressing.</dd>
+          <dt><b>Compression</b> <span class="eq">=</span> <i>H.264</i> <span class="or">|</span> <i>AV1</i></dt>
+          <dd>H.264 is the most compatible. AV1 gives better quality per MB and needs an NVIDIA RTX 40-series or newer GPU.</dd>
+          <dt><b>FPS</b> <span class="eq">=</span> <i>Original</i> <span class="or">|</span> <i>30</i> <span class="or">|</span> <i>60</i></dt>
+          <dt class="dt-join"><b>Resolution</b> <span class="eq">=</span> <i>Original</i> <span class="or">|</span> <i>720p</i> <span class="or">|</span> <i>1080p</i></dt>
+          <dd>Optional. Both stay at the clip’s original values unless you change them.</dd>
+        </dl>
+        <p>When the export finishes, a small window opens: drag the file from it into a chat or a folder, copy its path, or open its folder.</p>
+        <figure class="frame shot" id="fig-6">
+          <span class="tag" aria-hidden="true"><span class="bx">┤</span> fig. 6 <span class="bx">├</span></span>
+          <img src="../assets/shots/12-editor-size-menu-960.webp" srcset="../assets/shots/12-editor-size-menu-960.webp 960w, ../assets/shots/12-editor-size-menu-1600.webp 1600w" sizes="(min-width: 1100px) 900px, (min-width: 720px) 88vw, 94vw" width="1600" height="1000" loading="lazy" decoding="async" alt="ClipVault editor with the export size menu open, listing Keep original (fast, large), Up to 10 MB with a check mark, Up to 50 MB and Up to 100 MB. The Microphone track is unchecked.">
+          <figcaption><b>fig. 6</b> The export size menu with “Up to 10&nbsp;MB” selected. The microphone track is off, so this export carries game audio only.</figcaption>
+        </figure>
+      </section>
+
+      <section id="capture" aria-labelledby="h-capture">
+        <h2 id="h-capture" tabindex="-1">CAPTURE</h2>
+        <p>By default ClipVault records a whole monitor with DXGI screen capture. It does not hook or inject into games, which keeps it <span class="nw">anti-cheat</span> friendly.</p>
+        <table class="tbl">
+          <thead><tr><th scope="col">Record</th><th scope="col">What it captures</th></tr></thead>
+          <tbody>
+            <tr><td>Monitor <span class="dim">(default)</span></td><td>the selected monitor, via DXGI</td></tr>
+            <tr><td>Games automatically <span class="dim">(experimental)</span></td><td>supported games only; follows the active game</td></tr>
+            <tr><td>Monitor + automatic games <span class="dim">(experimental)</span></td><td>the monitor, switching to a supported game while one is running</td></tr>
+            <tr><td>Choose an app window</td><td>one window you pick, for other apps or unrecognized games</td></tr>
+          </tbody>
+        </table>
+        <p>Encoding uses NVENC on NVIDIA GPUs, which has the lowest CPU use, and falls back to x264 on the CPU. “Auto” picks for you. Recording is H.264 or AV1 at 30, 60, 120 or 144&nbsp;fps, with five quality presets.</p>
+        <figure class="frame shot" id="fig-7">
+          <span class="tag" aria-hidden="true"><span class="bx">┤</span> fig. 7 <span class="bx">├</span></span>
+          <img src="../assets/shots/18-settings-capture-960.webp" srcset="../assets/shots/18-settings-capture-960.webp 960w, ../assets/shots/18-settings-capture-1600.webp 1600w" sizes="(min-width: 1100px) 900px, (min-width: 720px) 88vw, 94vw" width="1600" height="1000" loading="lazy" decoding="async" alt="ClipVault Settings, Video and Capture section: Record set to Monitor, Monitor 1 (Primary) selected, DXGI capture method, mouse cursor capture on, 1080p resolution, 60 fps, Balanced quality preset and a 120-second buffer duration.">
+          <figcaption><b>fig. 7</b> Settings › Video &amp; Capture: Record set to Monitor, DXGI, 1080p at 60&nbsp;fps, Balanced quality, 120&nbsp;s buffer.</figcaption>
+        </figure>
+      </section>
+
+      <section id="options" aria-labelledby="h-options">
+        <h2 id="h-options" tabindex="-1">OPTIONS</h2>
+        <p>These are fields in the Settings screen, written the way a manual lists options. <span class="def">Underlined</span> values are defaults. Saving recording changes restarts the replay buffer.</p>
+        <dl class="opts">
+          <dt><b>Record</b> <span class="eq">=</span> <i class="def">Monitor</i><span class="sr-only"> (default)</span> <span class="or">|</span> <i>Games automatically</i> <span class="or">|</span> <i>Monitor + automatic games</i> <span class="or">|</span> <i>Choose an app window</i></dt>
+          <dd>What gets recorded. The two automatic modes are experimental. See <a href="#capture">CAPTURE</a>.</dd>
+
+          <dt><b>Encoder</b> <span class="eq">=</span> <i class="def">Auto</i><span class="sr-only"> (default)</span> <span class="or">|</span> <i>NVENC</i> <span class="or">|</span> <i>x264</i></dt>
+          <dd>Auto uses NVENC when available, then falls back to x264. NVENC needs an NVIDIA GPU and has the lowest CPU use; x264 runs on the CPU.</dd>
+
+          <dt><b>Codec</b> <span class="eq">=</span> <i class="def">H.264</i><span class="sr-only"> (default)</span> <span class="or">|</span> <i>AV1</i></dt>
+          <dd>H.264 is the most compatible. AV1 makes smaller files and needs an NVIDIA RTX 40-series or newer GPU; ClipVault uses H.264 if AV1 cannot start.</dd>
+
+          <dt><b>Frame rate</b> <span class="eq">=</span> <i>30</i> <span class="or">|</span> <i class="def">60</i><span class="sr-only"> (default)</span> <span class="or">|</span> <i>120</i> <span class="or">|</span> <i>144</i></dt>
+          <dd>Frames per second of the recording.</dd>
+
+          <dt><b>Quality</b> <span class="eq">=</span> <i>Compact</i> <span class="or">|</span> <i>Efficient</i> <span class="or">|</span> <i>Balanced</i> <span class="or">|</span> <i>Detailed</i> <span class="or">|</span> <i>Maximum</i></dt>
+          <dd>Presets that trade image quality against buffer memory and file size.</dd>
+
+          <dt><b>Buffer duration</b> <span class="eq">=</span> <i>seconds</i> <span class="dim">(default <span class="def">120</span>)</span></dt>
+          <dd>How far back a saved clip reaches. Longer buffers use more RAM and allow longer clips.</dd>
+
+          <dt><b>Hotkey</b> <span class="eq">=</span> <i>key</i> <span class="dim">(default <span class="def">F9</span>)</span></dt>
+          <dd>The key that saves a clip. It uses a low-level keyboard hook, so it works while a fullscreen game has focus.</dd>
+
+          <dt><b>Start with Windows</b> <span class="eq">=</span> <i>on</i> <span class="or">|</span> <i>off</i></dt>
+          <dd>Start ClipVault in the tray when Windows starts.</dd>
+        </dl>
+      </section>
+
+      <section id="files" aria-labelledby="h-files">
+        <h2 id="h-files" tabindex="-1">FILES</h2>
+<pre class="tree" aria-label="File layout"><span class="file">%APPDATA%\ClipVault\</span>
+<span class="ln">└── </span><span class="fg">settings.json</span>
+
+<span class="file">&lt;clips folder&gt;\</span><span class="dm">      chosen at first run</span>
+<span class="ln">├── </span><span class="fg">2026-09-28_23-30-00_VALORANT.mp4</span>
+<span class="ln">├── </span><span class="fg">2026-09-28_02-41-39_TEKKEN_8.mp4</span>
+<span class="ln">├── </span><span class="dm">…</span>
+<span class="ln">└── </span><span class="fg">clips-metadata\</span>
+<span class="ln">    ├── </span><span class="fg">2026-09-28_23-30-00_VALORANT.json</span>
+<span class="ln">    └── </span><span class="dm">…</span></pre>
+        <dl class="opts files">
+          <dt><code class="path">%APPDATA%\ClipVault\settings.json</code></dt>
+          <dd>All settings. Shared by the background recorder and the app, and kept across upgrades.</dd>
+          <dt><code class="path">&lt;clips folder&gt;\*.mp4</code></dt>
+          <dd>Your clips, named <i>date_time_GAME</i>.mp4. Ordinary MP4 files: play, copy or move them like any other file.</dd>
+          <dt><code class="path">&lt;clips folder&gt;\clips-metadata\*.json</code></dt>
+          <dd>One small file per clip with its tags, favorite, game, trim points and audio track settings.</dd>
+        </dl>
+      </section>
+
+      <section id="examples" aria-labelledby="h-examples">
+        <h2 id="h-examples" tabindex="-1">EXAMPLES</h2>
+        <h3>Save a moment and share it under 10&nbsp;MB</h3>
+        <ol class="steps">
+          <li>Play. ClipVault is recording into the replay buffer.</li>
+          <li>Press your save hotkey. Windows shows “Clip Saved”.</li>
+          <li>Open the clip from the top of the library and drag the trim handles.</li>
+          <li>Turn off the microphone track if you do not want it.</li>
+          <li>Export with “Up to 10&nbsp;MB”, then drag the file from the export window into your chat.</li>
+        </ol>
+        <h3>Watch the tour</h3>
+        <figure class="frame vid" id="fig-8">
+          <span class="tag" aria-hidden="true"><span class="bx">┤</span> fig. 8 <span class="bx">├</span></span>
+          <video controls preload="none" playsinline poster="../assets/video/tour-wide.jpg" width="1280" height="720" aria-describedby="fig-8-cap">
+            <source src="../assets/video/tour-wide.mp4" type="video/mp4">
+            <a href="../assets/video/tour-wide.mp4">Open the tour video (MP4)</a>
+          </video>
+          <figcaption><span id="fig-8-cap"><b>fig. 8</b> The 50-second tour: saving a clip, the library, the editor, audio tracks, export and capture settings. No sound; captions are on screen.</span></figcaption>
+        </figure>
+      </section>
+
+      <section id="availability" aria-labelledby="h-availability">
+        <h2 id="h-availability" tabindex="-1">AVAILABILITY</h2>
+        <p>ClipVault 1.7.6 for Windows 10 and 11 (x64). Free, no account.</p>
+        <div class="cta">
+          <a class="btn btn-primary" href="https://github.com/ebrardushullovcii/ClipVault/releases/latest"><span class="br" aria-hidden="true">[</span> Download ClipVault-Setup-1.7.6.exe <span class="br" aria-hidden="true">]</span></a>
+          <a class="btn btn-ghost" href="https://github.com/ebrardushullovcii/ClipVault"><span class="br" aria-hidden="true">[</span> View source <span class="br" aria-hidden="true">]</span></a>
+        </div>
+        <p>A first-run setup walks through the clips folder, capture, audio and hotkey. After that ClipVault sits in the tray and can start with Windows.</p>
+        <p><b>Requirements:</b> Windows 10 or 11, 64-bit. With an NVIDIA GPU, ClipVault encodes with NVENC (AV1 needs an RTX 40-series or newer); without one, x264 encodes on the CPU. Free disk space for your clips.</p>
+      </section>
+
+      <section id="faq" aria-labelledby="h-faq">
+        <h2 id="h-faq" tabindex="-1">FAQ</h2>
+        <dl class="faq">
+          <dt>Is it free?</dt>
+          <dd>Yes. Free and open source under <span class="nw">GPL-2.0-or-later</span>. No account.</dd>
+          <dt>Does it hook into my games?</dt>
+          <dd>No. The default monitor capture uses DXGI screen capture, with no game hooks or injection. That is why it is <span class="nw">anti-cheat</span> friendly.</dd>
+          <dt>Do I need an NVIDIA GPU?</dt>
+          <dd>No. With one, ClipVault uses NVENC for the lowest CPU use. Without one, it encodes with x264 on the CPU.</dd>
+          <dt>Can I change the hotkey or the 2 minutes?</dt>
+          <dd>Yes. The save hotkey and the buffer duration are both in Settings.</dd>
+          <dt>Are my clips uploaded anywhere?</dt>
+          <dd>No. Clips are MP4 files in a folder you choose. Nothing is uploaded.</dd>
+          <dt>Does it run on macOS or Linux?</dt>
+          <dd>No. ClipVault is for Windows 10 and 11.</dd>
+          <dt>Is there a command line?</dt>
+          <dd>No. This page only uses the man-page format. Everything happens in the tray app and the library window.</dd>
+        </dl>
+      </section>
+
+      <section id="bugs" aria-labelledby="h-bugs">
+        <h2 id="h-bugs" tabindex="-1">BUGS</h2>
+        <p>Report bugs on the <a href="https://github.com/ebrardushullovcii/ClipVault/issues">GitHub issue tracker</a>. “Games automatically” and “Monitor + automatic games” are experimental.</p>
+      </section>
+
+      <section id="license" aria-labelledby="h-license">
+        <h2 id="h-license" tabindex="-1">LICENSE</h2>
+        <p><span class="nw">GPL-2.0-or-later</span>. ClipVault uses libobs from OBS Studio, which is licensed <span class="nw">GPL-2.0-or-later</span>, so ClipVault is too. Full text: <a href="https://github.com/ebrardushullovcii/ClipVault/blob/master/LICENSE">LICENSE</a>.</p>
+      </section>
+
+      <section id="see-also" aria-labelledby="h-see-also">
+        <h2 id="h-see-also" tabindex="-1">SEE ALSO</h2>
+        <dl class="opts">
+          <dt><a href="https://obsproject.com/"><b>OBS Studio</b></a> <span class="dim">(libobs)</span></dt>
+          <dd>The capture and encoding engine ClipVault is built on.</dd>
+          <dt><a href="https://github.com/ebrardushullovcii/ClipVault/blob/master/README.md"><b>README.md</b></a></dt>
+          <dd>Building ClipVault from source.</dd>
+          <dt><a href="https://github.com/ebrardushullovcii/ClipVault/blob/master/CHANGELOG.md"><b>CHANGELOG.md</b></a></dt>
+          <dd>Release history.</dd>
+        </dl>
+      </section>
+
+      <section id="authors" aria-labelledby="h-authors">
+        <h2 id="h-authors" tabindex="-1">AUTHORS</h2>
+        <p>ClipVault is developed in the open at <a href="https://github.com/ebrardushullovcii/ClipVault">github.com/ebrardushullovcii/ClipVault</a>.</p>
+      </section>
+
+    </div>
+  </div>
+</main>
+
+<footer class="foot">
+  <div class="wrap">
+    <p class="manfoot"><span>ClipVault 1.7.6</span><span>2026-09-26</span><span>CLIPVAULT(1)</span></p>
+    <p class="notes"><span class="nw">GPL-2.0-or-later</span> · <a href="https://github.com/ebrardushullovcii/ClipVault">GitHub</a> · <a href="https://github.com/ebrardushullovcii/ClipVault/releases/latest">Download</a> · <a href="https://github.com/ebrardushullovcii/ClipVault/issues">Issues</a></p>
+    <p class="notes">Gameplay recorded with ClipVault. Game names and footage belong to their respective owners.</p>
+    <p class="notes">This page uses the look of a Unix manual page. ClipVault is a Windows desktop app and has no command-line interface.</p>
+  </div>
+</footer>
+
+<div class="less" id="less" hidden>
+  <p class="less-pos" aria-hidden="true">Manual page clipvault(1) <span class="less-sec" id="less-sec">NAME</span> <span id="less-pct">(top)</span></p>
+  <p class="less-keys"><span aria-hidden="true"><b>j</b>/<b>k</b> section  <b>g</b>/<b>G</b> top/end</span>
+    <button type="button" id="keys-toggle" aria-pressed="true"><span class="sr-only">Single-key shortcuts j, k, g and G</span><span class="kv" aria-hidden="true">keys on</span></button></p>
+</div>
+
+<script src="script.js" defer></script>
+</body>
+</html>

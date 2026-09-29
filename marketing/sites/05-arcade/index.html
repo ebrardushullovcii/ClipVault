@@ -1,0 +1,494 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ClipVault · One key saves the last 2 minutes</title>
+  <meta name="description" content="ClipVault is a free, open-source game clipping app for Windows 10 and 11. It keeps a replay buffer running while you play. Press your save hotkey to keep the last 2 minutes as an MP4, with game audio and microphone on separate tracks.">
+  <meta name="theme-color" content="#07060b">
+  <link rel="icon" type="image/png" href="../assets/brand/favicon-64.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Silkscreen:wght@400;700&family=Space+Grotesk:wght@400;500;700&family=VT323&display=swap">
+  <link rel="stylesheet" href="style.css">
+  <script src="script.js" defer></script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="topbar">
+    <div class="wrap topbar-in">
+      <a class="brand" href="#top">
+        <img src="../assets/brand/favicon-64.png" width="28" height="28" alt="">
+        <span>ClipVault</span>
+      </a>
+      <nav class="topnav" aria-label="Sections">
+        <ul>
+          <li><a href="#scores">High scores</a></li>
+          <li><a href="#how">How to play</a></li>
+          <li><a href="#powerups">Power-ups</a></li>
+          <li><a href="#demo">Demo</a></li>
+          <li><a href="#rules">House rules</a></li>
+          <li><a href="#faq">FAQ</a></li>
+        </ul>
+      </nav>
+      <a class="btn btn-coin btn-sm" href="https://github.com/ebrardushullovcii/ClipVault/releases/latest">Download</a>
+    </div>
+  </header>
+
+  <main id="main">
+    <!-- ATTRACT MODE -->
+    <section class="hero" id="top" aria-labelledby="hero-title">
+      <div class="wrap hero-grid">
+        <div class="hero-copy">
+          <p class="kicker"><span class="kicker-dot" aria-hidden="true"></span><span>Free play · Open source · <span class="nw">Windows 10/11</span></span></p>
+          <h1 id="hero-title" class="hero-title"><span class="l1">One key</span> <span>saves the last</span> <span>2&nbsp;minutes.</span></h1>
+          <p class="lede">ClipVault is a free, open-source game clipping app for Windows 10 and 11. It keeps a replay buffer running while you play. Press your save hotkey and the last 2 minutes are saved as an MP4, with game audio and your mic on separate tracks.</p>
+          <div class="cta-row">
+            <a class="btn btn-coin" href="https://github.com/ebrardushullovcii/ClipVault/releases/latest">
+              <span class="px-icon px-icon--btn" data-px="coinInk" aria-hidden="true"><svg viewBox="0 0 16 16" width="64" height="64" shape-rendering="crispEdges" focusable="false"><path fill="#14110a" d="M7 0h2v1h-2zM4 1h8v1h-8zM3 2h3v1h-3zM10 2h3v1h-3zM2 3h2v1h-2zM12 3h2v1h-2zM1 4h2v1h-2zM7 4h2v1h-2zM13 4h2v1h-2zM1 5h2v1h-2zM7 5h2v1h-2zM13 5h2v1h-2zM1 6h1v1h-1zM7 6h2v1h-2zM14 6h1v1h-1zM0 7h2v1h-2zM7 7h2v1h-2zM14 7h2v1h-2zM0 8h2v1h-2zM7 8h2v1h-2zM14 8h2v1h-2zM1 9h1v1h-1zM7 9h2v1h-2zM14 9h1v1h-1zM1 10h2v1h-2zM7 10h2v1h-2zM13 10h2v1h-2zM1 11h2v1h-2zM7 11h2v1h-2zM13 11h2v1h-2zM2 12h2v1h-2zM12 12h2v1h-2zM3 13h3v1h-3zM10 13h3v1h-3zM4 14h8v1h-8zM7 15h2v1h-2z"/><path fill="#b89a00" d="M6 2h4v1h-4zM4 3h8v1h-8zM3 4h2v1h-2zM9 4h4v1h-4zM3 5h1v1h-1zM5 5h2v1h-2zM9 5h4v1h-4zM2 6h2v1h-2zM5 6h2v1h-2zM9 6h5v1h-5zM2 7h5v1h-5zM9 7h5v1h-5zM2 8h5v1h-5zM9 8h5v1h-5zM2 9h5v1h-5zM9 9h5v1h-5zM3 10h4v1h-4zM9 10h4v1h-4zM3 11h4v1h-4zM9 11h4v1h-4zM4 12h8v1h-8zM6 13h4v1h-4z"/><path fill="#ffffff" d="M5 4h2v1h-2zM4 5h1v1h-1zM4 6h1v1h-1z"/></svg></span>Download
+            </a>
+            <a class="btn btn-ghost" href="https://github.com/ebrardushullovcii/ClipVault">Source code</a>
+          </div>
+          <p class="fine"><span class="nw">Version 1.7.6</span> · <span class="nw">ClipVault-Setup-1.7.6.exe</span> · <span class="nw">Windows 10/11 x64</span> · <span class="nw">GPL-2.0-or-later</span></p>
+        </div>
+
+        <div class="hero-cab">
+          <div class="cabinet">
+            <div class="cab-marquee" aria-hidden="true">
+              <span class="cab-marquee-text">CLIPVAULT</span>
+            </div>
+            <div class="cab-body">
+              <div class="cab-bezel">
+                <div class="cab-hud">
+                  <span class="hud-score" aria-hidden="true">1UP <b id="clipCount">00</b></span>
+                  <span class="hud-hi" aria-hidden="true">HOTKEY: YOURS</span>
+                  <button class="hud-btn" id="heroPause" type="button" aria-label="Pause video">Pause</button>
+                </div>
+                <div class="cab-screen" id="cabScreen">
+                  <video id="heroVideo" autoplay muted loop playsinline preload="metadata" poster="../assets/video/hero-wide.jpg" width="1280" height="720" aria-describedby="hero-video-desc">
+                    <source src="../assets/video/hero-wide.mp4" type="video/mp4">
+                  </video>
+                  <script>(function (v) { if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) { v.removeAttribute('autoplay'); v.pause(); } })(document.getElementById('heroVideo'));</script>
+                  <div class="cab-flash" aria-hidden="true"></div>
+                  <div class="cab-saved" aria-hidden="true"><span>CLIP SAVED</span></div>
+                </div>
+                <p class="sr-only" id="hero-video-desc">Silent 12-second loop: a VALORANT round is won, the save hotkey is pressed, Windows shows a Clip Saved notification, the clip appears at the top of the ClipVault library, then it is trimmed and exported.</p>
+                <p class="attract">Press save to continue</p>
+              </div>
+              <div class="cab-panel">
+                <div class="joy" aria-hidden="true">
+                  <span class="joy-base"></span>
+                  <span class="joy-arm"><span class="joy-stick"></span><span class="joy-ball"></span></span>
+                </div>
+                <div class="save-wrap">
+                  <button class="save-btn" id="saveBtn" type="button" aria-describedby="save-hint"><span class="rec-dot" aria-hidden="true"></span><span class="sr-only">Save a clip (demo)</span></button>
+                  <span class="save-label" aria-hidden="true">Save</span>
+                </div>
+                <div class="mini-btns" aria-hidden="true"><span class="mb mb-c"></span><span class="mb mb-m"></span></div>
+              </div>
+              <div class="cab-panel-front" aria-hidden="true"></div>
+              <div class="cab-coin" aria-hidden="true">
+                <span class="coin-slot"><i></i><b>FREE</b></span>
+                <span class="coin-slot"><i></i><b>PLAY</b></span>
+              </div>
+            </div>
+          </div>
+          <p class="cab-hint" id="save-hint">Try the SAVE button. On this page it only plays a demo animation; in the app, your hotkey saves a real clip.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- SCORE STRIP -->
+    <section class="stats" aria-label="ClipVault in numbers">
+      <div class="wrap">
+        <dl class="stats-grid">
+          <div><dt>Default buffer</dt><dd class="c-y">2:00</dd></div>
+          <div><dt>Audio tracks</dt><dd class="c-c">2</dd></div>
+          <div><dt>Max fps</dt><dd class="c-m">144</dd></div>
+          <div><dt>Export target</dt><dd class="c-y">10 MB</dd></div>
+          <div><dt>Windows</dt><dd class="c-c">10/11</dd></div>
+          <div><dt>Version</dt><dd class="c-m">1.7.6</dd></div>
+        </dl>
+      </div>
+    </section>
+
+    <!-- HIGH SCORES -->
+    <section class="section scores" id="scores" aria-labelledby="scores-title">
+      <div class="wrap">
+        <header class="sec-head">
+          <p class="kicker">Stage 1 · The library</p>
+          <h2 id="scores-title">High scores</h2>
+          <p class="sec-lede">Real clips from the developer's library, newest first, the way ClipVault lists them. Every file name holds the date, the time and the game.</p>
+        </header>
+
+        <div class="scores-grid">
+          <div class="board">
+            <table class="score-table">
+              <caption class="sr-only">8 of the 24 clips in the library, newest first</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Rank</th>
+                  <th scope="col">Game / file name</th>
+                  <th scope="col" class="num">Length</th>
+                  <th scope="col" class="num col-size">Size</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr class="r-y">
+                  <th scope="row">1st</th>
+                  <td><span class="g">VALORANT</span><span class="f"><span class="nw">2026-09-28_23-30-00_</span><wbr>VALORANT.mp4</span></td>
+                  <td class="num t">2:02</td>
+                  <td class="num col-size s">215.34 MB</td>
+                </tr>
+                <tr class="r-c">
+                  <th scope="row">2nd</th>
+                  <td><span class="g">TEKKEN 8 <span class="fav"><span aria-hidden="true">★</span> Fav</span></span><span class="f"><span class="nw">2026-09-28_02-41-39_</span><wbr>TEKKEN_8.mp4</span></td>
+                  <td class="num t">2:59</td>
+                  <td class="num col-size s">779.86 MB</td>
+                </tr>
+                <tr class="r-m">
+                  <th scope="row">3rd</th>
+                  <td><span class="g">League of Legends</span><span class="f"><span class="nw">2026-09-27_21-41-34_</span><wbr>League_of_Legends.mp4</span></td>
+                  <td class="num t">2:58</td>
+                  <td class="num col-size s">397.6 MB</td>
+                </tr>
+                <tr class="r-w">
+                  <th scope="row">4th</th>
+                  <td><span class="g">VALORANT</span><span class="f"><span class="nw">2026-09-27_03-47-16_</span><wbr>VALORANT.mp4</span></td>
+                  <td class="num t">2:58</td>
+                  <td class="num col-size s">253.53 MB</td>
+                </tr>
+                <tr class="r-y">
+                  <th scope="row">5th</th>
+                  <td><span class="g">TEKKEN 8</span><span class="f"><span class="nw">2026-09-27_00-53-13_</span><wbr>TEKKEN_8.mp4</span></td>
+                  <td class="num t">1:58</td>
+                  <td class="num col-size s">557.98 MB</td>
+                </tr>
+                <tr class="r-c">
+                  <th scope="row">6th</th>
+                  <td><span class="g">League of Legends <span class="fav"><span aria-hidden="true">★</span> Fav</span></span><span class="f"><span class="nw">2026-09-26_01-58-50_</span><wbr>League_of_Legends.mp4</span></td>
+                  <td class="num t">2:58</td>
+                  <td class="num col-size s">377.85 MB</td>
+                </tr>
+                <tr class="r-m">
+                  <th scope="row">7th</th>
+                  <td><span class="g">Counter-Strike 2</span><span class="f"><span class="nw">2026-09-25_22-34-47_</span><wbr>Counter-Strike_2.mp4</span></td>
+                  <td class="num t">2:58</td>
+                  <td class="num col-size s">279.14 MB</td>
+                </tr>
+                <tr class="r-w">
+                  <th scope="row">8th</th>
+                  <td><span class="g">VALORANT <span class="fav"><span aria-hidden="true">★</span> Fav</span></span><span class="f"><span class="nw">2026-09-25_00-58-25_</span><wbr>VALORANT.mp4</span></td>
+                  <td class="num t">3:00</td>
+                  <td class="num col-size s">362.22 MB</td>
+                </tr>
+              </tbody>
+            </table>
+            <p class="board-foot">8 of 24 clips shown. 2:00 is the default buffer length; you can change it in Settings.</p>
+          </div>
+
+          <div class="scores-side">
+            <figure class="crt">
+              <div class="crt-screen">
+                <img src="../assets/shots/07-library-list-960.webp"
+                     srcset="../assets/shots/07-library-list-960.webp 960w, ../assets/shots/07-library-list-1600.webp 1600w"
+                     sizes="(min-width: 1180px) 470px, (min-width: 700px) 80vw, 92vw"
+                     width="1600" height="1000" loading="lazy"
+                     alt="The ClipVault library in list view, 24 clips sorted by date. The first rows are 2026-09-28_23-30-00_VALORANT (2:02), 2026-09-28_02-41-39_TEKKEN_8 (2:59, favorite, tag combo) and 2026-09-27_21-41-34_League_of_Legends (2:58, tag teamfight).">
+              </div>
+              <figcaption><span class="led" aria-hidden="true"></span>The same clips in list view</figcaption>
+            </figure>
+            <figure class="crt">
+              <div class="crt-screen">
+                <img src="../assets/shots/04-library-filter-game-960.webp"
+                     srcset="../assets/shots/04-library-filter-game-960.webp 960w, ../assets/shots/04-library-filter-game-1600.webp 1600w"
+                     sizes="(min-width: 1180px) 470px, (min-width: 700px) 80vw, 92vw"
+                     width="1600" height="1000" loading="lazy"
+                     alt="The ClipVault library filtered to VALORANT, showing 9 clips in grid view with thumbnails, lengths and tags.">
+              </div>
+              <figcaption><span class="led led--m" aria-hidden="true"></span>Filtered by game: VALORANT, 9 clips</figcaption>
+            </figure>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- HOW TO PLAY -->
+    <section class="section howto" id="how" aria-labelledby="how-title">
+      <div class="wrap">
+        <header class="sec-head">
+          <p class="kicker">Stage 2 · Controls</p>
+          <h2 id="how-title">How to play</h2>
+          <p class="sec-lede">Three steps. Set it up once with the first-run setup (clips folder, capture, audio, hotkey), then it stays out of the way.</p>
+        </header>
+
+        <ol class="steps">
+          <li class="step">
+            <figure class="crt">
+              <div class="crt-screen">
+                <img src="../assets/frames/valorant-kill-960.webp"
+                     srcset="../assets/frames/valorant-kill-960.webp 960w, ../assets/frames/valorant-kill-1920.webp 1920w"
+                     sizes="(min-width: 980px) 380px, 92vw"
+                     width="1920" height="1080" loading="lazy"
+                     alt="VALORANT gameplay: first-person view holding a rifle at a doorway, with an enemy across the hall.">
+              </div>
+            </figure>
+            <div class="step-body">
+              <p class="step-num">Step 1</p>
+              <h3>Play</h3>
+              <p>ClipVault runs in the tray and keeps the last 2 minutes in a replay buffer while you play. It can start with Windows.</p>
+            </div>
+          </li>
+          <li class="step">
+            <figure class="crt">
+              <div class="crt-screen">
+                <img src="../assets/shots/03-library-new-clip-960.webp"
+                     srcset="../assets/shots/03-library-new-clip-960.webp 960w, ../assets/shots/03-library-new-clip-1600.webp 1600w"
+                     sizes="(min-width: 980px) 380px, 92vw"
+                     width="1600" height="1000" loading="lazy"
+                     alt="The ClipVault library with the just-saved VALORANT clip at the top.">
+              </div>
+            </figure>
+            <div class="step-body">
+              <p class="step-num">Step 2</p>
+              <h3>Press your hotkey</h3>
+              <p>One key, set in the first-run setup. It works while a fullscreen game has focus. The last 2 minutes are saved as an MP4, Windows shows a Clip Saved notification, and the clip is already in your library.</p>
+            </div>
+          </li>
+          <li class="step">
+            <figure class="crt">
+              <div class="crt-screen">
+                <img src="../assets/shots/12-editor-size-menu-960.webp"
+                     srcset="../assets/shots/12-editor-size-menu-960.webp 960w, ../assets/shots/12-editor-size-menu-1600.webp 1600w"
+                     sizes="(min-width: 980px) 380px, 92vw"
+                     width="1600" height="1000" loading="lazy"
+                     alt="The ClipVault editor: the VALORANT clip is trimmed to 25.79 seconds around the WON banner, and the export size menu is open with Up to 10 MB selected.">
+              </div>
+            </figure>
+            <div class="step-body">
+              <p class="step-num">Step 3</p>
+              <h3>Trim &amp; export</h3>
+              <p>Open the clip, drag the trim handles, pick Up to 10 MB and export. Then drag the file anywhere, copy its path or open its folder.</p>
+            </div>
+          </li>
+        </ol>
+      </div>
+    </section>
+
+    <!-- POWER-UPS -->
+    <section class="section powerups" id="powerups" aria-labelledby="pu-title">
+      <div class="wrap">
+        <header class="sec-head">
+          <p class="kicker">Stage 3 · Features</p>
+          <h2 id="pu-title">Power-ups</h2>
+          <p class="sec-lede">What you get in ClipVault 1.7.6.</p>
+        </header>
+
+        <ul class="pu-grid">
+          <li class="pu"><div class="pu-in">
+            <span class="px-icon" data-px="audio" aria-hidden="true"><svg viewBox="0 0 16 16" width="64" height="64" shape-rendering="crispEdges" focusable="false"><path fill="#ffe600" d="M1 2h1v1h-1zM0 3h2v1h-2zM1 4h1v1h-1zM1 5h1v1h-1zM0 6h3v1h-3zM0 10h2v1h-2zM2 11h1v1h-1zM1 12h1v1h-1zM0 13h1v1h-1zM0 14h3v1h-3z"/><path fill="#00f0ff" d="M6 2h1v1h-1zM10 2h2v1h-2zM5 3h3v1h-3zM9 3h4v1h-4zM14 3h1v1h-1zM4 4h12v1h-12zM5 5h3v1h-3zM9 5h4v1h-4zM14 5h1v1h-1zM6 6h1v1h-1zM10 6h2v1h-2z"/><path fill="#4a4660" d="M0 7h16v1h-16z"/><path fill="#ff2bd6" d="M5 10h1v1h-1zM8 10h1v1h-1zM12 10h1v1h-1zM4 11h2v1h-2zM7 11h3v1h-3zM11 11h4v1h-4zM4 12h12v1h-12zM4 13h2v1h-2zM7 13h3v1h-3zM11 13h4v1h-4zM5 14h1v1h-1zM8 14h1v1h-1zM12 14h1v1h-1z"/></svg></span>
+            <p class="pu-tag">Recording</p>
+            <h3>1P / 2P audio</h3>
+            <p>Game and desktop audio record to one track, your microphone to another. In the editor, turn either one off or change its volume before you export.</p>
+            </div>
+          </li>
+          <li class="pu"><div class="pu-in">
+            <span class="px-icon" data-px="hover" aria-hidden="true"><svg viewBox="0 0 16 16" width="64" height="64" shape-rendering="crispEdges" focusable="false"><path fill="#00f0ff" d="M0 1h13v1h-13zM0 2h1v1h-1zM12 2h1v1h-1zM0 3h1v1h-1zM12 3h1v1h-1zM0 4h1v1h-1zM12 4h1v1h-1zM0 5h1v1h-1zM12 5h1v1h-1zM0 6h1v1h-1zM12 6h1v1h-1zM0 7h1v1h-1zM12 7h1v1h-1zM0 8h1v1h-1zM12 8h1v1h-1zM0 9h1v1h-1zM12 9h1v1h-1zM0 10h9v1h-9z"/><path fill="#1c1830" d="M1 2h11v1h-11zM1 3h4v1h-4zM6 3h6v1h-6zM1 4h4v1h-4zM7 4h5v1h-5zM1 5h4v1h-4zM8 5h4v1h-4zM1 6h4v1h-4zM9 6h3v1h-3zM1 7h4v1h-4zM8 7h4v1h-4zM1 8h4v1h-4zM7 8h2v1h-2zM10 8h2v1h-2zM1 9h4v1h-4zM6 9h3v1h-3zM11 9h1v1h-1zM12 10h1v1h-1zM13 11h1v1h-1zM14 12h1v1h-1zM12 13h1v1h-1zM10 14h1v1h-1zM13 14h1v1h-1zM14 15h1v1h-1z"/><path fill="#ff2bd6" d="M5 3h1v1h-1zM5 4h2v1h-2zM5 5h3v1h-3zM5 6h4v1h-4zM5 7h3v1h-3zM5 8h2v1h-2zM5 9h1v1h-1z"/><path fill="#ffffff" d="M9 8h1v1h-1zM9 9h2v1h-2zM9 10h3v1h-3zM9 11h4v1h-4zM9 12h5v1h-5zM9 13h3v1h-3zM9 14h1v1h-1zM11 14h2v1h-2zM12 15h2v1h-2z"/></svg></span>
+            <p class="pu-tag">Library</p>
+            <h3>Hover preview</h3>
+            <p>Point at a clip and it plays right in the grid. Grid or list view, search, and sort by date, size, name or favorite.</p>
+            </div>
+          </li>
+          <li class="pu"><div class="pu-in">
+            <span class="px-icon" data-px="game" aria-hidden="true"><svg viewBox="0 0 16 16" width="64" height="64" shape-rendering="crispEdges" focusable="false"><path fill="#ff2bd6" d="M3 3h10v1h-10zM2 4h12v1h-12zM1 5h3v1h-3zM5 5h6v1h-6zM12 5h3v1h-3zM1 6h2v1h-2zM6 6h4v1h-4zM11 6h1v1h-1zM13 6h2v1h-2zM1 7h3v1h-3zM5 7h6v1h-6zM12 7h3v1h-3zM1 8h14v1h-14zM1 9h14v1h-14zM1 10h5v1h-5zM10 10h5v1h-5zM1 11h4v1h-4zM11 11h4v1h-4zM2 12h2v1h-2zM12 12h2v1h-2z"/><path fill="#ffffff" d="M4 5h1v1h-1zM3 6h3v1h-3zM4 7h1v1h-1z"/><path fill="#ffe600" d="M11 5h1v1h-1zM11 7h1v1h-1z"/><path fill="#00f0ff" d="M10 6h1v1h-1zM12 6h1v1h-1z"/></svg></span>
+            <p class="pu-tag">Library</p>
+            <h3>Filter by game</h3>
+            <p>Detected games are tagged automatically. Filter the library by game, tag or favorites.</p>
+            </div>
+          </li>
+          <li class="pu"><div class="pu-in">
+            <span class="px-icon" data-px="bulk" aria-hidden="true"><svg viewBox="0 0 16 16" width="64" height="64" shape-rendering="crispEdges" focusable="false"><path fill="#ff2bd6" d="M0 1h4v1h-4zM0 2h3v1h-3zM1 3h1v1h-1zM3 3h1v1h-1zM0 4h1v1h-1zM2 4h2v1h-2zM0 6h4v1h-4zM0 7h3v1h-3zM1 8h1v1h-1zM3 8h1v1h-1zM0 9h1v1h-1zM2 9h2v1h-2z"/><path fill="#ffffff" d="M3 2h1v1h-1zM0 3h1v1h-1zM2 3h1v1h-1zM1 4h1v1h-1zM3 7h1v1h-1zM0 8h1v1h-1zM2 8h1v1h-1zM1 9h1v1h-1z"/><path fill="#00f0ff" d="M5 2h11v1h-11zM5 3h11v1h-11zM5 7h9v1h-9zM5 8h9v1h-9z"/><path fill="#4a4660" d="M0 11h4v1h-4zM0 12h1v1h-1zM3 12h1v1h-1zM5 12h11v1h-11zM0 13h1v1h-1zM3 13h1v1h-1zM5 13h11v1h-11zM0 14h4v1h-4z"/></svg></span>
+            <p class="pu-tag">Library</p>
+            <h3>Bulk actions</h3>
+            <p>Select several clips to favorite, tag, add or remove a game, export or delete them together.</p>
+            </div>
+          </li>
+          <li class="pu"><div class="pu-in">
+            <span class="px-icon" data-px="trim" aria-hidden="true"><svg viewBox="0 0 16 16" width="64" height="64" shape-rendering="crispEdges" focusable="false"><path fill="#ffe600" d="M3 3h3v1h-3zM10 3h3v1h-3zM3 4h3v1h-3zM10 4h3v1h-3zM4 5h1v1h-1zM11 5h1v1h-1zM4 6h1v1h-1zM11 6h1v1h-1zM4 7h1v1h-1zM11 7h1v1h-1zM4 8h1v1h-1zM11 8h1v1h-1zM4 9h1v1h-1zM11 9h1v1h-1zM4 10h1v1h-1zM11 10h1v1h-1zM4 11h1v1h-1zM11 11h1v1h-1zM3 12h3v1h-3zM10 12h3v1h-3z"/><path fill="#ffffff" d="M7 6h1v1h-1zM7 7h1v1h-1zM7 8h1v1h-1zM7 9h1v1h-1z"/><path fill="#4a4660" d="M0 7h4v1h-4zM12 7h4v1h-4zM0 8h4v1h-4zM12 8h4v1h-4z"/><path fill="#00f0ff" d="M5 7h2v1h-2zM8 7h3v1h-3zM5 8h2v1h-2zM8 8h3v1h-3z"/></svg></span>
+            <p class="pu-tag">Editor</p>
+            <h3>Trim</h3>
+            <p>Drag the trim handles and playback stays inside them. Frame-step and 5-second skips help you place the cut. Trim Original trims the file in place.</p>
+            </div>
+          </li>
+          <li class="pu"><div class="pu-in">
+            <span class="px-icon" data-px="floppy" aria-hidden="true"><svg viewBox="0 0 16 16" width="64" height="64" shape-rendering="crispEdges" focusable="false"><path fill="#00f0ff" d="M1 1h13v1h-13zM1 2h3v1h-3zM11 2h4v1h-4zM1 3h3v1h-3zM11 3h4v1h-4zM1 4h3v1h-3zM11 4h4v1h-4zM1 5h3v1h-3zM11 5h4v1h-4zM1 6h14v1h-14zM1 7h14v1h-14zM1 8h2v1h-2zM13 8h2v1h-2zM1 9h2v1h-2zM13 9h2v1h-2zM1 10h2v1h-2zM13 10h2v1h-2zM1 11h2v1h-2zM13 11h2v1h-2zM1 12h2v1h-2zM13 12h2v1h-2zM1 13h2v1h-2zM13 13h2v1h-2zM1 14h14v1h-14z"/><path fill="#ffffff" d="M4 2h7v1h-7zM4 3h4v1h-4zM9 3h2v1h-2zM4 4h4v1h-4zM9 4h2v1h-2zM4 5h7v1h-7zM3 8h10v1h-10zM3 9h1v1h-1zM6 9h2v1h-2zM11 9h2v1h-2zM3 10h2v1h-2zM6 10h2v1h-2zM9 10h1v1h-1zM11 10h2v1h-2zM3 11h2v1h-2zM6 11h2v1h-2zM9 11h1v1h-1zM11 11h2v1h-2zM3 12h1v1h-1zM7 12h1v1h-1zM11 12h2v1h-2zM3 13h10v1h-10z"/><path fill="#1c1830" d="M8 3h1v1h-1zM8 4h1v1h-1z"/><path fill="#ff2bd6" d="M4 9h2v1h-2zM8 9h3v1h-3zM5 10h1v1h-1zM8 10h1v1h-1zM10 10h1v1h-1zM5 11h1v1h-1zM8 11h1v1h-1zM10 11h1v1h-1zM4 12h3v1h-3zM8 12h3v1h-3z"/></svg></span>
+            <p class="pu-tag">Export</p>
+            <h3>Under 10 MB</h3>
+            <p>Export with a size target: up to 10 MB for Discord, 50 MB, 100 MB, or keep the original. Optional 30/60 fps and 720p/1080p.</p>
+            </div>
+          </li>
+          <li class="pu"><div class="pu-in">
+            <span class="px-icon" data-px="chip" aria-hidden="true"><svg viewBox="0 0 16 16" width="64" height="64" shape-rendering="crispEdges" focusable="false"><path fill="#00f0ff" d="M4 1h1v1h-1zM6 1h1v1h-1zM9 1h1v1h-1zM11 1h1v1h-1zM4 2h1v1h-1zM6 2h1v1h-1zM9 2h1v1h-1zM11 2h1v1h-1zM3 3h10v1h-10zM1 4h3v1h-3zM12 4h3v1h-3zM3 5h1v1h-1zM12 5h1v1h-1zM1 6h3v1h-3zM12 6h3v1h-3zM3 7h1v1h-1zM12 7h1v1h-1zM3 8h1v1h-1zM12 8h1v1h-1zM1 9h3v1h-3zM12 9h3v1h-3zM3 10h1v1h-1zM12 10h1v1h-1zM1 11h3v1h-3zM12 11h3v1h-3zM3 12h10v1h-10zM4 13h1v1h-1zM6 13h1v1h-1zM9 13h1v1h-1zM11 13h1v1h-1zM4 14h1v1h-1zM6 14h1v1h-1zM9 14h1v1h-1zM11 14h1v1h-1z"/><path fill="#1c1830" d="M4 4h8v1h-8zM4 5h8v1h-8zM4 6h2v1h-2zM10 6h2v1h-2zM4 7h2v1h-2zM10 7h2v1h-2zM4 8h2v1h-2zM10 8h2v1h-2zM4 9h2v1h-2zM10 9h2v1h-2zM4 10h8v1h-8zM4 11h8v1h-8z"/><path fill="#ffe600" d="M6 6h1v1h-1z"/><path fill="#ff2bd6" d="M7 6h3v1h-3zM6 7h4v1h-4zM6 8h4v1h-4zM6 9h4v1h-4z"/></svg></span>
+            <p class="pu-tag">Encoder</p>
+            <h3>NVENC / x264</h3>
+            <p>NVENC on NVIDIA GPUs for the lowest CPU use, x264 on the CPU as a fallback. Auto picks one. Record at 30, 60, 120 or 144 fps.</p>
+            </div>
+          </li>
+          <li class="pu"><div class="pu-in">
+            <span class="px-icon" data-px="gem" aria-hidden="true"><svg viewBox="0 0 16 16" width="64" height="64" shape-rendering="crispEdges" focusable="false"><path fill="#ffe600" d="M13 0h1v1h-1zM12 1h1v1h-1zM14 1h1v1h-1zM13 2h1v1h-1z"/><path fill="#b04dff" d="M4 2h8v1h-8zM3 3h1v1h-1zM7 3h1v1h-1zM12 3h1v1h-1zM2 4h1v1h-1zM7 4h1v1h-1zM13 4h1v1h-1zM1 5h1v1h-1zM7 5h1v1h-1zM14 5h1v1h-1zM1 6h14v1h-14zM2 7h1v1h-1zM13 7h1v1h-1zM3 8h1v1h-1zM12 8h1v1h-1zM4 9h1v1h-1zM11 9h1v1h-1zM5 10h1v1h-1zM10 10h1v1h-1zM6 11h1v1h-1zM9 11h1v1h-1zM7 12h2v1h-2z"/><path fill="#ffffff" d="M4 3h1v1h-1zM3 4h1v1h-1z"/><path fill="#ff2bd6" d="M5 3h2v1h-2zM8 3h4v1h-4zM4 4h3v1h-3zM8 4h5v1h-5zM2 5h5v1h-5zM8 5h6v1h-6zM3 7h10v1h-10zM4 8h8v1h-8zM5 9h6v1h-6zM6 10h4v1h-4zM7 11h2v1h-2z"/><path fill="#00f0ff" d="M1 13h1v1h-1zM0 14h1v1h-1zM2 14h1v1h-1zM1 15h1v1h-1z"/></svg></span>
+            <p class="pu-tag">Encoder</p>
+            <h3>AV1</h3>
+            <p>Record and export in H.264 or AV1. AV1 gives better quality per MB and needs an NVIDIA RTX 40-series or newer GPU.</p>
+            </div>
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- DEMO -->
+    <section class="section demo" id="demo" aria-labelledby="demo-title">
+      <div class="wrap">
+        <header class="sec-head sec-head--center">
+          <p class="kicker">Stage 4 · Tour</p>
+          <h2 id="demo-title">Demo</h2>
+          <p class="sec-lede">A 50-second tour with captions: saving a clip, the library, the editor, audio tracks, export and capture settings.</p>
+        </header>
+        <figure class="crt crt--wide">
+          <div class="crt-screen demo-screen">
+            <video controls preload="none" playsinline poster="../assets/video/tour-wide.jpg" width="1280" height="720" aria-label="ClipVault product tour, 50 seconds, silent with on-screen captions">
+              <source src="../assets/video/tour-wide.mp4" type="video/mp4">
+              <a href="../assets/video/tour-wide.mp4">Download the tour video (MP4)</a>
+            </video>
+          </div>
+          <figcaption><span class="led" aria-hidden="true"></span>Silent, with on-screen captions</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <!-- HOUSE RULES -->
+    <section class="section rules" id="rules" aria-labelledby="rules-title">
+      <div class="wrap rules-grid">
+        <div class="plaque">
+          <span class="screw screw-tl" aria-hidden="true"></span><span class="screw screw-tr" aria-hidden="true"></span>
+          <span class="screw screw-bl" aria-hidden="true"></span><span class="screw screw-br" aria-hidden="true"></span>
+          <p class="kicker kicker--dark">Stage 5 · Capture &amp; privacy</p>
+          <h2 id="rules-title">House rules</h2>
+          <ol class="rules-list">
+            <li>
+              <h3>Monitor capture</h3>
+              <p>By default ClipVault records your monitor through DXGI. No game hooks, no injection, which keeps it anti-cheat friendly.</p>
+            </li>
+            <li>
+              <h3>Game-only is experimental</h3>
+              <p>“Games automatically” records supported games only and follows the active game. It and “Monitor + automatic games” are experimental. You can also pick one app window.</p>
+            </li>
+            <li>
+              <h3>Clips stay on your PC</h3>
+              <p>Clips are ordinary MP4 files in a folder you choose. No account. Nothing is uploaded.</p>
+            </li>
+            <li>
+              <h3>Free play</h3>
+              <p>Free and open source under GPL-2.0-or-later. Built on libobs, the engine from OBS Studio.</p>
+            </li>
+          </ol>
+        </div>
+        <figure class="crt crt--side">
+          <div class="crt-screen">
+            <img src="../assets/shots/18-settings-capture-960.webp"
+                 srcset="../assets/shots/18-settings-capture-960.webp 960w, ../assets/shots/18-settings-capture-1600.webp 1600w"
+                 sizes="(min-width: 980px) 520px, 92vw"
+                 width="1600" height="1000" loading="lazy"
+                 alt="ClipVault Settings, Video &amp; Capture: Record is set to Monitor, Monitor 1 is selected, capture method DXGI (Recommended), 1080p at 60 fps, Balanced quality preset and a 120-second buffer.">
+          </div>
+          <figcaption><span class="led" aria-hidden="true"></span>Settings › Video &amp; Capture</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <!-- FAQ -->
+    <section class="section faq" id="faq" aria-labelledby="faq-title">
+      <div class="wrap wrap--narrow">
+        <header class="sec-head">
+          <p class="kicker">Stage 6 · Help</p>
+          <h2 id="faq-title">FAQ</h2>
+        </header>
+        <div class="faq-list">
+          <details>
+            <summary>Does the hotkey work in fullscreen games?</summary>
+            <p>Yes. The save hotkey uses a low-level keyboard hook, so it works while a fullscreen game has focus. It is F9 by default, changeable in Settings.</p>
+          </details>
+          <details>
+            <summary>Can I save more or less than 2 minutes?</summary>
+            <p>Yes. 2 minutes is the default buffer length. You can change it in Settings.</p>
+          </details>
+          <details>
+            <summary>Do I need an NVIDIA GPU?</summary>
+            <p>No. On Auto, ClipVault uses NVENC on an NVIDIA GPU and falls back to x264 on the CPU. AV1 needs an NVIDIA RTX 40-series or newer GPU.</p>
+          </details>
+          <details>
+            <summary>Does it touch the game process?</summary>
+            <p>Not in the default mode. Monitor capture records the screen through DXGI with no game hooks or injection. The automatic game modes are experimental.</p>
+          </details>
+          <details>
+            <summary>Where do my clips go?</summary>
+            <p>Into a folder you choose, as normal MP4 files. There is no account and nothing is uploaded.</p>
+          </details>
+          <details>
+            <summary>Does it run on macOS or Linux?</summary>
+            <p>No. ClipVault is for Windows 10 and 11 (x64).</p>
+          </details>
+          <details>
+            <summary>What does it cost?</summary>
+            <p>Nothing. ClipVault is free and open source under GPL-2.0-or-later.</p>
+          </details>
+        </div>
+      </div>
+    </section>
+
+    <!-- CONTINUE -->
+    <section class="continue" id="download" aria-labelledby="cont-title">
+      <div class="wrap">
+        <div class="cont-screen">
+          <h2 id="cont-title">Continue?</h2>
+          <p class="countdown" aria-hidden="true"><span id="countdown">9</span></p>
+          <p class="cont-text">ClipVault 1.7.6 for Windows 10 and 11. Free, open source, no account.</p>
+          <div class="cta-row cta-row--center">
+            <a class="btn btn-coin btn-lg" href="https://github.com/ebrardushullovcii/ClipVault/releases/latest">
+              <span class="px-icon px-icon--btn" data-px="coinInk" aria-hidden="true"><svg viewBox="0 0 16 16" width="64" height="64" shape-rendering="crispEdges" focusable="false"><path fill="#14110a" d="M7 0h2v1h-2zM4 1h8v1h-8zM3 2h3v1h-3zM10 2h3v1h-3zM2 3h2v1h-2zM12 3h2v1h-2zM1 4h2v1h-2zM7 4h2v1h-2zM13 4h2v1h-2zM1 5h2v1h-2zM7 5h2v1h-2zM13 5h2v1h-2zM1 6h1v1h-1zM7 6h2v1h-2zM14 6h1v1h-1zM0 7h2v1h-2zM7 7h2v1h-2zM14 7h2v1h-2zM0 8h2v1h-2zM7 8h2v1h-2zM14 8h2v1h-2zM1 9h1v1h-1zM7 9h2v1h-2zM14 9h1v1h-1zM1 10h2v1h-2zM7 10h2v1h-2zM13 10h2v1h-2zM1 11h2v1h-2zM7 11h2v1h-2zM13 11h2v1h-2zM2 12h2v1h-2zM12 12h2v1h-2zM3 13h3v1h-3zM10 13h3v1h-3zM4 14h8v1h-8zM7 15h2v1h-2z"/><path fill="#b89a00" d="M6 2h4v1h-4zM4 3h8v1h-8zM3 4h2v1h-2zM9 4h4v1h-4zM3 5h1v1h-1zM5 5h2v1h-2zM9 5h4v1h-4zM2 6h2v1h-2zM5 6h2v1h-2zM9 6h5v1h-5zM2 7h5v1h-5zM9 7h5v1h-5zM2 8h5v1h-5zM9 8h5v1h-5zM2 9h5v1h-5zM9 9h5v1h-5zM3 10h4v1h-4zM9 10h4v1h-4zM3 11h4v1h-4zM9 11h4v1h-4zM4 12h8v1h-8zM6 13h4v1h-4z"/><path fill="#ffffff" d="M5 4h2v1h-2zM4 5h1v1h-1zM4 6h1v1h-1z"/></svg></span>Download
+            </a>
+            <a class="btn btn-ghost" href="https://github.com/ebrardushullovcii/ClipVault">Source on GitHub</a>
+          </div>
+          <p class="fine"><span class="nw">ClipVault-Setup-1.7.6.exe</span> · <span class="nw">Windows 10/11 x64</span> · <span class="nw">GPL-2.0-or-later</span></p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="wrap foot-grid">
+      <div class="foot-brand">
+        <img src="../assets/brand/favicon-64.png" width="44" height="44" alt="" loading="lazy">
+        <div>
+          <p class="foot-name">ClipVault 1.7.6</p>
+          <p>Free and open source under GPL-2.0-or-later. Built on libobs, the engine from OBS Studio, with an Electron and React app.</p>
+        </div>
+      </div>
+      <nav class="foot-nav" aria-label="Footer">
+        <ul>
+          <li><a href="https://github.com/ebrardushullovcii/ClipVault">GitHub</a></li>
+          <li><a href="https://github.com/ebrardushullovcii/ClipVault/releases/latest">Releases</a></li>
+          <li><a href="#faq">FAQ</a></li>
+        </ul>
+      </nav>
+      <p class="foot-note">Gameplay recorded with ClipVault. Game names and footage belong to their respective owners.</p>
+      <p class="game-over" aria-hidden="true">Game over · Thanks for playing</p>
+    </div>
+  </footer>
+
+  <div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true">
+    <p class="toast-title" id="toastTitle"></p>
+    <p class="toast-text" id="toastText"></p>
+  </div>
+</body>
+</html>

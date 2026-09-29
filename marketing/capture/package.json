@@ -1,0 +1,12 @@
+{
+  "name": "clipvault-marketing-capture",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "prepare-app": "node prepare-app.mjs",
+    "driver": "node driver.mjs"
+  },
+  "dependencies": {
+    "playwright-core": "1.55"
+  }
+}

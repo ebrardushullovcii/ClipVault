@@ -1,0 +1,704 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ClipVault · The last two minutes, kept on your PC</title>
+<meta name="description" content="ClipVault is a free, open-source game clipping app for Windows 10 and 11. It keeps a rolling replay buffer and saves the last 2 minutes as an MP4 when you press your save hotkey. Game audio and mic on separate tracks. Nothing is uploaded.">
+<meta name="theme-color" content="#15181b">
+<link rel="icon" type="image/png" href="../assets/brand/favicon-64.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+<link rel="stylesheet" href="style.css">
+<script>
+  // Decide before first paint whether the vault door animates or starts open.
+  if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    document.documentElement.classList.add('anim');
+    // Failsafe: if script.js never runs, open the door anyway.
+    setTimeout(function () {
+      if (window.__vault) return;
+      var v = document.querySelector('.vault'); if (v) v.setAttribute('data-state', 'open');
+      var hv = document.getElementById('heroVideo'); if (hv) { var p = hv.play(); if (p && p.catch) p.catch(function () {}); }
+    }, 5000);
+  }
+</script>
+<script src="script.js" defer></script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="top">
+  <div class="top-inner">
+    <a class="brand" href="#top" aria-label="ClipVault, back to top">
+      <img src="../assets/brand/favicon-64.png" width="28" height="28" alt="">
+      <span>ClipVault</span>
+    </a>
+    <nav class="top-nav" aria-label="Sections">
+      <a href="#boxes">Boxes</a>
+      <a href="#record">Record</a>
+      <a href="#local">Local</a>
+      <a href="#tour">Tour</a>
+      <a href="#faq">FAQ</a>
+    </nav>
+    <a class="top-cta" href="https://github.com/ebrardushullovcii/ClipVault/releases/latest">Download</a>
+  </div>
+</header>
+
+<main id="main">
+
+  <!-- ============ HERO: THE DOOR ============ -->
+  <section class="hero" id="top" aria-labelledby="hero-title">
+    <div class="hero-inner">
+      <div class="hero-copy">
+        <p class="eyebrow"><span>Free and open source · <span class="nowrap">Windows 10 &amp; 11</span></span></p>
+        <h1 id="hero-title">One key. The last two minutes go in the&nbsp;<em>vault</em>.</h1>
+        <p class="lead">ClipVault runs in the background and keeps a rolling buffer of your gameplay. When something happens, press your save hotkey and the last 2&nbsp;minutes are saved as an MP4 on your PC, with game audio and your mic on separate tracks.</p>
+        <div class="cta-row">
+          <a class="plate-btn" href="https://github.com/ebrardushullovcii/ClipVault/releases/latest">
+            <span class="plate-btn-main">Download for Windows</span>
+            <span class="plate-btn-sub">v1.7.6 · Windows 10/11 x64</span>
+          </a>
+          <a class="text-link" href="https://github.com/ebrardushullovcii/ClipVault">Source code on GitHub<span aria-hidden="true"> →</span></a>
+        </div>
+        <dl class="serial">
+          <div><dt>Buffer</dt><dd>2:00</dd></div>
+          <div><dt>Audio</dt><dd>2 tracks</dd></div>
+          <div><dt>Format</dt><dd>MP4</dd></div>
+          <div><dt>License</dt><dd>GPL-2.0</dd></div>
+        </dl>
+      </div>
+
+      <div class="hero-vault">
+        <div class="vault" data-state="closed">
+          <div class="collar" aria-hidden="true">
+            <svg class="collar-svg" viewBox="0 0 1120 1120" focusable="false">
+              <defs>
+                <radialGradient id="g-rivet" cx="35%" cy="30%" r="80%">
+                  <stop offset="0" stop-color="#b9c0c6"/>
+                  <stop offset=".35" stop-color="#6d767e"/>
+                  <stop offset=".8" stop-color="#2c3136"/>
+                  <stop offset="1" stop-color="#1a1d21"/>
+                </radialGradient>
+                <g id="collarBolts"><circle cx="606.3" cy="31" r="9"/><circle cx="697.4" cy="47.1" r="9"/><circle cx="784.4" cy="78.8" r="9"/><circle cx="864.6" cy="125" r="9"/><circle cx="935.5" cy="184.5" r="9"/><circle cx="995" cy="255.4" r="9"/><circle cx="1041.2" cy="335.6" r="9"/><circle cx="1072.9" cy="422.6" r="9"/><circle cx="1089" cy="513.7" r="9"/><circle cx="1089" cy="606.3" r="9"/><circle cx="1072.9" cy="697.4" r="9"/><circle cx="1041.2" cy="784.4" r="9"/><circle cx="995" cy="864.6" r="9"/><circle cx="935.5" cy="935.5" r="9"/><circle cx="864.6" cy="995" r="9"/><circle cx="784.4" cy="1041.2" r="9"/><circle cx="697.4" cy="1072.9" r="9"/><circle cx="606.3" cy="1089" r="9"/><circle cx="513.7" cy="1089" r="9"/><circle cx="422.6" cy="1072.9" r="9"/><circle cx="335.6" cy="1041.2" r="9"/><circle cx="255.4" cy="995" r="9"/><circle cx="184.5" cy="935.5" r="9"/><circle cx="125" cy="864.6" r="9"/><circle cx="78.8" cy="784.4" r="9"/><circle cx="47.1" cy="697.4" r="9"/><circle cx="31" cy="606.3" r="9"/><circle cx="31" cy="513.7" r="9"/><circle cx="47.1" cy="422.6" r="9"/><circle cx="78.8" cy="335.6" r="9"/><circle cx="125" cy="255.4" r="9"/><circle cx="184.5" cy="184.5" r="9"/><circle cx="255.4" cy="125" r="9"/><circle cx="335.6" cy="78.8" r="9"/><circle cx="422.6" cy="47.1" r="9"/><circle cx="513.7" cy="31" r="9"/></g>
+              </defs>
+              <circle cx="560" cy="560" r="556" fill="none" stroke="rgba(255,255,255,.07)" stroke-width="2"/>
+              <circle cx="560" cy="560" r="508" fill="none" stroke="rgba(0,0,0,.55)" stroke-width="3"/>
+              <use href="#collarBolts" fill="#000" stroke="#000" stroke-width="3" opacity=".4" transform="translate(1.2 2.6)"/>
+              <use href="#collarBolts" fill="url(#g-rivet)" stroke="#0e1012" stroke-width="1.5"/>
+            </svg>
+          </div>
+
+          <div class="aperture">
+            <div class="chamber" aria-hidden="true"></div>
+            <figure class="vault-screen">
+              <video id="heroVideo" autoplay muted loop playsinline preload="metadata" poster="../assets/video/hero-wide.jpg" width="1280" height="720" aria-describedby="hero-video-desc">
+                <source src="../assets/video/hero-wide.mp4" type="video/mp4">
+              </video>
+              <script>
+                // With JS the clip starts when the door opens; under reduced motion it never autoplays.
+                (function () { var hv = document.getElementById('heroVideo'); hv.removeAttribute('autoplay'); hv.pause(); })();
+              </script>
+              <figcaption id="hero-video-desc" class="sr-only">Silent demo: a round win in VALORANT, the save hotkey pressed, a “Clip Saved” notification, the new clip at the top of the library, then trim and export.</figcaption>
+            </figure>
+          </div>
+
+          <div class="door" aria-hidden="true">
+            <span class="door-layer" style="--i:1"></span><span class="door-layer" style="--i:2"></span><span class="door-layer" style="--i:3"></span><span class="door-layer" style="--i:4"></span><span class="door-layer" style="--i:5"></span><span class="door-layer" style="--i:6"></span><span class="door-layer" style="--i:7"></span><span class="door-layer" style="--i:8"></span><span class="door-layer" style="--i:9"></span><span class="door-layer" style="--i:10"></span><span class="door-layer" style="--i:11"></span><span class="door-layer" style="--i:12"></span>
+            <span class="door-arm door-arm--top"></span>
+            <span class="door-arm door-arm--bottom"></span>
+            <div class="door-back"></div>
+            <div class="door-face">
+              <svg class="door-svg" viewBox="0 0 1000 1000" focusable="false">
+                <defs>
+                  <radialGradient id="g-bolt" cx="34%" cy="30%" r="78%">
+                    <stop offset="0" stop-color="#d3d8dc"/>
+                    <stop offset=".3" stop-color="#8a939a"/>
+                    <stop offset=".75" stop-color="#363c42"/>
+                    <stop offset="1" stop-color="#1b1e22"/>
+                  </radialGradient>
+                  <linearGradient id="g-bevel" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0" stop-color="#9aa3aa"/>
+                    <stop offset=".45" stop-color="#3a4147"/>
+                    <stop offset="1" stop-color="#0c0e10"/>
+                  </linearGradient>
+                  <linearGradient id="g-band" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0" stop-color="#fff" stop-opacity=".10"/>
+                    <stop offset=".5" stop-color="#fff" stop-opacity="0"/>
+                    <stop offset="1" stop-color="#000" stop-opacity=".35"/>
+                  </linearGradient>
+                  <radialGradient id="g-hub" cx="50%" cy="42%" r="60%">
+                    <stop offset="0" stop-color="#3d454c"/>
+                    <stop offset=".7" stop-color="#23282d"/>
+                    <stop offset="1" stop-color="#15181b"/>
+                  </radialGradient>
+                  <radialGradient id="g-shadow">
+                    <stop offset=".84" stop-color="#000" stop-opacity=".55"/>
+                    <stop offset="1" stop-color="#000" stop-opacity="0"/>
+                  </radialGradient>
+                  <path id="arc-top" d="M 105 500 A 395 395 0 0 1 895 500"/>
+                  <path id="arc-bottom" d="M 82 500 A 418 418 0 0 0 918 500"/>
+                  <path id="arc-hub" d="M 314 500 A 186 186 0 0 1 686 500"/>
+                  <g id="doorBolts"><circle cx="561.1" cy="36" r="13"/><circle cx="679.1" cy="67.6" r="13"/><circle cx="784.9" cy="128.7" r="13"/><circle cx="871.3" cy="215.1" r="13"/><circle cx="932.4" cy="320.9" r="13"/><circle cx="964" cy="438.9" r="13"/><circle cx="964" cy="561.1" r="13"/><circle cx="932.4" cy="679.1" r="13"/><circle cx="871.3" cy="784.9" r="13"/><circle cx="784.9" cy="871.3" r="13"/><circle cx="679.1" cy="932.4" r="13"/><circle cx="561.1" cy="964" r="13"/><circle cx="438.9" cy="964" r="13"/><circle cx="320.9" cy="932.4" r="13"/><circle cx="215.1" cy="871.3" r="13"/><circle cx="128.7" cy="784.9" r="13"/><circle cx="67.6" cy="679.1" r="13"/><circle cx="36" cy="561.1" r="13"/><circle cx="36" cy="438.9" r="13"/><circle cx="67.6" cy="320.9" r="13"/><circle cx="128.7" cy="215.1" r="13"/><circle cx="215.1" cy="128.7" r="13"/><circle cx="320.9" cy="67.6" r="13"/><circle cx="438.9" cy="36" r="13"/></g>
+                </defs>
+                <!-- outer bevel and rim band -->
+                <circle cx="500" cy="500" r="497" fill="none" stroke="url(#g-bevel)" stroke-width="5"/>
+                <circle cx="500" cy="500" r="468" fill="none" stroke="url(#g-band)" stroke-width="54"/>
+                <!-- machined grooves -->
+                <circle cx="500" cy="500" r="440" fill="none" stroke="#000" stroke-opacity=".6" stroke-width="3"/>
+                <circle cx="500" cy="500" r="437.6" fill="none" stroke="#fff" stroke-opacity=".08" stroke-width="1.4"/>
+                <circle cx="500" cy="500" r="352" fill="none" stroke="#000" stroke-opacity=".55" stroke-width="2.5"/>
+                <circle cx="500" cy="500" r="349.8" fill="none" stroke="#fff" stroke-opacity=".07" stroke-width="1.2"/>
+                <!-- rim bolts -->
+                <use href="#doorBolts" fill="#000" stroke="#000" stroke-width="4" opacity=".42" transform="translate(1.6 3.6)"/>
+                <use href="#doorBolts" fill="url(#g-bolt)" stroke="#0c0e10" stroke-width="2"/>
+                <!-- engraved legend -->
+                <g class="engrave" font-size="23" letter-spacing="7">
+                  <g class="engrave-shadow" transform="translate(0 -1.3)">
+                    <text><textPath href="#arc-top" startOffset="50%" text-anchor="middle">CLIPVAULT · REPLAY BUFFER</textPath></text>
+                    <text><textPath href="#arc-bottom" startOffset="50%" text-anchor="middle">ONE KEY · KEPT ON THIS PC</textPath></text>
+                  </g>
+                  <g class="engrave-fill">
+                    <text><textPath href="#arc-top" startOffset="50%" text-anchor="middle">CLIPVAULT · REPLAY BUFFER</textPath></text>
+                    <text><textPath href="#arc-bottom" startOffset="50%" text-anchor="middle">ONE KEY · KEPT ON THIS PC</textPath></text>
+                  </g>
+                </g>
+                <circle cx="97" cy="500" r="5" fill="#8a6433"/><circle cx="903" cy="500" r="5" fill="#8a6433"/>
+                <!-- hub -->
+                <circle cx="500" cy="507" r="236" fill="url(#g-shadow)"/>
+                <circle cx="500" cy="500" r="208" fill="url(#g-hub)" stroke="url(#g-bevel)" stroke-width="3"/>
+                <!-- shadow under the dial -->
+                <circle cx="500" cy="509" r="190" fill="url(#g-shadow)"/>
+                <!-- engraved index above the dial: the combination lands on the hotkey mark -->
+                <g class="engrave" font-size="17" letter-spacing="6">
+                  <text class="engrave-shadow" transform="translate(0 -1.1)"><textPath href="#arc-hub" startOffset="50%" text-anchor="middle">HOTKEY</textPath></text>
+                  <text class="engrave-fill"><textPath href="#arc-hub" startOffset="50%" text-anchor="middle">HOTKEY</textPath></text>
+                </g>
+              </svg>
+
+              <div class="spokes">
+                <svg viewBox="0 0 1000 1000" focusable="false">
+                  <defs>
+                    <linearGradient id="g-bar" x1="0" y1="0" x2="1" y2="0">
+                      <stop offset="0" stop-color="#1c2024"/>
+                      <stop offset=".28" stop-color="#69727a"/>
+                      <stop offset=".45" stop-color="#d2d7db"/>
+                      <stop offset=".6" stop-color="#7a838b"/>
+                      <stop offset="1" stop-color="#1f2327"/>
+                    </linearGradient>
+                    <radialGradient id="g-knob" cx="38%" cy="32%" r="72%">
+                      <stop offset="0" stop-color="#e6e9ec"/>
+                      <stop offset=".25" stop-color="#a3abb2"/>
+                      <stop offset=".7" stop-color="#3b4248"/>
+                      <stop offset="1" stop-color="#171a1d"/>
+                    </radialGradient>
+                    <g id="spoke">
+                      <rect x="486" y="206" width="28" height="300" rx="7" fill="url(#g-bar)"/>
+                      <circle cx="500" cy="196" r="31" fill="url(#g-knob)" stroke="#0d0f11" stroke-width="2"/>
+                    </g>
+                    <g id="spokeShadow">
+                      <rect x="486" y="206" width="28" height="300" rx="7"/>
+                      <circle cx="500" cy="196" r="31"/>
+                    </g>
+                  </defs>
+                  <g fill="#000" opacity=".28" transform="translate(4 9)">
+                    <use href="#spokeShadow"/><use href="#spokeShadow" transform="rotate(90 500 500)"/><use href="#spokeShadow" transform="rotate(180 500 500)"/><use href="#spokeShadow" transform="rotate(270 500 500)"/>
+                  </g>
+                  <use href="#spoke"/><use href="#spoke" transform="rotate(90 500 500)"/><use href="#spoke" transform="rotate(180 500 500)"/><use href="#spoke" transform="rotate(270 500 500)"/>
+                </svg>
+              </div>
+
+              <div class="dial">
+                <svg class="dial-face" viewBox="0 0 400 400" focusable="false">
+                  <defs>
+                    <radialGradient id="g-dial" cx="50%" cy="45%" r="55%">
+                      <stop offset="0" stop-color="#23272b"/>
+                      <stop offset=".85" stop-color="#0d0f11"/>
+                      <stop offset="1" stop-color="#191c1f"/>
+                    </radialGradient>
+                  </defs>
+                  <circle cx="200" cy="200" r="172" fill="url(#g-dial)"/>
+                  <circle cx="200" cy="200" r="161" fill="none" stroke="#8e969d" stroke-width="8" stroke-dasharray="1.1 9.016" stroke-dashoffset=".55" transform="rotate(-90 200 200)"/>
+                  <circle cx="200" cy="200" r="157" fill="none" stroke="#e4e7ea" stroke-width="16" stroke-dasharray="2.2 47.123" stroke-dashoffset="1.1" transform="rotate(-90 200 200)"/>
+                  <g class="dial-labels" font-size="18" text-anchor="middle">
+                    <text x="200" y="84">0</text>
+                    <text x="200" y="84" transform="rotate(36 200 200)">10</text>
+                    <text x="200" y="84" transform="rotate(72 200 200)">20</text>
+                    <text x="200" y="84" transform="rotate(108 200 200)">30</text>
+                    <text x="200" y="84" transform="rotate(144 200 200)">40</text>
+                    <text x="200" y="84" transform="rotate(180 200 200)">50</text>
+                    <text x="200" y="84" transform="rotate(216 200 200)">60</text>
+                    <text x="200" y="84" transform="rotate(252 200 200)">70</text>
+                    <text x="200" y="84" transform="rotate(288 200 200)">80</text>
+                    <text x="200" y="84" transform="rotate(324 200 200)">90</text>
+                  </g>
+                  <!-- record mark at 234deg, midway between 60 and 70; the combination brings it under the index -->
+                  <g transform="rotate(234 200 200)">
+                    <circle cx="200" cy="78" r="11.5" fill="none" stroke="#c9ced3" stroke-width="1.5"/>
+                    <circle class="dial-dot" cx="200" cy="78" r="6.5"/>
+                  </g>
+                  <circle cx="200" cy="200" r="104" fill="none" stroke="#2f353b" stroke-width="1.5"/>
+                  <circle cx="200" cy="200" r="88" fill="none" stroke="#16191c" stroke-width="18"/>
+                  <circle cx="200" cy="200" r="88" fill="none" stroke="#4a5259" stroke-width="18" stroke-dasharray="3.2 4.479"/>
+                </svg>
+                <svg class="dial-bezel" viewBox="0 0 400 400" focusable="false">
+                  <defs>
+                    <linearGradient id="g-brass" x1="0" y1="0" x2="1" y2="1">
+                      <stop offset="0" stop-color="#f1d6a0"/>
+                      <stop offset=".28" stop-color="#c99b58"/>
+                      <stop offset=".55" stop-color="#8a6433"/>
+                      <stop offset=".78" stop-color="#d0a764"/>
+                      <stop offset="1" stop-color="#6e4d25"/>
+                    </linearGradient>
+                    <radialGradient id="g-capshadow">
+                      <stop offset=".82" stop-color="#000" stop-opacity=".6"/>
+                      <stop offset="1" stop-color="#000" stop-opacity="0"/>
+                    </radialGradient>
+                    <radialGradient id="g-cap" cx="40%" cy="34%" r="70%">
+                      <stop offset="0" stop-color="#c3c9ce"/>
+                      <stop offset=".35" stop-color="#6a737b"/>
+                      <stop offset=".8" stop-color="#262b30"/>
+                      <stop offset="1" stop-color="#15181b"/>
+                    </radialGradient>
+                  </defs>
+                  <circle cx="200" cy="200" r="185" fill="none" stroke="url(#g-brass)" stroke-width="26"/>
+                  <circle cx="200" cy="200" r="172" fill="none" stroke="#2b1d0b" stroke-opacity=".8" stroke-width="1.5"/>
+                  <circle cx="200" cy="200" r="197.5" fill="none" stroke="#fbe9c4" stroke-opacity=".45" stroke-width="1"/>
+                  <path d="M189 3 L211 3 L200 27 Z" fill="#241807"/>
+                  <path d="M189 3 L211 3 L200 27 Z" fill="none" stroke="#f3dcae" stroke-opacity=".35" stroke-width="1" transform="translate(0 1)"/>
+                  <circle cx="200" cy="205" r="80" fill="url(#g-capshadow)"/>
+                  <circle cx="200" cy="200" r="70" fill="url(#g-cap)" stroke="#0e1012" stroke-width="1.5"/>
+                  <circle cx="200" cy="200" r="58" fill="none" stroke="#fff" stroke-opacity=".1" stroke-width="1"/>
+                  <text x="200" y="212" text-anchor="middle" class="cap-mark">CV</text>
+                </svg>
+              </div>
+            </div>
+          </div>
+
+          <span class="hinge hinge--top" aria-hidden="true"></span>
+          <span class="hinge hinge--bottom" aria-hidden="true"></span>
+        </div>
+
+        <div class="vault-status">
+          <p class="status-line"><span class="led" aria-hidden="true"></span><span class="status-text"><span class="nowrap">Always-on replay buffer ·</span> <span class="nowrap">holds the last 2:00</span></span></p>
+          <div class="status-actions">
+            <button type="button" class="mini-btn" id="heroPlay">Pause video</button>
+            <button type="button" class="mini-btn" id="vaultReplay">Close and reopen</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ SAFE-DEPOSIT BOXES ============ -->
+  <section class="section boxes" id="boxes" aria-labelledby="boxes-title">
+    <div class="wrap">
+      <header class="section-head">
+        <p class="eyebrow">01 · Box room</p>
+        <h2 id="boxes-title">Safe-deposit boxes</h2>
+        <p class="section-lead">Eight boxes, one feature in each. Hover, tap or tab to a box to pull it out and see it in the app.</p>
+      </header>
+
+      <div class="wall">
+        <!-- 001 -->
+        <button type="button" class="box" id="box-1" aria-expanded="true" aria-controls="drawer-1">
+          <span class="box-front">
+            <span class="box-no">No. 001</span>
+            <span class="box-keys" aria-hidden="true"><i></i><i></i></span>
+            <span class="box-label">Separate tracks</span>
+            <span class="box-led" aria-hidden="true"></span>
+          </span>
+          <span class="box-side box-side--t" aria-hidden="true"></span><span class="box-side box-side--b" aria-hidden="true"></span><span class="box-side box-side--l" aria-hidden="true"></span><span class="box-side box-side--r" aria-hidden="true"></span>
+        </button>
+        <div class="drawer" id="drawer-1" role="region" aria-labelledby="drawer-1-title">
+          <div class="drawer-inner">
+            <figure class="case drawer-shot">
+              <img src="../assets/shots/11-editor-audio-960.webp" srcset="../assets/shots/11-editor-audio-960.webp 960w, ../assets/shots/11-editor-audio-1600.webp 1600w" sizes="(min-width: 1100px) 700px, 92vw" width="1600" height="1000" loading="lazy" alt="ClipVault editor with the Audio Tracks panel: Desktop Audio on with its volume raised, Microphone switched off.">
+            </figure>
+            <div class="drawer-text">
+              <p class="drawer-no">Box No. 001 · Audio</p>
+              <h3 id="drawer-1-title">Game audio and mic on separate tracks</h3>
+              <p>Desktop and game audio go on one track, your microphone on another. In the editor you can turn either track off or change its volume before you export.</p>
+              <ul class="spec"><li>2 audio tracks</li><li>Mute or adjust per track</li></ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- 002 -->
+        <button type="button" class="box" id="box-2" aria-expanded="false" aria-controls="drawer-2">
+          <span class="box-front">
+            <span class="box-no">No. 002</span>
+            <span class="box-keys" aria-hidden="true"><i></i><i></i></span>
+            <span class="box-label">Hover preview</span>
+            <span class="box-led" aria-hidden="true"></span>
+          </span>
+          <span class="box-side box-side--t" aria-hidden="true"></span><span class="box-side box-side--b" aria-hidden="true"></span><span class="box-side box-side--l" aria-hidden="true"></span><span class="box-side box-side--r" aria-hidden="true"></span>
+        </button>
+        <div class="drawer" id="drawer-2" role="region" aria-labelledby="drawer-2-title" hidden>
+          <div class="drawer-inner">
+            <figure class="case drawer-shot">
+              <img src="../assets/shots/02-library-hover-960.webp" srcset="../assets/shots/02-library-hover-960.webp 960w, ../assets/shots/02-library-hover-1600.webp 1600w" sizes="(min-width: 1100px) 700px, 92vw" width="1600" height="1000" loading="lazy" alt="ClipVault library grid of 24 clips, with the pointer over a League of Legends clip that is previewing in place.">
+            </figure>
+            <div class="drawer-text">
+              <p class="drawer-no">Box No. 002 · Library</p>
+              <h3 id="drawer-2-title">Clips play when you hover them</h3>
+              <p>Every clip gets a thumbnail. Hover a card and the clip plays right in the grid. Switch between grid and list view, search, and sort by date, size, name or favorite.</p>
+              <ul class="spec"><li>Grid or list</li><li>Search and sort</li></ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- 003 -->
+        <button type="button" class="box" id="box-3" aria-expanded="false" aria-controls="drawer-3">
+          <span class="box-front">
+            <span class="box-no">No. 003</span>
+            <span class="box-keys" aria-hidden="true"><i></i><i></i></span>
+            <span class="box-label">Filter by game</span>
+            <span class="box-led" aria-hidden="true"></span>
+          </span>
+          <span class="box-side box-side--t" aria-hidden="true"></span><span class="box-side box-side--b" aria-hidden="true"></span><span class="box-side box-side--l" aria-hidden="true"></span><span class="box-side box-side--r" aria-hidden="true"></span>
+        </button>
+        <div class="drawer" id="drawer-3" role="region" aria-labelledby="drawer-3-title" hidden>
+          <div class="drawer-inner">
+            <figure class="case drawer-shot">
+              <img src="../assets/shots/04-library-filter-game-960.webp" srcset="../assets/shots/04-library-filter-game-960.webp 960w, ../assets/shots/04-library-filter-game-1600.webp 1600w" sizes="(min-width: 1100px) 700px, 92vw" width="1600" height="1000" loading="lazy" alt="Library filtered to VALORANT, showing 9 clips.">
+            </figure>
+            <div class="drawer-text">
+              <p class="drawer-no">Box No. 003 · Library</p>
+              <h3 id="drawer-3-title">Every clip tagged with its game</h3>
+              <p>Detected games are tagged automatically, and the game is in the file name too, like <code>2026-09-28_23-30-00_VALORANT.mp4</code>. Filter the library by game, by tag, or to favorites only.</p>
+              <ul class="spec"><li>Game</li><li>Tag</li><li>Favorites</li></ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- 004 -->
+        <button type="button" class="box" id="box-4" aria-expanded="false" aria-controls="drawer-4">
+          <span class="box-front">
+            <span class="box-no">No. 004</span>
+            <span class="box-keys" aria-hidden="true"><i></i><i></i></span>
+            <span class="box-label">Bulk actions</span>
+            <span class="box-led" aria-hidden="true"></span>
+          </span>
+          <span class="box-side box-side--t" aria-hidden="true"></span><span class="box-side box-side--b" aria-hidden="true"></span><span class="box-side box-side--l" aria-hidden="true"></span><span class="box-side box-side--r" aria-hidden="true"></span>
+        </button>
+        <div class="drawer" id="drawer-4" role="region" aria-labelledby="drawer-4-title" hidden>
+          <div class="drawer-inner">
+            <figure class="case drawer-shot">
+              <img src="../assets/shots/08-library-selected-960.webp" srcset="../assets/shots/08-library-selected-960.webp 960w, ../assets/shots/08-library-selected-1600.webp 1600w" sizes="(min-width: 1100px) 700px, 92vw" width="1600" height="1000" loading="lazy" alt="Three clips selected in the library, with the bulk action bar: Favorite, Add Tag, Remove Tag, Add Game, Remove Game, Size, Compression, Export and Delete.">
+            </figure>
+            <div class="drawer-text">
+              <p class="drawer-no">Box No. 004 · Library</p>
+              <h3 id="drawer-4-title">Work on many clips at once</h3>
+              <p>Select several clips, then favorite, tag, add or remove a game, export or delete them together.</p>
+              <ul class="spec"><li>Favorite</li><li>Tag</li><li>Game</li><li>Export</li><li>Delete</li></ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- 005 -->
+        <button type="button" class="box" id="box-5" aria-expanded="false" aria-controls="drawer-5">
+          <span class="box-front">
+            <span class="box-no">No. 005</span>
+            <span class="box-keys" aria-hidden="true"><i></i><i></i></span>
+            <span class="box-label">Trim</span>
+            <span class="box-led" aria-hidden="true"></span>
+          </span>
+          <span class="box-side box-side--t" aria-hidden="true"></span><span class="box-side box-side--b" aria-hidden="true"></span><span class="box-side box-side--l" aria-hidden="true"></span><span class="box-side box-side--r" aria-hidden="true"></span>
+        </button>
+        <div class="drawer" id="drawer-5" role="region" aria-labelledby="drawer-5-title" hidden>
+          <div class="drawer-inner">
+            <figure class="case drawer-shot">
+              <img src="../assets/shots/10-editor-trimmed-960.webp" srcset="../assets/shots/10-editor-trimmed-960.webp 960w, ../assets/shots/10-editor-trimmed-1600.webp 1600w" sizes="(min-width: 1100px) 700px, 92vw" width="1600" height="1000" loading="lazy" alt="Editor with the clip trimmed from 0:38 to 1:04, 25.8 seconds around the round-win moment.">
+            </figure>
+            <div class="drawer-text">
+              <p class="drawer-no">Box No. 005 · Editor</p>
+              <h3 id="drawer-5-title">Trim to the moment</h3>
+              <p>Drag the trim handles and playback stays inside the trim. Frame-step and 5-second skip controls help you place the cut. Export the trimmed part, or use Trim Original to trim the file in place.</p>
+              <ul class="spec"><li>Frame step</li><li>5 s skip</li><li>Trim Original</li></ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- 006 -->
+        <button type="button" class="box" id="box-6" aria-expanded="false" aria-controls="drawer-6">
+          <span class="box-front">
+            <span class="box-no">No. 006</span>
+            <span class="box-keys" aria-hidden="true"><i></i><i></i></span>
+            <span class="box-label">Under <span class="n">10</span> MB</span>
+            <span class="box-led" aria-hidden="true"></span>
+          </span>
+          <span class="box-side box-side--t" aria-hidden="true"></span><span class="box-side box-side--b" aria-hidden="true"></span><span class="box-side box-side--l" aria-hidden="true"></span><span class="box-side box-side--r" aria-hidden="true"></span>
+        </button>
+        <div class="drawer" id="drawer-6" role="region" aria-labelledby="drawer-6-title" hidden>
+          <div class="drawer-inner">
+            <figure class="case drawer-shot">
+              <img src="../assets/shots/12-editor-size-menu-960.webp" srcset="../assets/shots/12-editor-size-menu-960.webp 960w, ../assets/shots/12-editor-size-menu-1600.webp 1600w" sizes="(min-width: 1100px) 700px, 92vw" width="1600" height="1000" loading="lazy" alt="Export size menu open in the editor: Keep original, Up to 10 MB (selected), Up to 50 MB, Up to 100 MB.">
+            </figure>
+            <div class="drawer-text">
+              <p class="drawer-no">Box No. 006 · Export</p>
+              <h3 id="drawer-6-title">Export under <span class="n">10</span> MB for Discord</h3>
+              <p>Pick a size target when you export: up to 10 MB, 50 MB or 100 MB, or keep the original. You can also set 30 or 60 fps and 720p or 1080p. Afterwards, a small window lets you drag the file anywhere, copy its path or open its folder.</p>
+              <ul class="spec"><li>10 / 50 / 100 MB</li><li>30 / 60 fps</li><li>720p / 1080p</li></ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- 007 -->
+        <button type="button" class="box" id="box-7" aria-expanded="false" aria-controls="drawer-7">
+          <span class="box-front">
+            <span class="box-no">No. 007</span>
+            <span class="box-keys" aria-hidden="true"><i></i><i></i></span>
+            <span class="box-label">AV<span class="n">1</span> or H.<span class="n">264</span></span>
+            <span class="box-led" aria-hidden="true"></span>
+          </span>
+          <span class="box-side box-side--t" aria-hidden="true"></span><span class="box-side box-side--b" aria-hidden="true"></span><span class="box-side box-side--l" aria-hidden="true"></span><span class="box-side box-side--r" aria-hidden="true"></span>
+        </button>
+        <div class="drawer" id="drawer-7" role="region" aria-labelledby="drawer-7-title" hidden>
+          <div class="drawer-inner">
+            <figure class="case drawer-shot">
+              <img src="../assets/shots/13b-editor-exported-960.webp" srcset="../assets/shots/13b-editor-exported-960.webp 960w, ../assets/shots/13b-editor-exported-1600.webp 1600w" sizes="(min-width: 1100px) 700px, 92vw" width="1600" height="1000" loading="lazy" alt="Editor after an export with AV1 compression selected and an Export Complete message.">
+            </figure>
+            <div class="drawer-text">
+              <p class="drawer-no">Box No. 007 · Codecs</p>
+              <h3 id="drawer-7-title">H.<span class="n">264</span> or AV<span class="n">1</span></h3>
+              <p>H.264 is the most compatible choice. AV1 gives better quality per MB and needs an NVIDIA RTX 40-series or newer GPU. Pick the codec for recording in Settings and for each export in the editor.</p>
+              <ul class="spec"><li>H.264 · most compatible</li><li>AV1 · RTX 40-series+</li></ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- 008 -->
+        <button type="button" class="box" id="box-8" aria-expanded="false" aria-controls="drawer-8">
+          <span class="box-front">
+            <span class="box-no">No. 008</span>
+            <span class="box-keys" aria-hidden="true"><i></i><i></i></span>
+            <span class="box-label">NVENC or x<span class="n">264</span></span>
+            <span class="box-led" aria-hidden="true"></span>
+          </span>
+          <span class="box-side box-side--t" aria-hidden="true"></span><span class="box-side box-side--b" aria-hidden="true"></span><span class="box-side box-side--l" aria-hidden="true"></span><span class="box-side box-side--r" aria-hidden="true"></span>
+        </button>
+        <div class="drawer" id="drawer-8" role="region" aria-labelledby="drawer-8-title" hidden>
+          <div class="drawer-inner">
+            <figure class="case drawer-shot">
+              <img src="../assets/shots/20-settings-quality-960.webp" srcset="../assets/shots/20-settings-quality-960.webp 960w, ../assets/shots/20-settings-quality-1600.webp 1600w" sizes="(min-width: 1100px) 700px, 92vw" width="1600" height="1000" loading="lazy" alt="Settings with the quality presets, a 120-second buffer, the encoder choice (Auto, NVENC or x264) and the recording codec (H.264 or AV1).">
+            </figure>
+            <div class="drawer-text">
+              <p class="drawer-no">Box No. 008 · Encoding</p>
+              <h3 id="drawer-8-title">NVENC, with x264 as the fallback</h3>
+              <p>With an NVIDIA GPU, ClipVault encodes with NVENC for the lowest CPU use. Without one, it uses the x264 CPU encoder; Auto picks for you. Record at 30, 60, 120 or 144 fps with one of five quality presets, from Compact to Maximum.</p>
+              <ul class="spec"><li>Auto / NVENC / x264</li><li>Up to 144 fps</li></ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ DEPOSIT RECORD ============ -->
+  <section class="section record" id="record" aria-labelledby="record-title">
+    <div class="wrap">
+      <header class="section-head">
+        <p class="eyebrow">02 · Deposit record</p>
+        <h2 id="record-title">What one key press puts in the vault</h2>
+        <p class="section-lead">A real clip from the library in these screenshots. The round was won, the save hotkey was pressed, Windows showed “Clip Saved”, and the file was at the top of the library right away.</p>
+      </header>
+
+      <div class="record-grid">
+        <div class="receipt-wrap">
+          <article class="receipt" aria-labelledby="receipt-title">
+            <header class="receipt-head">
+              <p class="receipt-brand">ClipVault</p>
+              <h3 id="receipt-title">Deposit record</h3>
+              <p class="receipt-sub">Local library · Windows</p>
+            </header>
+            <p class="receipt-file"><span class="receipt-k">File</span><span class="receipt-filename">2026-09-28_23-30-00_VALORANT.mp4</span></p>
+            <dl class="receipt-rows">
+              <div><dt>Game</dt><dd>VALORANT <span class="muted">(tagged automatically)</span></dd></div>
+              <div><dt>Length</dt><dd>2:02</dd></div>
+              <div><dt>Video</dt><dd>1080p · 60 fps</dd></div>
+              <div><dt>Size</dt><dd>215.34 MB</dd></div>
+              <div><dt>Saved</dt><dd>28 Sep 2026, 23:30:00</dd></div>
+              <div><dt>Saved with</dt><dd>Hotkey · replay buffer</dd></div>
+              <div><dt>Audio</dt><dd>Desktop + mic, separate tracks</dd></div>
+              <div><dt>Held at</dt><dd class="path">C:\<wbr>Users\<wbr>Player\<wbr>Videos\<wbr>ClipVault</dd></div>
+              <div><dt>Uploaded</dt><dd>No</dd></div>
+            </dl>
+            <p class="receipt-foot"><span>Library</span><span>1 of 24 · newest first</span></p>
+            <svg class="seal" viewBox="0 0 140 140" aria-hidden="true" focusable="false">
+              <defs>
+                <path id="seal-arc" d="M 70 70 m -50 0 a 50 50 0 1 1 100 0 a 50 50 0 1 1 -100 0"/>
+                <filter id="f-ink" x="0" y="0" width="100%" height="100%">
+                  <feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2" seed="4" result="n"/>
+                  <feColorMatrix in="n" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -2.2 1.7" result="m"/>
+                  <feComposite in="SourceGraphic" in2="m" operator="in"/>
+                </filter>
+              </defs>
+              <g filter="url(#f-ink)">
+                <circle cx="70" cy="70" r="66" fill="none" stroke="currentColor" stroke-width="3"/>
+                <circle cx="70" cy="70" r="60" fill="none" stroke="currentColor" stroke-width="1.2"/>
+                <circle cx="70" cy="70" r="38" fill="none" stroke="currentColor" stroke-width="1.2"/>
+                <text font-size="10.5" letter-spacing="2.2" fill="currentColor"><textPath href="#seal-arc">SAVED BY HOTKEY · STORED LOCALLY ·</textPath></text>
+                <circle cx="70" cy="70" r="15" fill="none" stroke="currentColor" stroke-width="1.6"/>
+                <circle cx="70" cy="70" r="8.5" fill="currentColor"/>
+              </g>
+            </svg>
+          </article>
+        </div>
+
+        <figure class="case record-shot">
+          <img src="../assets/shots/03-library-new-clip-960.webp" srcset="../assets/shots/03-library-new-clip-960.webp 960w, ../assets/shots/03-library-new-clip-1600.webp 1600w" sizes="(min-width: 1000px) 720px, 92vw" width="1600" height="1000" loading="lazy" alt="ClipVault library with 24 clips. The newest, 2026-09-28_23-30-00_VALORANT, is first: 1080p, 2:02, 215.34 MB, 60 fps, tagged VALORANT.">
+          <figcaption>The same clip, first in the library. 24 clips, sorted by date.</figcaption>
+        </figure>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ HELD ON YOUR PC ============ -->
+  <section class="section local" id="local" aria-labelledby="local-title">
+    <div class="wrap local-grid">
+      <div class="local-copy">
+        <header class="section-head section-head--left">
+          <p class="eyebrow">03 · Holdings</p>
+          <h2 id="local-title">Held on your PC</h2>
+          <p class="section-lead">ClipVault is a local app. Your clips are files on your own disk, and they stay there.</p>
+        </header>
+        <ol class="holdings">
+          <li>
+            <span class="numeral" aria-hidden="true">I</span>
+            <div><h3>Nothing is uploaded</h3><p>Clips are saved to your disk. ClipVault does not upload them anywhere.</p></div>
+          </li>
+          <li>
+            <span class="numeral" aria-hidden="true">II</span>
+            <div><h3>No account</h3><p>Nothing to sign up for. A first-run setup walks through the clips folder, capture, audio and hotkey, and you are ready.</p></div>
+          </li>
+          <li>
+            <span class="numeral" aria-hidden="true">III</span>
+            <div><h3>Plain MP4 files, in a folder you pick</h3><p>Every clip is an ordinary MP4 file. Copy it, back it up or open it in another program, like any other file.</p></div>
+          </li>
+          <li>
+            <span class="numeral" aria-hidden="true">IV</span>
+            <div><h3>No game hooks, no injection</h3><p>By default ClipVault records your monitor with DXGI capture. It does not hook into or inject anything into the game, which makes it anti-cheat friendly. Automatic game capture (experimental) and single-window capture are optional.</p></div>
+          </li>
+        </ol>
+      </div>
+      <div class="local-shots">
+        <figure class="case local-shot local-shot--a">
+          <img src="../assets/shots/w1-wizard-storage-960.webp" srcset="../assets/shots/w1-wizard-storage-960.webp 960w, ../assets/shots/w1-wizard-storage-1600.webp 1600w" sizes="(min-width: 1000px) 560px, 92vw" width="1600" height="1000" loading="lazy" alt="First-run setup, step 1 of 4: choose your clips folder, set to C:\Users\Player\Videos\ClipVault.">
+          <figcaption>First-run setup: you choose the clips folder.</figcaption>
+        </figure>
+        <figure class="case local-shot local-shot--b">
+          <img src="../assets/shots/18-settings-capture-960.webp" srcset="../assets/shots/18-settings-capture-960.webp 960w, ../assets/shots/18-settings-capture-1600.webp 1600w" sizes="(min-width: 1000px) 560px, 92vw" width="1600" height="1000" loading="lazy" alt="Settings, Video and Capture: Record set to Monitor, Monitor 1 selected, DXGI capture method recommended, 1080p at 60 fps.">
+          <figcaption>Settings: Record → Monitor, DXGI capture.</figcaption>
+        </figure>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ TOUR ============ -->
+  <section class="section tour" id="tour" aria-labelledby="tour-title">
+    <div class="wrap">
+      <header class="section-head">
+        <p class="eyebrow">04 · Viewing room</p>
+        <h2 id="tour-title">Watch the 50-second tour</h2>
+        <p class="section-lead">Saving a clip, the library, the editor, audio tracks, export and capture settings. Silent, with captions on screen.</p>
+      </header>
+      <div class="cabinet">
+        <div class="cabinet-screen">
+          <video controls playsinline preload="none" poster="../assets/video/tour-wide.jpg" width="1280" height="720" aria-describedby="tour-desc">
+            <source src="../assets/video/tour-wide.mp4" type="video/mp4">
+            <a href="../assets/video/tour-wide.mp4">Download the tour video (MP4)</a>
+          </video>
+        </div>
+        <p class="cabinet-plate" id="tour-desc"><span>ClipVault tour</span><span>0:50 · no sound · captions on screen</span></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ FAQ PLAQUES ============ -->
+  <section class="section faq" id="faq" aria-labelledby="faq-title">
+    <div class="wrap">
+      <header class="section-head">
+        <p class="eyebrow">05 · Plaques</p>
+        <h2 id="faq-title">Questions, answered</h2>
+      </header>
+      <div class="plaques">
+        <article class="plaque">
+          <p class="plaque-no" aria-hidden="true">I</p>
+          <h3>What does ClipVault cost?</h3>
+          <p>Nothing. It is free and open source under GPL-2.0-or-later, and the source code is on GitHub.</p>
+        </article>
+        <article class="plaque">
+          <p class="plaque-no" aria-hidden="true">II</p>
+          <h3>Which Windows versions?</h3>
+          <p>Windows 10 and Windows 11, 64-bit. The installer is ClipVault-Setup-1.7.6.exe.</p>
+        </article>
+        <article class="plaque">
+          <p class="plaque-no" aria-hidden="true">III</p>
+          <h3>Does it hook into my games?</h3>
+          <p>No. The default capture records your monitor with DXGI, with no game hooks or injection, which keeps it anti-cheat friendly.</p>
+        </article>
+        <article class="plaque">
+          <p class="plaque-no" aria-hidden="true">IV</p>
+          <h3>Can I change the hotkey or the 2 minutes?</h3>
+          <p>Yes. The save hotkey is F9 by default, changeable in Settings, and the buffer length (2 minutes by default) is adjustable there too. The hotkey works while a fullscreen game has focus.</p>
+        </article>
+        <article class="plaque">
+          <p class="plaque-no" aria-hidden="true">V</p>
+          <h3>Where are my clips saved?</h3>
+          <p>In the folder you choose during setup, as plain MP4 files. Nothing is uploaded and there is no account.</p>
+        </article>
+        <article class="plaque">
+          <p class="plaque-no" aria-hidden="true">VI</p>
+          <h3>Do I need an NVIDIA graphics card?</h3>
+          <p>No. With one, ClipVault uses NVENC for the lowest CPU use; without one, it uses the x264 CPU encoder. AV1 needs an NVIDIA RTX 40-series or newer.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ FINAL CTA ============ -->
+  <section class="section final" id="download" aria-labelledby="final-title">
+    <svg class="final-dial" viewBox="0 0 400 400" aria-hidden="true" focusable="false">
+      <circle cx="200" cy="200" r="190" fill="none" stroke="currentColor" stroke-width="1"/>
+      <circle cx="200" cy="200" r="178" fill="none" stroke="currentColor" stroke-width="10" stroke-dasharray="1 17.64" transform="rotate(-90 200 200)"/>
+      <circle cx="200" cy="200" r="174" fill="none" stroke="currentColor" stroke-width="18" stroke-dasharray="1.8 89.3" stroke-dashoffset=".9" transform="rotate(-90 200 200)"/>
+      <circle cx="200" cy="200" r="150" fill="none" stroke="currentColor" stroke-width=".8"/>
+    </svg>
+    <div class="wrap final-inner">
+      <p class="eyebrow">06 · Download</p>
+      <h2 id="final-title">Keep the next one.</h2>
+      <p class="section-lead">Install ClipVault, let it run in the tray, and press your hotkey when something worth keeping happens. It can start with Windows.</p>
+      <div class="cta-row cta-row--center">
+        <a class="plate-btn plate-btn--lg" href="https://github.com/ebrardushullovcii/ClipVault/releases/latest">
+          <span class="plate-btn-main">Download for Windows</span>
+          <span class="plate-btn-sub">ClipVault-Setup-1.7.6.exe · x64</span>
+        </a>
+      </div>
+      <p class="final-meta"><a class="text-link" href="https://github.com/ebrardushullovcii/ClipVault">Read the source on GitHub<span aria-hidden="true"> →</span></a></p>
+      <ul class="final-spec" aria-label="Release details">
+        <li>Version 1.7.6</li><li>Windows 10 / 11</li><li>Free</li><li>GPL-2.0-or-later</li>
+      </ul>
+    </div>
+  </section>
+</main>
+
+<footer class="foot">
+  <div class="wrap foot-inner">
+    <div class="foot-brand">
+      <img src="../assets/brand/icon-256.png" width="40" height="40" alt="" loading="lazy">
+      <div>
+        <p class="foot-name">ClipVault</p>
+        <p class="foot-small">Free, open-source game clipping for Windows. Built on libobs, the engine from OBS Studio.</p>
+      </div>
+    </div>
+    <nav class="foot-links" aria-label="Project links">
+      <a href="https://github.com/ebrardushullovcii/ClipVault/releases/latest">Download</a>
+      <a href="https://github.com/ebrardushullovcii/ClipVault">GitHub</a>
+      <span>License: GPL-2.0-or-later</span>
+    </nav>
+    <p class="foot-note">Gameplay recorded with ClipVault. Game names and footage belong to their respective owners.</p>
+  </div>
+</footer>
+</body>
+</html>

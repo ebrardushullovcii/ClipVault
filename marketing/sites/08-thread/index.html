@@ -1,0 +1,534 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ClipVault · Clutch now. Clip later.</title>
+<meta name="description" content="ClipVault is a free, open-source game clipping app for Windows 10 and 11. It keeps a rolling buffer while you play; press your hotkey to save the last 2 minutes as an MP4, then trim it and export it small enough to post.">
+<meta name="theme-color" content="#16181d">
+<!--OG-->
+<link rel="icon" type="image/png" href="../assets/brand/favicon-64.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Instrument+Serif:ital@1&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="style.css">
+<script>
+  // Messages start hidden and appear as they scroll in. Skipped for reduced motion or old browsers.
+  if (!matchMedia('(prefers-reduced-motion: reduce)').matches && 'IntersectionObserver' in window) {
+    document.documentElement.classList.add('reveal-on')
+  }
+</script>
+<script src="script.js" defer></script>
+</head>
+<body>
+<svg class="sprite" width="0" height="0" aria-hidden="true" focusable="false">
+  <symbol id="i-dl" viewBox="0 0 24 24"><path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5 20h14"/></symbol>
+  <symbol id="i-pin" viewBox="0 0 24 24"><path d="M9 3h6M10 3v6l-4 4v2h12v-2l-4-4V3M12 15v6"/></symbol>
+  <symbol id="i-code" viewBox="0 0 24 24"><path d="m8 7-5 5 5 5M16 7l5 5-5 5M14 4l-4 16"/></symbol>
+  <symbol id="i-film" viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 3v18M16 3v18M4 8h4M4 12h4M4 16h4M16 8h4M16 12h4M16 16h4"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+  <symbol id="i-thread" viewBox="0 0 24 24"><path d="M4 5h16v11H10l-4 4v-4H4z"/><path d="M8 9h8M8 12h5"/></symbol>
+  <symbol id="i-box" viewBox="0 0 24 24"><path d="M12 3 4 7v10l8 4 8-4V7zM4 7l8 4 8-4M12 11v10"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></symbol>
+</svg>
+
+<a class="skip" href="#thread">Skip to the conversation</a>
+
+<div class="app">
+
+  <!-- Left rail: channels double as page navigation -->
+  <aside class="rail" aria-label="Channels">
+   <div class="rail-in">
+    <a class="brand" href="#clips">
+      <img src="../assets/brand/favicon-64.png" width="32" height="32" alt="">
+      <span class="brand-name">ClipVault</span>
+      <span class="ver">v1.7.6</span>
+    </a>
+    <p class="rail-label" id="rail-label">Channels</p>
+    <nav class="chan-list" aria-labelledby="rail-label" data-nav>
+      <a class="chan" href="#clips"><span class="hash" aria-hidden="true">#</span>clips</a>
+      <a class="chan" href="#how-it-works"><span class="hash" aria-hidden="true">#</span>how-it-works</a>
+      <a class="chan" href="#library"><span class="hash" aria-hidden="true">#</span>library</a>
+      <a class="chan" href="#editor"><span class="hash" aria-hidden="true">#</span>editor</a>
+      <a class="chan" href="#capture"><span class="hash" aria-hidden="true">#</span>capture</a>
+      <a class="chan" href="#changelog"><span class="hash" aria-hidden="true">#</span>changelog</a>
+      <a class="chan" href="#faq"><span class="hash" aria-hidden="true">#</span>faq</a>
+      <a class="chan" href="#download"><span class="hash" aria-hidden="true">#</span>download</a>
+    </nav>
+    <div class="rail-cta">
+      <p class="rail-cta-title">ClipVault 1.7.6</p>
+      <p class="rail-cta-meta">Windows 10/11 · free · open source</p>
+      <a class="btn primary block" href="https://github.com/ebrardushullovcii/ClipVault/releases/latest"><svg class="ic"><use href="#i-dl"/></svg>Download</a>
+      <a class="rail-src" href="https://github.com/ebrardushullovcii/ClipVault"><svg class="ic"><use href="#i-code"/></svg>Source code on GitHub</a>
+    </div>
+   </div>
+  </aside>
+
+  <div class="main">
+    <header class="chan-header">
+      <a class="m-brand" href="#clips" aria-label="ClipVault, back to top">
+        <img src="../assets/brand/favicon-64.png" width="30" height="30" alt="">
+      </a>
+      <details class="switcher">
+        <summary><span class="sr">Channel: </span><span class="hash" aria-hidden="true">#</span><span data-cur-name>clips</span><svg class="ic chev"><use href="#i-chev"/></svg></summary>
+        <nav aria-label="Channels" data-nav>
+          <a class="chan" href="#clips"><span class="hash" aria-hidden="true">#</span>clips</a>
+          <a class="chan" href="#how-it-works"><span class="hash" aria-hidden="true">#</span>how-it-works</a>
+          <a class="chan" href="#library"><span class="hash" aria-hidden="true">#</span>library</a>
+          <a class="chan" href="#editor"><span class="hash" aria-hidden="true">#</span>editor</a>
+          <a class="chan" href="#capture"><span class="hash" aria-hidden="true">#</span>capture</a>
+          <a class="chan" href="#changelog"><span class="hash" aria-hidden="true">#</span>changelog</a>
+          <a class="chan" href="#faq"><span class="hash" aria-hidden="true">#</span>faq</a>
+          <a class="chan" href="#download"><span class="hash" aria-hidden="true">#</span>download</a>
+        </nav>
+      </details>
+      <p class="chan-title"><span class="hash" aria-hidden="true">#</span><span data-cur-name>clips</span></p>
+      <p class="chan-topic" data-cur-topic>post the good ones</p>
+      <div class="head-actions">
+        <a class="btn sm ghost" href="https://github.com/ebrardushullovcii/ClipVault"><svg class="ic"><use href="#i-code"/></svg>Source</a>
+        <a class="btn sm primary" href="https://github.com/ebrardushullovcii/ClipVault/releases/latest"><svg class="ic"><use href="#i-dl"/></svg>Download</a>
+      </div>
+    </header>
+
+    <main id="thread" class="thread" tabindex="-1">
+
+      <!-- ============ #clips ============ -->
+      <section id="clips" class="chan-section" data-channel="clips" data-topic="post the good ones" aria-labelledby="hero-title">
+        <div class="pinned">
+          <p class="pinned-label"><svg class="ic"><use href="#i-pin"/></svg>Pinned message</p>
+          <h1 id="hero-title">Clutch now. <span class="h1-accent">Clip later.</span></h1>
+          <p class="pinned-text">ClipVault keeps the last 2 minutes of your game in a rolling buffer. Press your hotkey after something happens and it's saved as an MP4, ready to trim, mute and export small enough to post. Free and open source, for Windows.</p>
+          <div class="pinned-actions">
+            <a class="btn primary lg" href="https://github.com/ebrardushullovcii/ClipVault/releases/latest"><svg class="ic"><use href="#i-dl"/></svg>Download for Windows</a>
+            <a class="btn ghost lg" href="https://github.com/ebrardushullovcii/ClipVault"><svg class="ic"><use href="#i-code"/></svg>Source on GitHub</a>
+            <p class="pinned-meta">Windows 10/11 · free · open source · v1.7.6</p>
+          </div>
+          <figure class="att att-video pinned-video">
+            <video class="hero-video" autoplay muted loop playsinline preload="metadata" poster="../assets/video/launch-film.jpg" width="1280" height="720" aria-label="ClipVault in 35 seconds: a round win, the hotkey press, the clip landing in the library, trimming, muting the microphone track and exporting under 10 MB.">
+              <source src="../assets/video/launch-film.mp4" type="video/mp4">
+            </video>
+            <figcaption><svg class="ic"><use href="#i-film"/></svg>ClipVault in 35 seconds</figcaption>
+          </figure>
+        </div>
+
+        <div class="day"><span>Monday, September 28</span></div>
+
+        <div class="msg reveal" data-u="jonah">
+          <span class="av" aria-hidden="true">J</span>
+          <div class="body">
+            <p class="head"><span class="name">jonah</span><time datetime="2026-09-28T23:29">11:29 PM</time></p>
+            <p>that last round</p>
+          </div>
+        </div>
+        <div class="msg cont reveal" data-u="jonah">
+          <time class="gutter" datetime="2026-09-28T23:29">11:29</time>
+          <div class="body">
+            <p>please tell me someone got that</p>
+          </div>
+        </div>
+
+        <div class="msg reveal" data-u="theo">
+          <span class="av" aria-hidden="true">T</span>
+          <div class="body">
+            <p class="head"><span class="name">theo</span><time datetime="2026-09-28T23:29">11:29 PM</time></p>
+            <p>i was dead, i only saw the killfeed</p>
+          </div>
+        </div>
+
+        <div class="msg reveal" data-u="mira">
+          <span class="av" aria-hidden="true">M</span>
+          <div class="body">
+            <p class="head"><span class="name">mira</span><time datetime="2026-09-28T23:31">11:31 PM</time></p>
+            <figure class="att att-video">
+              <video class="clip-video" autoplay muted loop playsinline preload="metadata" poster="../assets/frames/valorant-kill-960.webp" width="1280" height="720" aria-label="VALORANT gameplay: the last kill of the round, then the WON banner.">
+                <source src="../assets/loops/loop-valorant-win.mp4" type="video/mp4">
+              </video>
+              <figcaption><svg class="ic"><use href="#i-film"/></svg>2026-09-28_23-30-00_VALORANT.mp4</figcaption>
+            </figure>
+          </div>
+        </div>
+
+        <div class="msg reveal" data-u="jonah">
+          <span class="av" aria-hidden="true">J</span>
+          <div class="body">
+            <p class="head"><span class="name">jonah</span><time datetime="2026-09-28T23:31">11:31 PM</time></p>
+            <p>pulling the knife out after is so disrespectful</p>
+          </div>
+        </div>
+
+        <div class="msg reveal" data-u="sam">
+          <span class="av" aria-hidden="true">S</span>
+          <div class="body">
+            <p class="head"><span class="name">sam</span><time datetime="2026-09-28T23:32">11:32 PM</time></p>
+            <p>wait, you record every match now?</p>
+          </div>
+        </div>
+
+        <div class="msg reveal" data-u="mira">
+          <span class="av" aria-hidden="true">M</span>
+          <div class="body">
+            <p class="head"><span class="name">mira</span><time datetime="2026-09-28T23:32">11:32 PM</time></p>
+            <p>no, it only keeps the last 2 minutes. i hit a key after something happens</p>
+          </div>
+        </div>
+        <div class="msg cont reveal" data-u="mira">
+          <time class="gutter" datetime="2026-09-28T23:32">11:32</time>
+          <div class="body">
+            <p>it's called clipvault, link's in <a class="mention" href="#download">#download</a></p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ #how-it-works ============ -->
+      <section id="how-it-works" class="chan-section" data-channel="how-it-works" data-topic="the buffer, the hotkey and the two audio tracks" aria-labelledby="h-how">
+        <div class="chan-start reveal">
+          <span class="chan-glyph" aria-hidden="true">#</span>
+          <div>
+            <h2 id="h-how"><span class="hash" aria-hidden="true">#</span>how-it-works</h2>
+            <p>The buffer, the hotkey and the two audio tracks.</p>
+          </div>
+        </div>
+
+        <div class="msg acct reveal">
+          <img class="av" src="../assets/brand/favicon-64.png" width="40" height="40" alt="">
+          <div class="body">
+            <p class="head"><span class="name">ClipVault</span></p>
+            <p>ClipVault runs in the tray and keeps a rolling buffer of your screen and audio. When you press your hotkey, the last 2 minutes are saved as an MP4 in your clips folder, and Windows shows a “Clip Saved” notification.</p>
+            <div class="embed">
+              <h3>Saving a clip</h3>
+              <ol class="steps">
+                <li><b>Play.</b> The buffer keeps the last 2 minutes. You can change the length in Settings.</li>
+                <li><b>Press your <kbd class="hotkey"><i class="rec"></i>HOTKEY</kbd>.</b> It works while a fullscreen game has focus.</li>
+                <li><b>Find it in the library.</b> The clip is at the top, tagged with the game.</li>
+              </ol>
+            </div>
+            <figure class="att att-video">
+              <video autoplay muted loop playsinline preload="metadata" poster="../assets/video/hero-wide.jpg" width="1280" height="720" aria-label="A VALORANT round win, the hotkey press, the Clip Saved notification, the clip at the top of the library, then trimming and exporting.">
+                <source src="../assets/video/hero-wide.mp4" type="video/mp4">
+              </video>
+              <figcaption><svg class="ic"><use href="#i-film"/></svg>From the round win to the export, 12 seconds</figcaption>
+            </figure>
+          </div>
+        </div>
+
+        <div class="msg acct cont reveal">
+          <span class="gutter" aria-hidden="true"></span>
+          <div class="body">
+            <p>Game audio and your microphone are recorded on separate tracks, so you can turn your mic off or down later without touching the game sound.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ #library ============ -->
+      <section id="library" class="chan-section" data-channel="library" data-topic="every clip, tagged by game" aria-labelledby="h-library">
+        <div class="chan-start reveal">
+          <span class="chan-glyph" aria-hidden="true">#</span>
+          <div>
+            <h2 id="h-library"><span class="hash" aria-hidden="true">#</span>library</h2>
+            <p>Where saved clips land.</p>
+          </div>
+        </div>
+
+        <div class="msg acct reveal">
+          <img class="av" src="../assets/brand/favicon-64.png" width="40" height="40" alt="">
+          <div class="body">
+            <p class="head"><span class="name">ClipVault</span></p>
+            <p>New clips show up at the top of the library as soon as they're saved. Supported games are detected and tagged, and the file name includes the date, time and game.</p>
+            <figure class="att">
+              <a href="../assets/shots/03-library-new-clip-1600.webp" data-lightbox data-name="Library">
+                <img src="../assets/shots/03-library-new-clip-960.webp" srcset="../assets/shots/03-library-new-clip-960.webp 960w, ../assets/shots/03-library-new-clip-1600.webp 1600w" sizes="(max-width: 879px) calc(100vw - 72px), (min-width: 1680px) 800px, 680px" width="1600" height="1000" loading="lazy" decoding="async" alt="ClipVault library grid with the new VALORANT clip at the top, followed by TEKKEN 8, League of Legends and older VALORANT clips, each with a game tag.">
+              </a>
+              <figcaption>The library, with the new clip at the top</figcaption>
+            </figure>
+            <div class="embed">
+              <h3>In the library</h3>
+              <ul class="checks">
+                <li>Hover a card to play the clip in the grid.</li>
+                <li>Search, and sort by date, size, name or favorite.</li>
+                <li>Filter by game, tag or favorites. Grid or list view.</li>
+                <li>Select several clips to tag, favorite, export or delete them together.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ #editor ============ -->
+      <section id="editor" class="chan-section" data-channel="editor" data-topic="trim, audio and export size" aria-labelledby="h-editor">
+        <div class="chan-start reveal">
+          <span class="chan-glyph" aria-hidden="true">#</span>
+          <div>
+            <h2 id="h-editor"><span class="hash" aria-hidden="true">#</span>editor</h2>
+            <p>Trim it, fix the audio, export it at a size you can post.</p>
+          </div>
+        </div>
+
+        <div class="msg acct reveal">
+          <img class="av" src="../assets/brand/favicon-64.png" width="40" height="40" alt="">
+          <div class="body">
+            <p class="head"><span class="name">ClipVault</span></p>
+            <p>Open a clip to trim it, switch your mic track off, and export it at the size you need.</p>
+            <figure class="att att-video">
+              <video autoplay muted loop playsinline preload="none" poster="../assets/video/trim-export-wide.jpg" width="1280" height="720" aria-label="The editor: adding a tag, dragging the trim handles to the round win, turning the microphone track off, choosing Up to 10 MB and exporting.">
+                <source src="../assets/video/trim-export-wide.mp4" type="video/mp4">
+              </video>
+              <figcaption><svg class="ic"><use href="#i-film"/></svg>Tag, trim, mute, export, 17 seconds</figcaption>
+            </figure>
+            <div class="embed">
+              <h3>Editing and export</h3>
+              <dl class="fields">
+                <div><dt>Trim</dt><dd>Drag the handles. Playback stays inside the trim.</dd></div>
+                <div><dt>Audio</dt><dd>Turn the game or mic track off, or change its volume.</dd></div>
+                <div><dt>Size</dt><dd>Up to 10 MB for Discord, 50 MB, 100 MB, or the original file.</dd></div>
+                <div><dt>Codec</dt><dd>H.264 plays everywhere. AV1 gives better quality per MB on NVIDIA RTX 40-series and newer.</dd></div>
+                <div><dt>After export</dt><dd>Drag the file out of the export window, copy its path or open its folder.</dd></div>
+                <div><dt>Also</dt><dd>Tags, favorites, frame stepping, and trimming the original file in place.</dd></div>
+              </dl>
+            </div>
+          </div>
+        </div>
+
+        <div class="msg reveal" data-u="mira">
+          <span class="av" aria-hidden="true">M</span>
+          <div class="body">
+            <p class="head"><span class="name">mira</span><time datetime="2026-09-28T23:38">11:38 PM</time></p>
+            <p>cut it down and took my mic out</p>
+            <div class="file-card" id="file-export">
+              <span class="file-icon" aria-hidden="true"><svg class="ic"><use href="#i-film"/></svg></span>
+              <span class="file-info">
+                <span class="file-name">2026-09-28_23-30-00_VALORANT.mp4</span>
+                <span class="file-meta">MP4 · 0:26 · mic off</span>
+              </span>
+              <span class="size-badge">under 10 MB</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="msg reveal" data-u="theo">
+          <span class="av" aria-hidden="true">T</span>
+          <div class="body">
+            <p class="head"><span class="name">theo</span><time datetime="2026-09-28T23:39">11:39 PM</time></p>
+            <p>the original has you yelling “one left” the whole round</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ #capture ============ -->
+      <section id="capture" class="chan-section" data-channel="capture" data-topic="what it records and how" aria-labelledby="h-capture">
+        <div class="chan-start reveal">
+          <span class="chan-glyph" aria-hidden="true">#</span>
+          <div>
+            <h2 id="h-capture"><span class="hash" aria-hidden="true">#</span>capture</h2>
+            <p>What it records, how it encodes, where the files go.</p>
+          </div>
+        </div>
+
+        <div class="msg acct reveal">
+          <img class="av" src="../assets/brand/favicon-64.png" width="40" height="40" alt="">
+          <div class="body">
+            <p class="head"><span class="name">ClipVault</span></p>
+            <p>By default ClipVault records your monitor with DXGI. It doesn't hook into games or inject anything, which keeps it anti-cheat friendly.</p>
+            <figure class="att att-crop" style="max-width: 620px">
+              <a class="crop" href="../assets/shots/18-settings-capture-1600.webp" data-lightbox data-name="Settings, Video and Capture" style="--x: 340; --y: 60; --w: 920; --h: 770">
+                <img src="../assets/shots/18-settings-capture-1600.webp" width="1600" height="1000" loading="lazy" decoding="async" alt="Settings, Video and Capture: Record set to Monitor, Monitor 1 (Primary) selected, capture method DXGI (Recommended), capture mouse cursor on, resolution 720p or 1080p, frame rate 30, 60, 120 or 144, and the quality presets Compact to Maximum.">
+              </a>
+              <figcaption>Settings › Video &amp; Capture</figcaption>
+            </figure>
+            <div class="embed">
+              <h3>Recording</h3>
+              <dl class="fields">
+                <div><dt>Record</dt><dd>Your monitor by default. Game-only and monitor-plus-games modes are experimental. You can also pick an app window.</dd></div>
+                <div><dt>Encoder</dt><dd>NVENC on NVIDIA GPUs, x264 on the CPU otherwise. Auto picks for you.</dd></div>
+                <div><dt>Video</dt><dd>H.264 or AV1, 30 to 144 fps, five quality presets.</dd></div>
+                <div><dt>Files</dt><dd>Plain MP4s in a folder you choose. No account, nothing uploaded.</dd></div>
+              </dl>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ #changelog ============ -->
+      <section id="changelog" class="chan-section" data-channel="changelog" data-topic="release notes" aria-labelledby="h-changelog">
+        <div class="chan-start reveal">
+          <span class="chan-glyph" aria-hidden="true">#</span>
+          <div>
+            <h2 id="h-changelog"><span class="hash" aria-hidden="true">#</span>changelog</h2>
+            <p>Release notes.</p>
+          </div>
+        </div>
+
+        <div class="msg acct reveal">
+          <img class="av" src="../assets/brand/favicon-64.png" width="40" height="40" alt="">
+          <div class="body">
+            <p class="head"><span class="name">ClipVault</span><time datetime="2026-09-26">Sep 26, 2026</time></p>
+            <div class="embed">
+              <h3>1.7.6</h3>
+              <ul class="checks">
+                <li>The library stays connected to your clips folder after you change or restore settings, and refreshes when you come back to it.</li>
+                <li>Clip notifications no longer wait for background cache cleanup.</li>
+                <li>Minimize, maximize and close are now part of the app's own header, without the extra Windows title bar.</li>
+              </ul>
+            </div>
+            <div class="embed">
+              <h3>Earlier this week</h3>
+              <ul class="checks">
+                <li>1.7.4: optional monitor-plus-games capture that follows supported games and returns to your monitor when they close.</li>
+                <li>1.7.3: automatic game capture that follows game launches and keeps the game across alt-tab.</li>
+                <li>1.7.2: AV1 recording and app-window capture, with streamed editor audio.</li>
+              </ul>
+              <p class="embed-foot"><a href="https://github.com/ebrardushullovcii/ClipVault/blob/master/CHANGELOG.md">Full changelog on GitHub</a></p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ #faq ============ -->
+      <section id="faq" class="chan-section" data-channel="faq" data-topic="before you install" aria-labelledby="h-faq">
+        <div class="chan-start reveal">
+          <span class="chan-glyph" aria-hidden="true">#</span>
+          <div>
+            <h2 id="h-faq"><span class="hash" aria-hidden="true">#</span>faq</h2>
+            <p>Before you install.</p>
+          </div>
+        </div>
+
+        <div class="thread-box reveal">
+          <p class="thread-head"><svg class="ic"><use href="#i-pin"/></svg><span class="thread-kind">Pinned</span><span class="thread-title">Common questions</span></p>
+          <div class="faq-item">
+            <h3 class="q">Is it free?</h3>
+            <p>Yes. It's free and open source under GPL-2.0-or-later, and the code is <a href="https://github.com/ebrardushullovcii/ClipVault">on GitHub</a>.</p>
+          </div>
+          <div class="faq-item">
+            <h3 class="q">What do I need?</h3>
+            <p>Windows 10 or 11, 64-bit. An NVIDIA GPU is used for NVENC encoding when you have one; otherwise it encodes with x264 on the CPU.</p>
+          </div>
+          <div class="faq-item">
+            <h3 class="q">Which key saves a clip?</h3>
+            <p>Any key you choose during setup or in Settings. It's F9 by default, changeable in Settings. It works while a fullscreen game has focus.</p>
+          </div>
+          <div class="faq-item">
+            <h3 class="q">How long are clips?</h3>
+            <p>As long as the buffer, 2 minutes by default. You can make the buffer longer or shorter, and trim any clip afterwards.</p>
+          </div>
+          <div class="faq-item">
+            <h3 class="q">Will it cause anti-cheat problems?</h3>
+            <p>It doesn't hook into games or inject anything. By default it records your monitor, the same way screen recording does.</p>
+          </div>
+          <div class="faq-item">
+            <h3 class="q">Does it upload my clips?</h3>
+            <p>No. There's no account, and clips are MP4 files in a folder you choose.</p>
+          </div>
+          <div class="faq-item">
+            <h3 class="q">Does it start with Windows?</h3>
+            <p>If you want it to. It runs from the tray, and the first run walks you through the clips folder, capture, audio and hotkey.</p>
+          </div>
+          <div class="faq-item">
+            <h3 class="q">What's it built on?</h3>
+            <p>libobs, the recording engine from OBS Studio, with an Electron and React app on top.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ #download ============ -->
+      <section id="download" class="chan-section" data-channel="download" data-topic="ClipVault 1.7.6 for Windows 10/11" aria-labelledby="h-download">
+        <div class="chan-start reveal">
+          <span class="chan-glyph" aria-hidden="true">#</span>
+          <div>
+            <h2 id="h-download"><span class="hash" aria-hidden="true">#</span>download</h2>
+            <p>ClipVault 1.7.6 for Windows 10 and 11.</p>
+          </div>
+        </div>
+
+        <div class="msg acct reveal">
+          <img class="av" src="../assets/brand/favicon-64.png" width="40" height="40" alt="">
+          <div class="body">
+            <p class="head"><span class="name">ClipVault</span></p>
+            <div class="embed dl-card" id="download-card">
+              <div class="dl-top">
+                <img src="../assets/brand/icon-256.png" width="56" height="56" alt="" loading="lazy">
+                <div>
+                  <h3>ClipVault 1.7.6</h3>
+                  <p>Windows 10/11 x64 · free · open source · GPL-2.0-or-later</p>
+                </div>
+              </div>
+              <p class="dl-file"><svg class="ic"><use href="#i-box"/></svg><span>ClipVault-Setup-1.7.6.exe</span></p>
+              <div class="dl-actions">
+                <a class="btn primary lg" href="https://github.com/ebrardushullovcii/ClipVault/releases/latest"><svg class="ic"><use href="#i-dl"/></svg>Download for Windows</a>
+                <a class="btn ghost lg" href="https://github.com/ebrardushullovcii/ClipVault"><svg class="ic"><use href="#i-code"/></svg>Source code</a>
+              </div>
+            </div>
+            <figure class="att att-video" id="tour">
+              <video controls preload="none" playsinline poster="../assets/video/tour-wide.jpg" width="1280" height="720" aria-label="ClipVault product tour with on-screen captions: saving a clip, the library, the editor, audio tracks, export and capture settings.">
+                <source src="../assets/video/tour-wide.mp4" type="video/mp4">
+              </video>
+              <figcaption><svg class="ic"><use href="#i-film"/></svg>The full tour, 50 seconds</figcaption>
+            </figure>
+          </div>
+        </div>
+
+        <div class="msg reveal" data-u="sam">
+          <span class="av" aria-hidden="true">S</span>
+          <div class="body">
+            <p class="head"><span class="name">sam</span><time datetime="2026-09-28T23:51">11:51 PM</time></p>
+            <p>installed. what key are you on?</p>
+          </div>
+        </div>
+
+        <div class="msg reveal" data-u="mira">
+          <span class="av" aria-hidden="true">M</span>
+          <div class="body">
+            <p class="head"><span class="name">mira</span><time datetime="2026-09-28T23:52">11:52 PM</time></p>
+            <p>whatever you don't use in game</p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-foot">
+      <div class="foot-row">
+        <a class="brand foot-brand" href="#clips">
+          <img src="../assets/brand/favicon-64.png" width="24" height="24" alt="" loading="lazy">
+          <span class="brand-name">ClipVault</span>
+        </a>
+        <nav class="foot-links" aria-label="Footer">
+          <a href="https://github.com/ebrardushullovcii/ClipVault/releases/latest">Download</a>
+          <a href="https://github.com/ebrardushullovcii/ClipVault">GitHub</a>
+          <a href="https://github.com/ebrardushullovcii/ClipVault/blob/master/CHANGELOG.md">Changelog</a>
+        </nav>
+      </div>
+      <p>Free and open source under GPL-2.0-or-later. Version 1.7.6 for Windows 10 and 11.</p>
+      <p>Gameplay recorded with ClipVault. Game names and footage belong to their respective owners.</p>
+      <p>The people in #clips are fictional.</p>
+    </footer>
+  </div>
+
+  <!-- Right panel: members and shared files (wide screens only) -->
+  <aside class="members" aria-label="Members and shared files">
+   <div class="members-in">
+    <h2 class="panel-label">Members</h2>
+    <ul class="member-list">
+      <li><img class="av sm" src="../assets/brand/favicon-64.png" width="32" height="32" alt=""><span><b class="name">ClipVault</b><small>release 1.7.6</small></span></li>
+      <li data-u="mira"><span class="av sm" aria-hidden="true">M</span><span><b class="name">mira</b><small>in VALORANT</small></span></li>
+      <li data-u="jonah"><span class="av sm" aria-hidden="true">J</span><span><b class="name">jonah</b><small>in VALORANT</small></span></li>
+      <li data-u="theo"><span class="av sm" aria-hidden="true">T</span><span><b class="name">theo</b><small>in VALORANT</small></span></li>
+      <li data-u="sam"><span class="av sm" aria-hidden="true">S</span><span><b class="name">sam</b><small>online</small></span></li>
+    </ul>
+    <h2 class="panel-label">Shared files</h2>
+    <ul class="file-list">
+      <li><a href="#file-export"><svg class="ic"><use href="#i-film"/></svg><span><span class="nw">2026-09-28_</span><wbr><span class="nw">23-30-00_VALORANT.mp4</span></span></a></li>
+      <li><a href="#tour"><svg class="ic"><use href="#i-play"/></svg><span>ClipVault tour</span></a></li>
+      <li><a href="#download-card"><svg class="ic"><use href="#i-box"/></svg><span>ClipVault-Setup-1.7.6.exe</span></a></li>
+    </ul>
+    <p class="panel-note">The people in #clips are fictional.</p>
+   </div>
+  </aside>
+</div>
+
+<dialog class="lightbox" aria-label="Screenshot">
+  <form method="dialog"><button class="lb-close" aria-label="Close"><svg class="ic"><use href="#i-x"/></svg></button></form>
+  <img alt="">
+  <p class="lb-cap"></p>
+</dialog>
+</body>
+</html>

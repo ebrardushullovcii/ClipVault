@@ -1,19 +1,23 @@
 """Builds a standalone, deployable copy of one landing page.
 
-  python build-deploy.py 08-thread https://clipvault.netlify.app
+  python build-deploy.py 08-thread https://getclipvault.netlify.app [out-dir]
 
-Copies the page's index.html/style.css/script.js into ../.out/deploy/<folder>, copies only the
-assets it references, rewrites ../assets/ to assets/, and adds social preview tags.
+Copies the page's index.html/style.css/script.js into out-dir (default ../.out/deploy/<folder>),
+copies only the assets it references, rewrites ../assets/ to assets/, and adds social preview tags.
+Netlify runs this from the repo's netlify.toml with out-dir "dist".
 """
 import re
 import shutil
 import sys
 from pathlib import Path
 
-HERE = Path(__file__).parent
+HERE = Path(__file__).parent.resolve()
 folder, base_url = sys.argv[1], sys.argv[2].rstrip('/')
 src = HERE / folder
-out = HERE.parent / '.out' / 'deploy' / folder
+out = (Path(sys.argv[3]).resolve() if len(sys.argv) > 3 else HERE.parent / '.out' / 'deploy' / folder)
+# The output folder is wiped first, so only allow it inside marketing/.
+if HERE.parent not in out.parents:
+    sys.exit(f'Refusing to write outside marketing/: {out}')
 if out.exists():
     shutil.rmtree(out)
 out.mkdir(parents=True)

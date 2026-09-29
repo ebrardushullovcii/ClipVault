@@ -25,8 +25,10 @@ Product videos and landing page concepts built from the real app. Generated medi
 5. **Landing pages** (`sites/`): `python build-assets.py` makes WebP screenshots, gameplay frames, loops and copies
    the web videos into `sites/assets`. Each concept is a static folder (`01-…` to `10-…`); `BRIEF.md` is the fact
    sheet and rules they follow; `node shoot.mjs <folder>` screenshots a page at desktop and phone widths.
-6. **Deploy** (`sites/build-deploy.py`): `python build-deploy.py 08-thread https://getclipvault.netlify.app` writes a
-   standalone copy (only the assets the page uses, social preview tags, `netlify.toml`) to `.out/deploy/08-thread`.
-   The live site is the #clips concept on Netlify project `getclipvault` (team `ebrardushullovcii`).
+6. **Deploy**: the live site is the #clips concept on Netlify project `getclipvault` (team `ebrardushullovcii`).
+   The repo-root `netlify.toml` has Netlify run `sites/build-deploy.py`, which writes a standalone copy (only the
+   assets the page uses, plus social preview tags) to `sites/dist` and publishes it. Pushes to master that don't
+   touch `marketing/sites` skip the build. For a local copy, run
+   `python build-deploy.py 08-thread https://getclipvault.netlify.app` (output in `.out/deploy/08-thread`).
 
 Messaging: the save hotkey is configurable, so copy says "your hotkey", never leads with F9. Tagline: "Clutch now. Clip later."

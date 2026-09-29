@@ -2,3 +2,4 @@
 .out/
 node_modules/
 capture/fake-backend/*.exe
+sites/dist/

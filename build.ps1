@@ -178,7 +178,8 @@ foreach ($dll in $MinGWDLLs) {
 # Copy tray icon asset used by the backend
 Write-Host "`n[Copy] Copying tray icon asset..."
 $IconAssets = @(
-    @{ Source = Join-Path $ProjectRoot "64x64-2.png"; Destination = Join-Path $DestDir "64x64-2.png" }
+    @{ Source = Join-Path $ProjectRoot "64x64-2.png"; Destination = Join-Path $DestDir "64x64-2.png" },
+    @{ Source = Join-Path $ProjectRoot "ui/public/icons/tray.ico"; Destination = Join-Path $DestDir "tray.ico" }
 )
 
 foreach ($asset in $IconAssets) {

@@ -88,7 +88,7 @@ def main():
 
     icon = HERE.parent.parent / 'ui' / 'public' / 'icons' / 'icon_256.png'
     shutil.copy2(icon, ASSETS / 'brand' / 'icon-256.png')
-    Image.open(icon).resize((64, 64), Image.LANCZOS).save(ASSETS / 'brand' / 'favicon-64.png')
+    shutil.copy2(HERE.parent.parent / 'assets/brand/web/favicon-64.png', ASSETS / 'brand/favicon-64.png')
 
     (ASSETS / 'manifest.json').write_text(json.dumps(manifest, indent=1))
     print('assets ready:', sum(1 for _ in ASSETS.rglob('*') if _.is_file()), 'files')

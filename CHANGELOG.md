@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.8.0] - 2026-10-02
+
+### Changed
+
+- Replaced the placeholder branding with a refined ClipVault C and wordmark across the app, Windows executables, taskbar, system tray, shortcuts, installer, and website.
+- Added crisp icons for Windows display scales, transparent and light-background logos, browser and touch icons, and a dedicated sharing card.
+- Exported branding from shared outlined SVG masters so future builds keep the same shapes and colors.
+- Portable executables include their version in the filename.
+
+### Fixed
+
+- Loaded the backend tray icon from a multi-resolution ICO instead of scaling a single PNG.
+- Windows file properties report the ClipVault version instead of Electron's runtime version.
+
 ## [1.7.6] - 2026-09-26
 
 ### Fixed

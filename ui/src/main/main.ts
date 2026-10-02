@@ -67,6 +67,12 @@ const dragIconPaths = [
 
 const dragIconPath = dragIconPaths.find(p => existsSync(p)) || dragIconPaths[0]
 
+const trayIconPaths = [
+  join(process.resourcesPath, 'tray.ico'),
+  join(appDir, '..', '..', 'public', 'icons', 'tray.ico'),
+  ...dragIconPaths,
+]
+
 if (process.platform === 'win32') {
   app.setAppUserModelId('com.clipvault.editor')
 }
@@ -791,8 +797,9 @@ function createTray(): void {
 
   // Try to load an icon
   let icon: Electron.NativeImage | undefined
-  if (existsSync(dragIconPath)) {
-    icon = nativeImage.createFromPath(dragIconPath)
+  const trayIconPath = trayIconPaths.find(p => existsSync(p))
+  if (trayIconPath) {
+    icon = nativeImage.createFromPath(trayIconPath)
     if (icon.isEmpty()) {
       icon = undefined
     }

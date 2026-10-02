@@ -221,8 +221,7 @@ export const Brand: React.FC<{ from: number; size?: number; tagline?: string; su
   return (
     <AbsoluteFill style={{ alignItems: 'center', justifyContent: 'center', fontFamily: FONT, opacity: out }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 30 * size, transform: `scale(${0.9 + 0.1 * s})`, opacity: s }}>
-        <Img src={staticFile('brand/icon.png')} style={{ width: 128 * size, height: 128 * size, filter: 'drop-shadow(0 0 40px rgba(0,212,170,0.45))' }} />
-        <div style={{ fontSize: 118 * size, fontWeight: 800, letterSpacing: -4 * size, color: C.text }}>ClipVault</div>
+        <Img src={staticFile('brand/wordmark.svg')} style={{ width: 680 * size, height: 211 * size, objectFit: 'contain' }} />
       </div>
       {tagline && (
         <div style={{ marginTop: 34 * size, fontSize: 52 * size, fontWeight: 700, color: C.text, opacity: t2, letterSpacing: -1 }}>

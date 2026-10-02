@@ -32,7 +32,19 @@ exports.default = async function afterPack(context) {
       continue
     }
 
-    console.log(`  • rcedit: setting icon on ${path.basename(exePath)}`)
-    await rcedit(exePath, { icon: iconPath })
+    console.log(`  • rcedit: setting ClipVault icon and version on ${path.basename(exePath)}`)
+    await rcedit(exePath, {
+      icon: iconPath,
+      'file-version': context.packager.appInfo.version,
+      'product-version': context.packager.appInfo.version,
+      'version-string': {
+        ProductName: 'ClipVault',
+        FileDescription: target.path.includes(`${path.sep}bin${path.sep}`)
+          ? 'ClipVault Recording Service'
+          : 'ClipVault Editor',
+        CompanyName: 'ClipVault',
+        OriginalFilename: 'ClipVault.exe',
+      },
+    })
   }
 }

@@ -1,6 +1,6 @@
 {
   "name": "clipvault-ui",
-  "version": "1.7.6",
+  "version": "1.8.0",
   "description": "ClipVault Editor UI - Modern video clip library and editor",
   "main": "dist/main/main.js",
   "author": "ClipVault Team",
@@ -86,6 +86,10 @@
       {
         "from": "public/icons/icon.ico",
         "to": "icon.ico"
+      },
+      {
+        "from": "public/icons/tray.ico",
+        "to": "tray.ico"
       }
     ],
     "win": {
@@ -111,13 +115,16 @@
       "installerIcon": "public/icons/icon.ico",
       "uninstallerIcon": "public/icons/icon.ico",
       "installerHeaderIcon": "public/icons/icon.ico",
+      "installerHeader": "../assets/brand/installer/header.bmp",
+      "installerSidebar": "../assets/brand/installer/sidebar.bmp",
+      "uninstallerSidebar": "../assets/brand/installer/sidebar.bmp",
       "shortcutName": "ClipVault",
       "menuCategory": "ClipVault",
       "artifactName": "ClipVault-Setup-${version}.exe",
       "include": "build/installer.nsh"
     },
     "portable": {
-      "artifactName": "ClipVault-Portable.exe"
+      "artifactName": "ClipVault-Portable-${version}.exe"
     }
   }
 }

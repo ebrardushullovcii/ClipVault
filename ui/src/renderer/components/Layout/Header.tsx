@@ -1,12 +1,4 @@
-import {
-  Video,
-  Settings,
-  FolderOpen,
-  Library,
-  RotateCcw,
-  ArrowLeft,
-  ArrowRight,
-} from 'lucide-react'
+import { Settings, FolderOpen, Library, RotateCcw, ArrowLeft, ArrowRight } from 'lucide-react'
 import { APP_VERSION } from '../../../constants/version'
 
 interface HeaderProps {
@@ -49,8 +41,10 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <header className="window-titlebar flex h-14 shrink-0 items-center justify-between border-b border-border bg-background-secondary px-6">
       <div className="flex items-center gap-3">
-        <Video className="h-6 w-6 text-accent-primary" />
-        <h1 className="text-lg font-semibold text-text-primary">ClipVault Editor</h1>
+        <h1 className="flex items-center gap-2 text-lg font-semibold text-text-primary">
+          <img src="./brand/wordmark-dark.svg" alt="ClipVault" className="h-8 w-auto" />
+          <span>Editor</span>
+        </h1>
         <span className="rounded bg-background-tertiary px-2 py-1 text-xs text-text-muted">
           v{APP_VERSION}
         </span>

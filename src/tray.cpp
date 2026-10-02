@@ -166,11 +166,16 @@ bool SystemTray::initialize(HINSTANCE hInstance)
     nid_.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
     nid_.uCallbackMessage = WM_TRAYICON;
 
-    // Load custom icon from PNG file
+    // Use the tray ICO's exact-size image for this Windows display scale.
     std::string exe_dir = get_exe_directory();
-    std::string icon_path = exe_dir + "\\64x64-2.png";
+    std::string icon_path = exe_dir + "\\tray.ico";
     LOG_INFO("Loading tray icon from: " + icon_path);
-    hIcon_ = LoadPngIcon(icon_path);
+    hIcon_ = static_cast<HICON>(LoadImageA(nullptr, icon_path.c_str(), IMAGE_ICON,
+        GetSystemMetrics(SM_CXSMICON), GetSystemMetrics(SM_CYSMICON), LR_LOADFROMFILE));
+    if (!hIcon_) {
+        LOG_WARNING("Failed to load tray ICO (Win32 error " + std::to_string(GetLastError()) + "); trying PNG fallback");
+        hIcon_ = LoadPngIcon(exe_dir + "\\64x64-2.png");
+    }
     if (!hIcon_) {
         LOG_WARNING("Failed to load custom icon from: " + icon_path);
         hIcon_ = LoadIcon(nullptr, IDI_APPLICATION);

@@ -7,6 +7,7 @@ copies only the assets it references, rewrites ../assets/ to assets/, and adds s
 Netlify runs this from the repo's netlify.toml with out-dir "dist".
 """
 import re
+import hashlib
 import shutil
 import sys
 from pathlib import Path
@@ -32,8 +33,13 @@ refs = set()
 for t in texts.values():
     refs.update(re.findall(r'\.\./assets/[\w./-]+', t))
 
-OG_IMAGE = 'assets/video/launch-film.jpg'
+OG_IMAGE = 'assets/brand/social-card.png'
 refs.add('../' + OG_IMAGE)
+# Manifest icon URLs are relative to the manifest, rather than the HTML page.
+refs.update('../assets/brand/' + name for name in [
+    'android-chrome-192.png', 'android-chrome-512.png',
+    'maskable-192.png', 'maskable-512.png',
+])
 missing = []
 for ref in sorted(refs):
     rel = ref[3:]
@@ -55,14 +61,26 @@ og = '\n'.join([
     f'<meta property="og:title" content="{title}">',
     f'<meta property="og:description" content="{desc}">',
     f'<meta property="og:image" content="{base_url}/{OG_IMAGE}">',
-    '<meta property="og:image:width" content="1280">',
-    '<meta property="og:image:height" content="720">',
+    '<meta property="og:image:width" content="1200">',
+    '<meta property="og:image:height" content="630">',
+    '<meta property="og:image:alt" content="ClipVault. Clutch now. Clip later.">',
     '<meta name="twitter:card" content="summary_large_image">',
+    f'<meta name="twitter:image" content="{base_url}/{OG_IMAGE}">',
 ])
 html = html.replace('<!--OG-->', og)
 for name, t in texts.items():
     t = html if name == 'index.html' else t
-    (out / name).write_text(t.replace('../assets/', 'assets/'), encoding='utf-8')
+    t = t.replace('../assets/', 'assets/')
+    # A changed logo or video must refresh even when its old URL is cached.
+    def asset_url(match):
+        url = match.group(0)
+        asset = out / url
+        if not asset.is_file():
+            return url
+        revision = hashlib.sha256(asset.read_bytes()).hexdigest()[:12]
+        return f'{url}?v={revision}'
+    t = re.sub(r'assets/[\w./-]+', asset_url, t)
+    (out / name).write_text(t, encoding='utf-8')
 
 # Static files, no build step.
 (out / 'netlify.toml').write_text('[build]\n  publish = "."\n  command = ""\n')

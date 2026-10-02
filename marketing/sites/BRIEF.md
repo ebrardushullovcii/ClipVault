@@ -5,7 +5,7 @@ Ten landing page concepts for ClipVault, each in its own folder (`01-…` to `10
 
 ## What ClipVault is (verified facts; do not claim anything beyond this list)
 
-- A game clipping tool for **Windows 10 and 11**. Free and open source (GPL-2.0-or-later). Current version **1.7.6**.
+- A game clipping tool for **Windows 10 and 11**. Free and open source (GPL-2.0-or-later). Current version **1.8.0**.
 - Runs in the background with an **always-on replay buffer**. Press your **save hotkey** (F9 by default, changeable) to save the
   **last 2 minutes** (default buffer length, adjustable in Settings) as a normal **MP4** file.
 - The hotkey uses a low-level keyboard hook, so it works while a fullscreen game has focus.
@@ -44,12 +44,12 @@ and the word HOTKEY), never "F9".
 No testimonials, quotes, ratings, user counts, download counts, GitHub stars, "trusted by", press logos,
 awards, benchmarks, "zero FPS impact", AI features, macOS/Linux/console support, cloud sync, mobile apps,
 Discord/YouTube upload integrations, pricing tiers, or roadmap promises. No fake stats. If a design needs
-numbers, use real ones from the list above (2:00, 10 MB, 144 fps, 2 audio tracks, 1.7.6, GPL-2.0, Win 10/11).
+numbers, use real ones from the list above (2:00, 10 MB, 144 fps, 2 audio tracks, 1.8.0, GPL-2.0, Win 10/11).
 
 ## Links
 
 - Download (primary CTA): `https://github.com/ebrardushullovcii/ClipVault/releases/latest`
-  (installer file is `ClipVault-Setup-1.7.6.exe`, Windows 10/11 x64)
+  (installer file is `ClipVault-Setup-1.8.0.exe`, Windows 10/11 x64)
 - Source code: `https://github.com/ebrardushullovcii/ClipVault`
 - License: GPL-2.0-or-later
 

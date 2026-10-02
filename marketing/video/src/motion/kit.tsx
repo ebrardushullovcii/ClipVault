@@ -293,7 +293,6 @@ export const Glass: React.FC<{ children: React.ReactNode; style?: React.CSSPrope
 
 export const Logo: React.FC<{ size?: number }> = ({ size = 1 }) => (
   <div style={{ display: 'flex', alignItems: 'center', gap: 26 * size }}>
-    <Img src={staticFile('brand/icon.png')} style={{ width: 112 * size, height: 112 * size, filter: 'drop-shadow(0 0 36px rgba(0,212,170,0.5))' }} />
-    <div style={{ fontFamily: SANS, fontWeight: 800, fontSize: 104 * size, letterSpacing: -4.5 * size, color: M.ink }}>ClipVault</div>
+    <Img src={staticFile('brand/wordmark.svg')} style={{ width: 640 * size, height: 198 * size, objectFit: 'contain' }} />
   </div>
 )

@@ -9,6 +9,10 @@ const OUT = join(here, '..', '.out')
 const FFMPEG = join(OUT, 'app', 'resources', 'bin', 'ffmpeg.exe')
 const pub = join(here, 'public')
 
+mkdirSync(join(pub, 'brand'), { recursive: true })
+cpSync(join(here, '../../assets/brand/windows/app-256.png'), join(pub, 'brand/icon.png'))
+cpSync(join(here, '../../assets/brand/logos/wordmark-dark.svg'), join(pub, 'brand/wordmark.svg'))
+
 for (const layout of ['wide', 'compact']) {
   mkdirSync(join(pub, 'shots', layout), { recursive: true })
   cpSync(join(OUT, 'shots', layout), join(pub, 'shots', layout), {

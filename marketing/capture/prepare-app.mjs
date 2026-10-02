@@ -30,7 +30,7 @@ for (const entry of readdirSync(unpacked)) {
 const resources = join(out, 'resources')
 const bin = join(resources, 'bin')
 mkdirSync(bin, { recursive: true })
-for (const file of ['64x64.png', 'icon.ico']) {
+for (const file of ['64x64.png', 'icon.ico', 'tray.ico']) {
   copyFileSync(join(unpacked, 'resources', file), join(resources, file))
 }
 for (const exe of ['ffmpeg.exe', 'ffprobe.exe']) {

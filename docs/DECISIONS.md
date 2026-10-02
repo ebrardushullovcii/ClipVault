@@ -16,6 +16,12 @@ Decision: backend or packaging changes should be verified in a packaged Windows 
 
 Why: many failures only appear after Electron resource paths, bundled OBS files, FFmpeg, icons, installer metadata, and backend startup handoff are involved. Dev mode does not exercise all of that.
 
+### Export Branding From Outlined Vector Masters
+
+Decision: app, Windows, installer, and website branding is exported from the shared SVG masters under `assets/brand/source/`. Use a simpler C and solid turquoise symbol at 16 and 20 pixels; retain the play cutout at larger sizes. Use darker turquoise for wordmarks on light backgrounds.
+
+Why: separate generated images drift in shape, alignment, and color. Outlined masters give clean fills and repeatable exports without font dependencies. Small icons need stronger shapes, and light backgrounds need sufficient contrast. Keep action icons and tray ownership unchanged.
+
 ## Capture And OBS
 
 ### Prefer Monitor Capture For Anti-Cheat Safety

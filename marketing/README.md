@@ -27,8 +27,8 @@ Product videos and landing page concepts built from the real app. Generated medi
    sheet and rules they follow; `node shoot.mjs <folder>` screenshots a page at desktop and phone widths.
 6. **Deploy**: the live site is the #clips concept on Netlify project `getclipvault` (team `ebrardushullovcii`).
    The repo-root `netlify.toml` has Netlify run `sites/build-deploy.py`, which writes a standalone copy (only the
-   assets the page uses, plus social preview tags) to `sites/dist` and publishes it. Pushes to master that don't
-   touch `marketing/sites` skip the build. For a local copy, run
+   assets the page uses, plus social preview tags) to `sites/dist` and publishes it. Every push to master rebuilds
+   it; deploy previews that don't touch `marketing/sites` skip the build. For a local copy, run
    `python build-deploy.py 08-thread https://getclipvault.netlify.app` (output in `.out/deploy/08-thread`).
 
 Messaging: the save hotkey is configurable, so copy says "your hotkey", never leads with F9. Tagline: "Clutch now. Clip later."

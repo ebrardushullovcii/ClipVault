@@ -4,5 +4,7 @@
   base = "marketing/sites"
   command = "python3 build-deploy.py 08-thread https://getclipvault.netlify.app dist"
   publish = "dist"
-  # Skip the build when nothing under marketing/sites changed.
-  ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF -- ."
+  # Previews skip the build when nothing under marketing/sites changed. Production always
+  # builds: CACHED_COMMIT_REF can be the PR's preview build, which has the same files as
+  # the merge, so the diff would cancel the release deploy.
+  ignore = "[ \"$CONTEXT\" != \"production\" ] && git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF -- ."

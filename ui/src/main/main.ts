@@ -870,7 +870,8 @@ async function createWindow() {
           titleBarOverlay: {
             color: '#1a1a1a',
             symbolColor: '#ffffff',
-            height: 56,
+            // One pixel short of the h-14 header so its bottom border runs under the controls.
+            height: 55,
           },
         }
       : {}),
@@ -908,16 +909,18 @@ async function createWindow() {
   Menu.setApplicationMenu(null)
 
   // Handle renderer crashes gracefully
-  mainWindow.webContents.on('crashed', (event, killed) => {
-    console.error('Window crashed!', { killed })
-    if (!killed) {
+  mainWindow.webContents.on('render-process-gone', (_event, details) => {
+    console.error('Window crashed!', details)
+    if (details.reason !== 'killed' && details.reason !== 'clean-exit') {
       mainWindow?.reload()
     }
   })
 
   // Handle GPU process crashes
-  app.on('gpu-process-crashed', (event, killed) => {
-    console.error('GPU process crashed!', { killed })
+  app.on('child-process-gone', (_event, details) => {
+    if (details.type === 'GPU') {
+      console.error('GPU process crashed!', details)
+    }
   })
 
   mainWindow.once('ready-to-show', () => {
@@ -3516,7 +3519,7 @@ async function createExportPreviewWindow(filePath: string) {
   exportPreviewWindow.setMenu(null)
 
   // Handle preview window crashes
-  exportPreviewWindow.webContents.on('crashed', () => {
+  exportPreviewWindow.webContents.on('render-process-gone', () => {
     console.error('Preview window crashed')
     exportPreviewWindow?.close()
     exportPreviewWindow = null

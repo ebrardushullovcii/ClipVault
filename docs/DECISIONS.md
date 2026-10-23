@@ -205,6 +205,12 @@ Decision: reviews should prioritize packaged Windows behavior, tray/startup/serv
 
 Why: style-only feedback is less valuable than finding concrete failures in the app's main clipping workflow.
 
+### Keep Shipped Dependencies On Supported, Patched Lines
+
+Decision: Electron, chokidar, and anything else bundled into the app stay on a supported release line with no open `npm audit` advisories. Build-only tools may lag when the fix is a large migration. Tailwind 3 stays for now: its remaining advisories (braces/micromatch ReDoS) only run at build time against our own source globs, and the fix is the Tailwind 4 rewrite.
+
+Why: the Electron runtime ships to users and loads local media through `clipvault://`. Build tools never reach users, so for them a known ReDoS is cheaper than a restyle.
+
 ### Keep Documentation Small
 
 Decision: future docs should capture goals, decisions, and user-facing release history. Avoid large command references, API guides, or path inventories unless they record rationale that cannot be inferred from source.

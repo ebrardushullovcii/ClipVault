@@ -1,6 +1,6 @@
 {
   "name": "clipvault-ui",
-  "version": "1.8.0",
+  "version": "1.8.1",
   "description": "ClipVault Editor UI - Modern video clip library and editor",
   "main": "dist/main/main.js",
   "author": "ClipVault Team",
@@ -24,7 +24,7 @@
     "test:ui": "npm run lint && npm run typecheck && npm run format:check"
   },
   "dependencies": {
-    "chokidar": "^3.6.0",
+    "chokidar": "^4.0.3",
     "fluent-ffmpeg": "^2.1.2",
     "zustand": "^4.4.7"
   },
@@ -34,11 +34,10 @@
     "@types/node": "^20.10.0",
     "@types/react": "^18.2.45",
     "@types/react-dom": "^18.2.18",
-    "@vitejs/plugin-react": "^4.2.1",
+    "@vitejs/plugin-react": "^5.2.0",
     "autoprefixer": "^10.4.16",
-    "electron": "^27.1.3",
-    "electron-builder": "^24.9.1",
-    "electron-rebuild": "^3.2.9",
+    "electron": "^44.9.3",
+    "electron-builder": "^26.15.3",
     "eslint": "^9.39.2",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.5",
@@ -54,8 +53,8 @@
     "tailwindcss": "^3.4.0",
     "typescript": "^5.3.3",
     "typescript-eslint": "^8.54.0",
-    "vite": "^5.0.10",
-    "vite-plugin-electron": "^0.28.1",
+    "vite": "^7.3.7",
+    "vite-plugin-electron": "^0.29.1",
     "vite-plugin-electron-renderer": "^0.14.5"
   },
   "build": {
@@ -105,7 +104,9 @@
       "verifyUpdateCodeSignature": false,
       "signAndEditExecutable": false,
       "forceCodeSigning": false,
-      "publisherName": "ClipVault"
+      "signtoolOptions": {
+        "publisherName": "ClipVault"
+      }
     },
     "nsis": {
       "oneClick": false,

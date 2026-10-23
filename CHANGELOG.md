@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.8.1] - 2026-10-23
+
+### Security
+
+- Updated Electron from 27 to 44.9.3, a supported release line with current Chromium and Node security fixes.
+- Updated electron-builder, chokidar, Vite, sharp, and transitive packages to patched versions.
+
+### Fixed
+
+- The header's bottom border now runs under the Windows minimize, maximize, and close buttons.
+
 ## [1.8.0] - 2026-10-02
 
 ### Changed

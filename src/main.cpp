@@ -507,6 +507,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         return 1;
     }
 
+    replay.set_save_accepted_callback([clip_sound_path]() {
+        if (clipvault::ConfigManager::instance().ui().play_sound) {
+            play_clip_sound(clip_sound_path);
+        }
+    });
+
     const HWINEVENTHOOK game_window_events = watch_game_window_events();
     check_capture_state(nullptr, 0, 0, 0);
     const UINT_PTR capture_timer = SetTimer(nullptr, 0, 250, check_capture_state);
@@ -616,11 +622,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
         // Set callback for when clip is saved
         const auto& ui_config = clipvault::ConfigManager::instance().ui();
-        replay.set_save_callback([clip_sound_path, &ui_config](const std::string& path, bool success) {
+        replay.set_save_callback([&ui_config](const std::string& path, bool success) {
             if (success) {
-                if (ui_config.play_sound) {
-                    play_clip_sound(clip_sound_path);
-                }
                 if (ui_config.show_notifications) {
                     clipvault::SystemTray::instance().show_notification("Clip Saved", "Saved to: " + path);
                 }
@@ -669,12 +672,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         }
 
         // Set callback for when clip is saved (log only, no UI)
-        const auto& bg_ui_config = clipvault::ConfigManager::instance().ui();
-        replay.set_save_callback([clip_sound_path, &bg_ui_config](const std::string& path, bool success) {
+        replay.set_save_callback([](const std::string& path, bool success) {
             if (success) {
-                if (bg_ui_config.play_sound) {
-                    play_clip_sound(clip_sound_path);
-                }
                 LOG_INFO("Clip saved to: " + path);
             } else {
                 LOG_ERROR("Failed to save clip");

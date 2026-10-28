@@ -54,6 +54,10 @@ public:
     using SaveCallback = std::function<void(const std::string& path, bool success)>;
     void set_save_callback(SaveCallback callback) { save_callback_ = callback; }
 
+    // Acknowledge an accepted request without waiting for MP4 finalization.
+    using SaveAcceptedCallback = std::function<void()>;
+    void set_save_accepted_callback(SaveAcceptedCallback callback) { save_accepted_callback_ = callback; }
+
     // Debug: log pipeline statistics
     void log_pipeline_stats();
 
@@ -85,6 +89,7 @@ private:
     std::string current_game_;  // Game name for next save operation (protected by mutex)
     mutable std::mutex current_game_mutex_;
     SaveCallback save_callback_;
+    SaveAcceptedCallback save_accepted_callback_;
 
     // Render thread (for periodic health checks - OBS handles frame production)
     std::thread render_thread_;

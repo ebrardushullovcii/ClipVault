@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.8.2] - 2026-10-28
+
+### Fixed
+
+- Play the clip sound as soon as a save request is accepted, instead of waiting for OBS to finish writing the MP4. Rejected or already-pending requests stay silent, and the saved notification still waits for completion.
+
 ## [1.8.1] - 2026-10-23
 
 ### Security

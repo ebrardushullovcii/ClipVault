@@ -569,6 +569,11 @@ bool ReplayManager::save_clip()
     }
     
     LOG_INFO("[REPLAY] Save procedure called successfully!");
+    if (save_accepted_callback_) {
+        save_accepted_callback_();
+        LOG_INFO("[PERF] Save acknowledged in " +
+            std::to_string(GetTickCount64() - save_start_tick_.load()) + " ms");
+    }
     LOG_INFO("[REPLAY] Waiting for 'saved' callback...");
     LOG_INFO("[REPLAY] ==========================================");
 

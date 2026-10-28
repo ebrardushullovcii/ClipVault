@@ -107,6 +107,8 @@ Decision: saving calls the replay buffer procedure handler with `proc_handler_ca
 
 Why: signaling the output directly is not enough for reliable replay saves. OBS can also return a null path in the callback, so the backend keeps a fallback scan for the newest matching MP4 created after save start.
 
+The clip sound acknowledges an accepted save request immediately after the procedure succeeds. It must not wait for MP4 finalization, which can take several seconds. Keep success notifications and file handling on the `saved` callback, and do not play the sound for rejected or already-pending requests.
+
 ### Render Thread Is A Health Check
 
 Decision: the replay render thread runs periodic health checks instead of rendering at 60 FPS.

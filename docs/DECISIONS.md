@@ -179,6 +179,8 @@ Decision: packaged builds resolve the backend, OBS runtime files, FFmpeg tools, 
 
 Why: path bugs are common when code works in dev but fails after packaging. Check `ui/src/main/main.ts`, `ui/package.json`, `ui/build/afterPack.cjs`, and `build.ps1` together when changing bundled resources.
 
+Build release dependencies in an isolated install. The packaging hook loads the shipped runtime dependencies in Electron's Node mode and excludes fallback to the developer's dependency tree. A shared dependency junction caused the 1.8.3 package to omit transitive modules even though source tests passed; the packaged load check must fail before producing an installer in that situation.
+
 ### Installer, Portable, And Unpacked Outputs Are Different
 
 Decision: `package:win` creates the installer, `package:portable` creates the portable executable, and `ui/release/win-unpacked/ClipVault.exe` is only a smoke-test output.

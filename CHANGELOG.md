@@ -7,7 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.8.3] - 2026-10-30
+## [1.8.4] - 2026-10-30
+
+### Fixed
+
+- Package the complete runtime dependency tree and verify that the packaged app can load it before building release installers. Version 1.8.3 was withdrawn because its installer omitted required dependencies and could not start.
+
+## [1.8.3] - 2026-10-30 (withdrawn)
 
 ### Fixed
 

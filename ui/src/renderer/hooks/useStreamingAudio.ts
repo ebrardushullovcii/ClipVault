@@ -12,6 +12,8 @@ type Playback = {
 const clampVolume = (value: number) =>
   Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : 0
 
+const MAX_AUDIO_DRIFT = 0.06
+
 // Let Chromium buffer compressed audio instead of decoding entire clips into RAM.
 // The silent video is the clock; each track retains its own independent gain.
 export function useStreamingAudio(
@@ -64,7 +66,10 @@ export function useStreamingAudio(
       tracks.forEach(({ audio }) => {
         const time = video.currentTime
         if (Number.isFinite(audio.duration) && time >= audio.duration) return
-        audio.currentTime = time
+        // Resume the existing decoder when it is already aligned. Seeking on
+        // every resume, then again when play() resolves, interrupts AAC output
+        // twice even for the normal few milliseconds of media clock skew.
+        if (Math.abs(audio.currentTime - time) > MAX_AUDIO_DRIFT) audio.currentTime = time
         audio.playbackRate = video.playbackRate
         void audio
           .play()
@@ -73,12 +78,16 @@ export function useStreamingAudio(
               audio.pause()
             } else if (currentGeneration === generation && canPlay()) {
               // Loading or seeking can finish after the video has advanced.
-              if (Math.abs(audio.currentTime - video.currentTime) > 0.005)
+              if (Math.abs(audio.currentTime - video.currentTime) > MAX_AUDIO_DRIFT)
                 audio.currentTime = video.currentTime
             }
           })
           .catch((error: unknown) => {
-            if (!disposed && !(error instanceof DOMException && error.name === 'AbortError'))
+            if (
+              !disposed &&
+              currentGeneration === generation &&
+              !(error instanceof DOMException && error.name === 'AbortError')
+            )
               latest.current.onError()
           })
       })
@@ -95,7 +104,7 @@ export function useStreamingAudio(
       tracks.forEach(({ audio }) => {
         if (audio.paused || audio.seeking || audio.readyState < 2) return
         const drift = audio.currentTime - video.currentTime
-        if (Math.abs(drift) > 0.06) {
+        if (Math.abs(drift) > MAX_AUDIO_DRIFT) {
           audio.currentTime = video.currentTime
         }
         // Repeated fractional rate changes accumulate time-stretcher latency in

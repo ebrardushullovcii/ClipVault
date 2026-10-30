@@ -753,11 +753,13 @@ export const Editor: FC<EditorProps> = ({
     }
 
     const handleEnded = () => {
-      // Video reached the real end — loop to 0 and keep playing
-      video.currentTime = 0
-      insideTrimRef.current = 0 >= trimStart && 0 < trimEnd
-      loopWithinTrimRef.current = 0 >= trimStart && 0 < trimEnd
-      setCurrentTime(0)
+      // Native EOF can fire before the animation-frame trim check. Honor the
+      // same loop intent when the end handle is still at the source duration.
+      const restartTime = loopWithinTrimRef.current ? trimStart : 0
+      video.currentTime = restartTime
+      insideTrimRef.current = restartTime >= trimStart && restartTime < trimEnd
+      loopWithinTrimRef.current = insideTrimRef.current
+      setCurrentTime(restartTime)
       video.play().catch(() => {})
     }
 

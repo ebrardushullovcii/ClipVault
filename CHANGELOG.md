@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.8.3] - 2026-10-30
+
+### Fixed
+
+- Keep looping the selected trim range when its end handle remains at the end of the original video.
+- Avoid redundant audio decoder seeks on pause/resume and ignore stale playback failures from an earlier playback attempt.
+
 ## [1.8.2] - 2026-10-28
 
 ### Fixed

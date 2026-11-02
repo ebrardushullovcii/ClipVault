@@ -29,13 +29,22 @@ Run ClipVault, leave it running in the tray, play normally, then press F9 to sav
 
 Settings are stored at `%APPDATA%\ClipVault\settings.json` and can be changed in the Settings UI.
 
-Release assets include `SHA256SUMS.txt` for verifying downloads.
+The Windows installer and portable downloads are not code-signed, so Windows may show a SmartScreen warning. Release assets include `SHA256SUMS.txt` for verifying downloads.
 
 ## How it is built
 
 A C++ backend uses libobs for capture, encoding and replay-buffer saves. Electron runs the desktop shell and React renders the library and editor. The [architecture decisions](docs/DECISIONS.md) explain the capture pipeline, audio tracks and packaging choices.
 
-`npm test` runs ESLint, TypeScript and formatting checks; it does not run the behavioural regression tests in `ui/tests/`. Those cover editor, audio and packaged-runtime behaviour. Packaged-app checks are separate from static validation; see [Contributing](CONTRIBUTING.md).
+### Project structure
+
+```text
+ClipVault/
+|-- src/           # C++ backend using libobs
+|-- ui/            # Electron + React frontend
+|-- bin/           # Backend build output and bundled runtime source
+|-- config/        # Default settings and game database assets
+\-- docs/          # Product goals and durable technical decisions
+```
 
 ## Building from source
 
@@ -49,16 +58,9 @@ npm run package:portable
 
 Useful scripts are defined in `package.json` and `ui/package.json`.
 
-## Project structure
+## Checks
 
-```text
-ClipVault/
-|-- src/           # C++ backend using libobs
-|-- ui/            # Electron + React frontend
-|-- bin/           # Backend build output and bundled runtime source
-|-- config/        # Default settings and game database assets
-\-- docs/          # Product goals and durable technical decisions
-```
+`npm test` runs ESLint, TypeScript and formatting checks; it does not run the behavioural regression tests in `ui/tests/`. Those cover editor, audio and packaged-runtime behaviour. Packaged-app checks are separate from static validation; see [Contributing](CONTRIBUTING.md).
 
 ## Documentation
 
@@ -66,6 +68,10 @@ ClipVault/
 - [Architecture decisions](docs/DECISIONS.md): durable architecture and implementation rationale.
 - [Changelog](CHANGELOG.md): release history.
 - [Contributing](CONTRIBUTING.md): contributor guidance.
+
+## Contributing
+
+See [Contributing](CONTRIBUTING.md) for focused changes, validation and the pull-request workflow. Repository working rules are in [AGENTS.md](AGENTS.md).
 
 ## License
 

@@ -1,10 +1,12 @@
 # ClipVault
 
-A lightweight game clipping tool for Windows. Press F9 to save the last moments of gameplay as a high-quality MP4 with separate desktop/game audio and microphone tracks.
+A lightweight game clipping tool for Windows. Press F9 to save the last two minutes of gameplay (configurable) as a high-quality MP4 with separate desktop/game audio and microphone tracks.
 
 **[Download for Windows](https://github.com/ebrardushullovcii/ClipVault/releases/latest)** · [Website](https://getclipvault.netlify.app) · [Changelog](CHANGELOG.md)
 
 ![ClipVault library with recent clips, each tagged with its game](marketing/sites/assets/shots/01-library-1600.webp)
+
+_The clip library groups recordings by game and opens them in the editor._
 
 ## Features
 
@@ -21,23 +23,33 @@ A lightweight game clipping tool for Windows. Press F9 to save the last moments 
 - NVIDIA GPU for NVENC, or CPU encoding through x264 fallback.
 - Enough free disk space for local MP4 clips.
 
-## Quick Start
+## Quick start
 
 Run ClipVault, leave it running in the tray, play normally, then press F9 to save a clip. Saved clips appear in the library where they can be edited and exported.
 
 Settings are stored at `%APPDATA%\ClipVault\settings.json` and can be changed in the Settings UI.
 
-## Building From Source
+Release assets include `SHA256SUMS.txt` for verifying downloads.
+
+## How it is built
+
+A C++ backend uses libobs for capture, encoding and replay-buffer saves. Electron runs the desktop shell and React renders the library and editor. The [architecture decisions](docs/DECISIONS.md) explain the capture pipeline, audio tracks and packaging choices.
+
+`npm test` runs ESLint, TypeScript and formatting checks; it does not run the behavioural regression tests in `ui/tests/`. Those cover editor, audio and packaged-runtime behaviour. Packaged-app checks are separate from static validation; see [Contributing](CONTRIBUTING.md).
+
+## Building from source
+
+Use Windows with Node.js/npm, Git, CMake 3.20+ and a MinGW C++ compiler available. The OBS setup script downloads the runtime and source headers needed by the native build.
 
 ```powershell
 npm install
-npm run backend:build
+.\setup-obs.ps1
 npm run package:portable
 ```
 
 Useful scripts are defined in `package.json` and `ui/package.json`.
 
-## Project Structure
+## Project structure
 
 ```text
 ClipVault/
@@ -50,11 +62,10 @@ ClipVault/
 
 ## Documentation
 
-- [AGENTS.md](AGENTS.md): agent guide and repo working rules.
-- [docs/GOALS.md](docs/GOALS.md): product goals, boundaries, and source-of-truth guidance.
-- [docs/DECISIONS.md](docs/DECISIONS.md): durable architecture and implementation rationale.
-- [CHANGELOG.md](CHANGELOG.md): release history.
-- [CONTRIBUTING.md](CONTRIBUTING.md): contributor guidance.
+- [Product goals](docs/GOALS.md): product goals, boundaries, and source-of-truth guidance.
+- [Architecture decisions](docs/DECISIONS.md): durable architecture and implementation rationale.
+- [Changelog](CHANGELOG.md): release history.
+- [Contributing](CONTRIBUTING.md): contributor guidance.
 
 ## License
 

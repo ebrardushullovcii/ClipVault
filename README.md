@@ -2,6 +2,10 @@
 
 A lightweight game clipping tool for Windows. Press F9 to save the last moments of gameplay as a high-quality MP4 with separate desktop/game audio and microphone tracks.
 
+**[Download for Windows](https://github.com/ebrardushullovcii/ClipVault/releases/latest)** · [Website](https://getclipvault.netlify.app) · [Changelog](CHANGELOG.md)
+
+![ClipVault library with recent clips, each tagged with its game](marketing/sites/assets/shots/01-library-1600.webp)
+
 ## Features
 
 - Always-on replay buffer while the app is running.

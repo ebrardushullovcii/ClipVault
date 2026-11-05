@@ -63,7 +63,7 @@ git push -u origin docs/your-change
 
 Never commit directly to `master`, push to `master`, commit, push, tag, or create releases without explicit user permission.
 
-If the user says "commit and PR", include all current changes by default unless they explicitly ask to exclude something.
+If the user says "commit and PR", include only changes for the requested task. Review the diff and stage files explicitly; include unrelated changes only when the user asks.
 
 ## Code Style
 
@@ -81,7 +81,7 @@ TypeScript/React UI:
 - Files: `camelCase.ts`, `PascalCase.tsx`
 - Components: `PascalCase`
 - Hooks: `useCamelCase`
-- Run `npm run format` before committing UI changes.
+- Before committing UI changes, run the project's Prettier formatter only on the changed UI files. Run whole-tree `npm run format` only when explicitly requested.
 
 ## Backend Guardrails
 
